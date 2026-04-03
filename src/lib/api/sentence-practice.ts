@@ -27,17 +27,17 @@ export async function checkAnswer(sentenceId: string, userAnswer: string): Promi
 
   const grammarNotes: string[] = [];
   if (!isCorrect) {
-    if (!answer.includes('the') && target.includes('the')) grammarNotes.push('Article usage: Vietnamese doesn\'t use articles, but English requires "the/a/an"');
+    if (!answer.includes('the') && target.includes('the')) grammarNotes.push('Article usage: Japanese doesn\'t use articles, but English requires "the/a/an"');
     if (!answer.endsWith('.') && target.endsWith('.')) grammarNotes.push('Punctuation: Remember to end sentences with proper punctuation');
-    if (answer.split(' ').length < target.split(' ').length - 2) grammarNotes.push('Your translation seems too short — you may be missing auxiliary verbs or prepositions');
-    if (grammarNotes.length === 0) grammarNotes.push('Check word order and tense agreement');
+    if (answer.split(' ').length < target.split(' ').length - 2) grammarNotes.push('Your translation seems too short — check for missing particles or auxiliary verbs');
+    if (grammarNotes.length === 0) grammarNotes.push('Check word order, tense, and particle usage (は, が, を, に, で, etc.)');
   }
 
   return {
     isCorrect,
     userAnswer,
     targetSentence: sentence.targetSentence,
-    feedback: isCorrect ? 'Perfect! Your translation is correct.' : `Not quite. The target was: "${sentence.targetSentence}"`,
+    feedback: isCorrect ? 'Perfect! Your translation is correct. よくできました！' : `Not quite. The target was: "${sentence.targetSentence}"`,
     grammarNotes,
   };
 }

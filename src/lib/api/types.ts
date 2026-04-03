@@ -1,4 +1,5 @@
-// ─── Transcript types ────────────────────────────────────────────────────
+// ─── API types ─────────────────────────────────────────────────────────
+
 export interface TokenTimestamp {
   start: number | null;
   end: number | null;
@@ -32,13 +33,13 @@ export interface Flashcard {
   id: string;
   front: string;
   back: string;
+  reading?: string;
   partOfSpeech: PartOfSpeech;
   deckId: string;
-  // SRS fields
-  interval: number;      // days
+  interval: number;
   easeFactor: number;
   repetitions: number;
-  nextReview: string;     // ISO date
+  nextReview: string;
   lastReview: string | null;
 }
 
@@ -89,14 +90,14 @@ export interface TokenizedResult {
 // ─── Sentence Practice ──────────────────────────────────────────────────
 export interface SentencePractice {
   id: string;
-  vietnamese: string;
+  sourceLanguage: string;
   targetSentence: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
-  // SRS fields
   interval: number;
   easeFactor: number;
   repetitions: number;
   nextReview: string;
+  creditCost: number;
 }
 
 export interface PracticeResult {
@@ -107,18 +108,21 @@ export interface PracticeResult {
   grammarNotes: string[];
 }
 
-// ─── Payment / Usage ────────────────────────────────────────────────────
+// ─── Payment / Credits ──────────────────────────────────────────────────
 export interface UserUsage {
-  transcriptionsUsed: number;
-  transcriptionsLimit: number;
-  isPaid: boolean;
+  creditsRemaining: number;
+  dailyCredits: number;
+  creditsUsedToday: number;
+  overageCreditsUsed: number;
   plan: 'free' | 'pro' | 'unlimited';
+  lastRefuel: string;
 }
 
 export interface PricingPlan {
   id: string;
   name: string;
   price: number;
-  transcriptionsPerMonth: number;
+  dailyCredits: number;
+  overage: { pricePerCredit: number; currency: string } | null;
   features: string[];
 }
