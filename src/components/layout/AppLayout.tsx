@@ -46,7 +46,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile header */}
       <div className="flex flex-col flex-1 min-w-0">
         <header className="md:hidden flex items-center justify-between p-3 border-b border-border bg-card">
-          <h1 className="font-display font-bold text-primary">VietLearn</h1>
+          <h1 className="font-display font-bold text-primary">NihonGo</h1>
           <button onClick={() => setMobileOpen(!mobileOpen)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
