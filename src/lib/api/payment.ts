@@ -15,15 +15,26 @@ export async function getPricingPlans(): Promise<PricingPlan[]> {
   return [...mockPricingPlans];
 }
 
-export async function canTranscribe(): Promise<boolean> {
+export async function canSpendCredits(amount: number = 1): Promise<boolean> {
   await delay(100);
-  if (usage.isPaid && usage.transcriptionsLimit === -1) return true;
-  return usage.transcriptionsUsed < usage.transcriptionsLimit;
+  return usage.creditsRemaining >= amount;
 }
 
-export async function incrementUsage(): Promise<UserUsage> {
+export async function spendCredits(amount: number = 1): Promise<UserUsage> {
   await delay(100);
-  usage = { ...usage, transcriptionsUsed: usage.transcriptionsUsed + 1 };
+  if (usage.creditsRemaining >= amount) {
+    usage = { ...usage, creditsRemaining: usage.creditsRemaining - amount, creditsUsedToday: usage.creditsUsedToday + amount };
+  } else {
+    // overage
+    const overage = amount - usage.creditsRemaining;
+    usage = { ...usage, creditsRemaining: 0, creditsUsedToday: usage.creditsUsedToday + amount, overageCreditsUsed: usage.overageCreditsUsed + overage };
+  }
+  return { ...usage };
+}
+
+export async function refuelCredits(): Promise<UserUsage> {
+  await delay(200);
+  usage = { ...usage, creditsRemaining: usage.dailyCredits, creditsUsedToday: 0, lastRefuel: new Date().toISOString() };
   return { ...usage };
 }
 
@@ -32,10 +43,12 @@ export async function subscribeToPlan(planId: string): Promise<UserUsage> {
   const plan = mockPricingPlans.find(p => p.id === planId);
   if (!plan) throw new Error('Plan not found');
   usage = {
-    transcriptionsUsed: 0,
-    transcriptionsLimit: plan.transcriptionsPerMonth,
-    isPaid: plan.price > 0,
+    creditsRemaining: plan.dailyCredits,
+    dailyCredits: plan.dailyCredits,
+    creditsUsedToday: 0,
+    overageCreditsUsed: 0,
     plan: planId as UserUsage['plan'],
+    lastRefuel: new Date().toISOString(),
   };
   return { ...usage };
 }

@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { transcribeVideo } from '@/lib/api/transcription';
-import { canTranscribe, incrementUsage } from '@/lib/api/payment';
+import { canSpendCredits, spendCredits } from '@/lib/api/payment';
 import { TranscriptViewer } from '@/components/transcription/TranscriptViewer';
 import { UsageBadge } from '@/components/transcription/UsageBadge';
 import type { TranscriptionResponse } from '@/lib/api/types';
@@ -19,15 +19,16 @@ export default function TranscribePage() {
     setError('');
     setLoading(true);
     try {
-      const allowed = await canTranscribe();
+      const allowed = await canSpendCredits(1);
       if (!allowed) {
-        setError('You have reached your transcription limit. Upgrade your plan to continue.');
+        setError('Not enough credits. Wait for daily refuel or upgrade your plan.');
+        setLoading(false);
         return;
       }
       const data = await transcribeVideo(url);
-      await incrementUsage();
+      await spendCredits(1);
       setResult(data);
-    } catch (e) {
+    } catch {
       setError('Failed to transcribe video. Please check the URL and try again.');
     } finally {
       setLoading(false);
@@ -38,7 +39,7 @@ export default function TranscribePage() {
     <div className="p-4 md:p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="mb-6">
         <h2 className="font-display font-bold text-2xl text-foreground mb-1">Transcribe Video</h2>
-        <p className="text-sm text-muted-foreground">Paste a YouTube URL to generate a transcript with word-level timestamps.</p>
+        <p className="text-sm text-muted-foreground">Paste a YouTube URL to generate a Japanese transcript with word-level timestamps.</p>
       </div>
 
       <UsageBadge />

@@ -41,6 +41,9 @@ export function FlashcardReview({ card, progress, onRate }: FlashcardReviewProps
             <span className={`text-2xl font-display font-semibold ${flipped ? 'text-primary' : 'text-foreground'}`}>
               {flipped ? card.back : card.front}
             </span>
+            {!flipped && card.reading && (
+              <span className="text-sm text-muted-foreground mt-1">{card.reading}</span>
+            )}
             <span className="text-xs text-muted-foreground mt-3 font-mono">{card.partOfSpeech}</span>
             {!flipped && (
               <span className="text-xs text-muted-foreground mt-4">tap to reveal</span>

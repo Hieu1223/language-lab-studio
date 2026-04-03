@@ -21,8 +21,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar - desktop */}
       <aside className="hidden md:flex flex-col w-56 border-r border-border bg-card flex-shrink-0">
         <div className="p-4 border-b border-border">
-          <h1 className="font-display font-bold text-lg text-primary tracking-tight">VietLearn</h1>
-          <p className="text-xs text-muted-foreground font-mono mt-0.5">transcriber + SRS</p>
+          <h1 className="font-display font-bold text-lg text-primary tracking-tight">NihonGo</h1>
+          <p className="text-xs text-muted-foreground font-mono mt-0.5">日本語 · transcriber + SRS</p>
         </div>
         <nav className="flex-1 py-2 overflow-y-auto">
           {navItems.map(item => {
@@ -46,7 +46,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Mobile header */}
       <div className="flex flex-col flex-1 min-w-0">
         <header className="md:hidden flex items-center justify-between p-3 border-b border-border bg-card">
-          <h1 className="font-display font-bold text-primary">VietLearn</h1>
+          <h1 className="font-display font-bold text-primary">NihonGo</h1>
           <button onClick={() => setMobileOpen(!mobileOpen)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
