@@ -21,8 +21,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar - desktop */}
       <aside className="hidden md:flex flex-col w-56 border-r border-border bg-card flex-shrink-0">
         <div className="p-4 border-b border-border">
-          <h1 className="font-display font-bold text-lg text-primary tracking-tight">VietLearn</h1>
-          <p className="text-xs text-muted-foreground font-mono mt-0.5">transcriber + SRS</p>
+          <h1 className="font-display font-bold text-lg text-primary tracking-tight">NihonGo</h1>
+          <p className="text-xs text-muted-foreground font-mono mt-0.5">日本語 · transcriber + SRS</p>
         </div>
         <nav className="flex-1 py-2 overflow-y-auto">
           {navItems.map(item => {
