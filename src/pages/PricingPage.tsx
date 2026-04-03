@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { getPricingPlans, getUserUsage, subscribeToPlan } from '@/lib/api/payment';
 import type { PricingPlan, UserUsage } from '@/lib/api/types';
 import { PricingCard } from '@/components/pricing/PricingCard';
+import { Zap } from 'lucide-react';
 
 export default function PricingPage() {
   const [plans, setPlans] = useState<PricingPlan[]>([]);
@@ -30,11 +31,13 @@ export default function PricingPage() {
     <div className="p-4 md:p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="text-center mb-8">
         <h2 className="font-display font-bold text-3xl text-foreground mb-2">Choose Your Plan</h2>
-        <p className="text-sm text-muted-foreground">Unlock more transcriptions and features.</p>
+        <p className="text-sm text-muted-foreground">Credits refuel daily. Overage is charged if you use more.</p>
         {usage && (
-          <p className="text-xs font-mono text-muted-foreground mt-2">
-            Current plan: <span className="text-primary uppercase">{usage.plan}</span>
-          </p>
+          <div className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full text-xs font-mono border border-border bg-card text-muted-foreground">
+            <Zap className="w-3 h-3 text-primary" />
+            {usage.creditsRemaining} / {usage.dailyCredits} credits today · <span className="text-primary uppercase">{usage.plan}</span>
+            {usage.overageCreditsUsed > 0 && <span className="text-warning">· {usage.overageCreditsUsed} overage used</span>}
+          </div>
         )}
       </div>
 

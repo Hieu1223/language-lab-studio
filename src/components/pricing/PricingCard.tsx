@@ -1,6 +1,6 @@
 import type { PricingPlan } from '@/lib/api/types';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, Sparkles } from 'lucide-react';
+import { Check, Loader2, Sparkles, Zap } from 'lucide-react';
 
 interface Props {
   plan: PricingPlan;
@@ -24,10 +24,19 @@ export function PricingCard({ plan, isCurrentPlan, isPopular, subscribing, onSub
       )}
 
       <h3 className="font-display font-bold text-lg text-foreground">{plan.name}</h3>
-      <div className="mt-2 mb-4">
+      <div className="mt-2 mb-1">
         <span className="text-3xl font-bold text-foreground">${plan.price}</span>
         {plan.price > 0 && <span className="text-sm text-muted-foreground">/month</span>}
       </div>
+      <div className="flex items-center gap-1 text-xs text-primary font-mono mb-4">
+        <Zap className="w-3 h-3" /> {plan.dailyCredits} credits/day
+      </div>
+
+      {plan.overage && (
+        <p className="text-[10px] text-muted-foreground font-mono mb-3 bg-muted/50 px-2 py-1 rounded">
+          Overage: {plan.overage.currency}{plan.overage.pricePerCredit}/credit beyond daily limit
+        </p>
+      )}
 
       <ul className="space-y-2 flex-1 mb-6">
         {plan.features.map((f, i) => (
