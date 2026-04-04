@@ -23,19 +23,19 @@ export default function TokenizerPage() {
     <div className="p-4 md:p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="mb-6">
         <h2 className="font-display font-bold text-2xl text-foreground mb-1">Tokenizer</h2>
-        <p className="text-sm text-muted-foreground">Break Vietnamese text into tokens with part-of-speech tags and meanings.</p>
+        <p className="text-sm text-muted-foreground">Phân tích văn bản tiếng Nhật thành từng token với từ loại và nghĩa.</p>
       </div>
 
       <Textarea
         value={text}
         onChange={e => setText(e.target.value)}
-        placeholder="Paste Vietnamese text here..."
+        placeholder="Dán văn bản tiếng Nhật vào đây..."
         className="bg-card border-border mb-3 min-h-[120px]"
       />
 
       <Button onClick={handleTokenize} disabled={loading || !text.trim()} className="gap-2">
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Type className="w-4 h-4" />}
-        Tokenize
+        Phân tích
       </Button>
 
       {result && (
