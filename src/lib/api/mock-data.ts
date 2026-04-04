@@ -1,29 +1,29 @@
-import type { Flashcard, Deck, PublicTranscript, HistoryEntry, SentencePractice, PricingPlan, UserUsage, TokenInfo, PartOfSpeech } from './types';
+import type { Flashcard, Deck, PublicTranscript, HistoryEntry, SentencePractice, CreditPack, UserUsage, TokenInfo, PartOfSpeech, GrammarCard, TranscriptionResponse } from './types';
 
-// ─── Flashcards & Decks ────────────────────────────────────────────────
+// ─── Flashcards & Decks (JP → VN) ──────────────────────────────────────
 const POS_LIST: PartOfSpeech[] = ['noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition', 'conjunction', 'particle', 'classifier', 'interjection'];
 
 const sampleWords: { front: string; back: string; reading: string; pos: PartOfSpeech }[] = [
-  { front: '家', back: 'house', reading: 'いえ', pos: 'noun' },
-  { front: '食べる', back: 'to eat', reading: 'たべる', pos: 'verb' },
-  { front: '美しい', back: 'beautiful', reading: 'うつくしい', pos: 'adjective' },
-  { front: '速く', back: 'quickly', reading: 'はやく', pos: 'adverb' },
-  { front: '私', back: 'I/me', reading: 'わたし', pos: 'pronoun' },
-  { front: 'の中', back: 'inside', reading: 'のなか', pos: 'preposition' },
-  { front: 'と', back: 'and/with', reading: 'と', pos: 'conjunction' },
-  { front: 'か', back: '(question particle)', reading: 'か', pos: 'particle' },
-  { front: '匹', back: '(animal counter)', reading: 'ひき', pos: 'classifier' },
-  { front: 'おい', back: 'hey!', reading: 'おい', pos: 'interjection' },
-  { front: '勉強する', back: 'to study', reading: 'べんきょうする', pos: 'verb' },
-  { front: '本', back: 'book', reading: 'ほん', pos: 'noun' },
-  { front: '大きい', back: 'big', reading: 'おおきい', pos: 'adjective' },
-  { front: 'ゆっくり', back: 'slowly', reading: 'ゆっくり', pos: 'adverb' },
-  { front: 'あなた', back: 'you', reading: 'あなた', pos: 'pronoun' },
-  { front: 'の上', back: 'on/above', reading: 'のうえ', pos: 'preposition' },
-  { front: 'しかし', back: 'however', reading: 'しかし', pos: 'conjunction' },
-  { front: '個', back: '(general counter)', reading: 'こ', pos: 'classifier' },
-  { front: '行く', back: 'to go', reading: 'いく', pos: 'verb' },
-  { front: '人', back: 'person', reading: 'ひと', pos: 'noun' },
+  { front: '家', back: 'nhà', reading: 'いえ', pos: 'noun' },
+  { front: '食べる', back: 'ăn', reading: 'たべる', pos: 'verb' },
+  { front: '美しい', back: 'đẹp', reading: 'うつくしい', pos: 'adjective' },
+  { front: '速く', back: 'nhanh chóng', reading: 'はやく', pos: 'adverb' },
+  { front: '私', back: 'tôi', reading: 'わたし', pos: 'pronoun' },
+  { front: 'の中', back: 'bên trong', reading: 'のなか', pos: 'preposition' },
+  { front: 'と', back: 'và/với', reading: 'と', pos: 'conjunction' },
+  { front: 'か', back: '(trợ từ nghi vấn)', reading: 'か', pos: 'particle' },
+  { front: '匹', back: '(đếm con vật)', reading: 'ひき', pos: 'classifier' },
+  { front: 'おい', back: 'ê! này!', reading: 'おい', pos: 'interjection' },
+  { front: '勉強する', back: 'học', reading: 'べんきょうする', pos: 'verb' },
+  { front: '本', back: 'sách', reading: 'ほん', pos: 'noun' },
+  { front: '大きい', back: 'lớn, to', reading: 'おおきい', pos: 'adjective' },
+  { front: 'ゆっくり', back: 'chậm rãi', reading: 'ゆっくり', pos: 'adverb' },
+  { front: 'あなた', back: 'bạn', reading: 'あなた', pos: 'pronoun' },
+  { front: 'の上', back: 'trên', reading: 'のうえ', pos: 'preposition' },
+  { front: 'しかし', back: 'tuy nhiên', reading: 'しかし', pos: 'conjunction' },
+  { front: '個', back: '(đếm chung)', reading: 'こ', pos: 'classifier' },
+  { front: '行く', back: 'đi', reading: 'いく', pos: 'verb' },
+  { front: '人', back: 'người', reading: 'ひと', pos: 'noun' },
 ];
 
 export const mockFlashcards: Flashcard[] = sampleWords.map((w, i) => ({
@@ -51,56 +51,102 @@ export const mockDecks: Deck[] = POS_LIST.map(pos => {
   };
 });
 
+// ─── Grammar Cards ─────────────────────────────────────────────────────
+export const mockGrammarCards: GrammarCard[] = [
+  { id: 'gc-1', pattern: '〜は〜です', meaning: 'A là B (khẳng định)', example: '私は学生です。', exampleTranslation: 'Tôi là học sinh.', level: 'N5', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-2', pattern: '〜を〜ます', meaning: 'Làm gì đó (tha động từ)', example: 'りんごを食べます。', exampleTranslation: 'Ăn táo.', level: 'N5', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-3', pattern: '〜たい', meaning: 'Muốn làm gì đó', example: '日本に行きたいです。', exampleTranslation: 'Tôi muốn đi Nhật.', level: 'N5', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-4', pattern: '〜ている', meaning: 'Đang làm / trạng thái', example: '今、本を読んでいます。', exampleTranslation: 'Bây giờ đang đọc sách.', level: 'N4', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-5', pattern: '〜たら', meaning: 'Nếu / Khi', example: '雨が降ったら、家にいます。', exampleTranslation: 'Nếu trời mưa, tôi ở nhà.', level: 'N4', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-6', pattern: '〜なければならない', meaning: 'Phải làm gì đó', example: '宿題をしなければなりません。', exampleTranslation: 'Phải làm bài tập.', level: 'N4', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-7', pattern: '〜ようにする', meaning: 'Cố gắng làm gì đó', example: '毎日運動するようにしています。', exampleTranslation: 'Tôi cố gắng tập thể dục mỗi ngày.', level: 'N3', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-8', pattern: '〜てしまう', meaning: 'Hoàn thành / tiếc nuối', example: 'ケーキを全部食べてしまいました。', exampleTranslation: 'Đã ăn hết bánh rồi.', level: 'N3', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+];
+
+// ─── Transcriptions with thumbnail/source/status ────────────────────────
+const mockSegments = [
+  { text: 'みなさん、こんにちは。今日は日本語を勉強しましょう。', words: [
+    { start: 0, end: 0.8, token: 'みなさん、' }, { start: 0.8, end: 1.5, token: 'こんにちは。' },
+    { start: 1.5, end: 2, token: '今日は' }, { start: 2, end: 2.8, token: '日本語を' },
+    { start: 2.8, end: 3.5, token: '勉強' }, { start: 3.5, end: 4, token: 'しましょう。' },
+  ]},
+  { text: 'この授業はとても面白くて役に立ちます。', words: [
+    { start: 4, end: 4.5, token: 'この' }, { start: 4.5, end: 5, token: '授業は' },
+    { start: 5, end: 5.5, token: 'とても' }, { start: 5.5, end: 6.2, token: '面白くて' },
+    { start: 6.2, end: 6.8, token: '役に' }, { start: 6.8, end: 7.3, token: '立ちます。' },
+  ]},
+];
+
+export const mockTranscriptions: TranscriptionResponse[] = [
+  {
+    id: 'tr-1', videoUrl: 'https://youtube.com/watch?v=abc123', title: 'Bài học tiếng Nhật cho người mới bắt đầu',
+    thumbnailUrl: 'https://img.youtube.com/vi/abc123/mqdefault.jpg', sourceSite: 'youtube', status: 'completed',
+    transcript: { segments: mockSegments }, createdAt: '2026-04-01T10:00:00Z', isPublic: false, userId: 'current-user', language: 'ja',
+  },
+  {
+    id: 'tr-2', videoUrl: 'https://youtube.com/watch?v=def456', title: 'Từ vựng nấu ăn - 料理の単語',
+    thumbnailUrl: 'https://img.youtube.com/vi/def456/mqdefault.jpg', sourceSite: 'youtube', status: 'completed',
+    transcript: { segments: mockSegments }, createdAt: '2026-03-28T14:00:00Z', isPublic: true, userId: 'current-user', language: 'ja',
+  },
+  {
+    id: 'tr-3', videoUrl: '', title: 'Ghi âm bài giảng tuần 5',
+    thumbnailUrl: '', sourceSite: 'upload', status: 'processing',
+    transcript: null, createdAt: '2026-04-03T09:00:00Z', isPublic: false, userId: 'current-user', language: 'ja',
+  },
+  {
+    id: 'tr-4', videoUrl: 'https://youtube.com/watch?v=ghi789', title: 'JLPT N3 Listening Practice',
+    thumbnailUrl: 'https://img.youtube.com/vi/ghi789/mqdefault.jpg', sourceSite: 'youtube', status: 'pending',
+    transcript: null, createdAt: '2026-04-04T08:00:00Z', isPublic: false, userId: 'current-user', language: 'ja',
+  },
+];
+
 // ─── Public Transcripts ────────────────────────────────────────────────
 export const mockPublicTranscripts: PublicTranscript[] = [
-  { id: 'pt-1', title: 'Japanese for Beginners - あいさつ', videoUrl: 'https://youtube.com/watch?v=abc123', language: 'ja', createdAt: '2026-03-28T10:00:00Z', userId: 'user-1', userName: 'TanakaLearner', viewCount: 342 },
-  { id: 'pt-2', title: 'Daily Conversations in Tokyo', videoUrl: 'https://youtube.com/watch?v=def456', language: 'ja', createdAt: '2026-03-25T14:00:00Z', userId: 'user-2', userName: 'JapanExplorer', viewCount: 128 },
-  { id: 'pt-3', title: 'Japanese Cooking Show - ラーメン Recipe', videoUrl: 'https://youtube.com/watch?v=ghi789', language: 'ja', createdAt: '2026-03-20T08:00:00Z', userId: 'user-3', userName: 'FoodieJP', viewCount: 567 },
-  { id: 'pt-4', title: 'NHK News - Tech Updates', videoUrl: 'https://youtube.com/watch?v=jkl012', language: 'ja', createdAt: '2026-03-15T16:00:00Z', userId: 'user-1', userName: 'TanakaLearner', viewCount: 89 },
-  { id: 'pt-5', title: 'Learn Japanese Through J-Pop', videoUrl: 'https://youtube.com/watch?v=mno345', language: 'ja', createdAt: '2026-03-10T12:00:00Z', userId: 'user-4', userName: 'MusicLearner', viewCount: 234 },
+  { id: 'pt-1', title: 'Tiếng Nhật cho người mới - あいさつ', videoUrl: 'https://youtube.com/watch?v=abc123', thumbnailUrl: 'https://img.youtube.com/vi/abc123/mqdefault.jpg', sourceSite: 'youtube', language: 'ja', createdAt: '2026-03-28T10:00:00Z', userId: 'user-1', userName: 'TanakaLearner', viewCount: 342 },
+  { id: 'pt-2', title: 'Hội thoại hàng ngày ở Tokyo', videoUrl: 'https://youtube.com/watch?v=def456', thumbnailUrl: 'https://img.youtube.com/vi/def456/mqdefault.jpg', sourceSite: 'youtube', language: 'ja', createdAt: '2026-03-25T14:00:00Z', userId: 'user-2', userName: 'JapanExplorer', viewCount: 128 },
+  { id: 'pt-3', title: 'Chương trình nấu ăn Nhật - ラーメン', videoUrl: 'https://youtube.com/watch?v=ghi789', thumbnailUrl: 'https://img.youtube.com/vi/ghi789/mqdefault.jpg', sourceSite: 'youtube', language: 'ja', createdAt: '2026-03-20T08:00:00Z', userId: 'user-3', userName: 'FoodieJP', viewCount: 567 },
+  { id: 'pt-4', title: 'NHK News - Công nghệ', videoUrl: 'https://youtube.com/watch?v=jkl012', thumbnailUrl: 'https://img.youtube.com/vi/jkl012/mqdefault.jpg', sourceSite: 'youtube', language: 'ja', createdAt: '2026-03-15T16:00:00Z', userId: 'user-1', userName: 'TanakaLearner', viewCount: 89 },
+  { id: 'pt-5', title: 'Học tiếng Nhật qua J-Pop', videoUrl: 'https://youtube.com/watch?v=mno345', thumbnailUrl: 'https://img.youtube.com/vi/mno345/mqdefault.jpg', sourceSite: 'youtube', language: 'ja', createdAt: '2026-03-10T12:00:00Z', userId: 'user-4', userName: 'MusicLearner', viewCount: 234 },
 ];
 
 // ─── History ────────────────────────────────────────────────────────────
 export const mockHistory: HistoryEntry[] = [
-  { id: 'h-1', videoUrl: 'https://youtube.com/watch?v=abc123', title: 'Japanese Greetings - あいさつ', createdAt: '2026-04-02T09:00:00Z', language: 'ja' },
-  { id: 'h-2', videoUrl: 'https://youtube.com/watch?v=def456', title: 'Market Conversations - 買い物', createdAt: '2026-04-01T15:00:00Z', language: 'ja' },
-  { id: 'h-3', videoUrl: 'https://youtube.com/watch?v=ghi789', title: 'Ramen Recipe Tutorial', createdAt: '2026-03-30T11:00:00Z', language: 'ja' },
+  { id: 'h-1', videoUrl: 'https://youtube.com/watch?v=abc123', title: 'Chào hỏi tiếng Nhật - あいさつ', createdAt: '2026-04-02T09:00:00Z', language: 'ja' },
+  { id: 'h-2', videoUrl: 'https://youtube.com/watch?v=def456', title: 'Hội thoại mua sắm - 買い物', createdAt: '2026-04-01T15:00:00Z', language: 'ja' },
+  { id: 'h-3', videoUrl: 'https://youtube.com/watch?v=ghi789', title: 'Hướng dẫn nấu Ramen', createdAt: '2026-03-30T11:00:00Z', language: 'ja' },
 ];
 
-// ─── Sentence Practice ──────────────────────────────────────────────────
+// ─── Sentence Practice (JP ↔ VN) ────────────────────────────────────────
 export const mockSentences: SentencePractice[] = [
-  { id: 'sp-1', sourceLanguage: '私は毎日学校に行きます。', targetSentence: 'I go to school every day.', difficulty: 'beginner', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 1 },
-  { id: 'sp-2', sourceLanguage: 'ラーメンを食べたいですか？', targetSentence: 'Do you want to eat ramen?', difficulty: 'beginner', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 1 },
-  { id: 'sp-3', sourceLanguage: '今日の天気はとても良いです。', targetSentence: 'The weather is very nice today.', difficulty: 'intermediate', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 2 },
-  { id: 'sp-4', sourceLanguage: '私は日本に三年間住んでいます。', targetSentence: 'I have lived in Japan for three years.', difficulty: 'intermediate', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 2 },
-  { id: 'sp-5', sourceLanguage: '雨が降ったら、家にいます。', targetSentence: 'If it rains, we will stay at home.', difficulty: 'advanced', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 3 },
+  { id: 'sp-1', japanese: '私は毎日学校に行きます。', vietnamese: 'Tôi đi học mỗi ngày.', difficulty: 'beginner', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 1 },
+  { id: 'sp-2', japanese: 'ラーメンを食べたいですか？', vietnamese: 'Bạn có muốn ăn ramen không?', difficulty: 'beginner', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 1 },
+  { id: 'sp-3', japanese: '今日の天気はとても良いです。', vietnamese: 'Thời tiết hôm nay rất tốt.', difficulty: 'intermediate', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 2 },
+  { id: 'sp-4', japanese: '私は日本に三年間住んでいます。', vietnamese: 'Tôi đã sống ở Nhật ba năm.', difficulty: 'intermediate', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 2 },
+  { id: 'sp-5', japanese: '雨が降ったら、家にいます。', vietnamese: 'Nếu trời mưa, tôi ở nhà.', difficulty: 'advanced', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), creditCost: 3 },
 ];
 
-// ─── Pricing (credit-based, daily refuel) ───────────────────────────────
-export const mockPricingPlans: PricingPlan[] = [
-  { id: 'free', name: 'Free', price: 0, dailyCredits: 5, overage: null, features: ['5 credits/day (refueled daily)', 'Basic flashcards', 'Public transcript access', '1 credit = 1 transcription or practice'] },
-  { id: 'pro', name: 'Pro', price: 9.99, dailyCredits: 25, overage: { pricePerCredit: 0.10, currency: '$' }, features: ['25 credits/day', 'Overage at $0.10/credit', 'Unlimited flashcards', 'Priority processing', 'Export transcripts'] },
-  { id: 'unlimited', name: 'Unlimited', price: 29.99, dailyCredits: 100, overage: { pricePerCredit: 0.05, currency: '$' }, features: ['100 credits/day', 'Overage at $0.05/credit', 'All Pro features', 'API access', 'Advanced analytics'] },
+// ─── Credit Packs (on-demand) ───────────────────────────────────────────
+export const mockCreditPacks: CreditPack[] = [
+  { id: 'pack-10', credits: 10, price: 1.99, currency: '$' },
+  { id: 'pack-50', credits: 50, price: 7.99, currency: '$', popular: true },
+  { id: 'pack-100', credits: 100, price: 12.99, currency: '$' },
+  { id: 'pack-500', credits: 500, price: 49.99, currency: '$' },
+  { id: 'pack-1000', credits: 1000, price: 79.99, currency: '$' },
 ];
 
 export const mockUserUsage: UserUsage = {
   creditsRemaining: 3,
-  dailyCredits: 5,
-  creditsUsedToday: 2,
-  overageCreditsUsed: 0,
-  plan: 'free',
-  lastRefuel: new Date().toISOString(),
+  creditsUsedTotal: 12,
 };
 
 // ─── Tokenizer mock ────────────────────────────────────────────────────
 export function mockTokenize(text: string): TokenInfo[] {
-  // Simple mock: split by character groups (rough approximation)
   const segments = text.match(/[\u4e00-\u9faf]+|[\u3040-\u309f]+|[\u30a0-\u30ff]+|[a-zA-Z]+|[^\s]/g) || [];
   const posOptions: PartOfSpeech[] = ['noun', 'verb', 'adjective', 'adverb', 'particle'];
   return segments.map((w, i) => ({
     token: w,
     partOfSpeech: posOptions[i % posOptions.length],
-    meaning: `[meaning of "${w}"]`,
+    meaning: `[nghĩa của "${w}"]`,
     romanization: w,
   }));
 }

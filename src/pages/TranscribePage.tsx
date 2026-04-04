@@ -1,18 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle } from 'lucide-react';
-import { transcribeVideo } from '@/lib/api/transcription';
+import { Loader2, AlertCircle, Plus } from 'lucide-react';
+import { transcribeVideo, getMyTranscriptions } from '@/lib/api/transcription';
 import { canSpendCredits, spendCredits } from '@/lib/api/payment';
-import { TranscriptViewer } from '@/components/transcription/TranscriptViewer';
 import { UsageBadge } from '@/components/transcription/UsageBadge';
+import { TranscriptionListItem } from '@/components/transcription/TranscriptionListItem';
 import type { TranscriptionResponse } from '@/lib/api/types';
 
 export default function TranscribePage() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState<TranscriptionResponse | null>(null);
+  const [transcriptions, setTranscriptions] = useState<TranscriptionResponse[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+
+  useEffect(() => {
+    getMyTranscriptions().then(t => { setTranscriptions(t); setListLoading(false); });
+  }, []);
 
   const handleTranscribe = async () => {
     if (!url.trim()) return;
@@ -21,15 +26,16 @@ export default function TranscribePage() {
     try {
       const allowed = await canSpendCredits(1);
       if (!allowed) {
-        setError('Not enough credits. Wait for daily refuel or upgrade your plan.');
+        setError('Không đủ credit. Hãy mua thêm credit để tiếp tục.');
         setLoading(false);
         return;
       }
       const data = await transcribeVideo(url);
       await spendCredits(1);
-      setResult(data);
+      setTranscriptions(prev => [data, ...prev]);
+      setUrl('');
     } catch {
-      setError('Failed to transcribe video. Please check the URL and try again.');
+      setError('Không thể phiên dịch video. Vui lòng kiểm tra lại URL.');
     } finally {
       setLoading(false);
     }
@@ -38,8 +44,8 @@ export default function TranscribePage() {
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="mb-6">
-        <h2 className="font-display font-bold text-2xl text-foreground mb-1">Transcribe Video</h2>
-        <p className="text-sm text-muted-foreground">Paste a YouTube URL to generate a Japanese transcript with word-level timestamps.</p>
+        <h2 className="font-display font-bold text-2xl text-foreground mb-1">Phiên dịch Video</h2>
+        <p className="text-sm text-muted-foreground">Dán URL YouTube hoặc tải lên video để tạo bản phiên dịch tiếng Nhật.</p>
       </div>
 
       <UsageBadge />
@@ -53,8 +59,8 @@ export default function TranscribePage() {
           onKeyDown={e => e.key === 'Enter' && handleTranscribe()}
         />
         <Button onClick={handleTranscribe} disabled={loading || !url.trim()} className="gap-2">
-          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          Transcribe
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          Phiên dịch
         </Button>
       </div>
 
@@ -65,11 +71,20 @@ export default function TranscribePage() {
         </div>
       )}
 
-      {result && (
-        <div className="mt-6">
-          <TranscriptViewer transcript={result} />
-        </div>
-      )}
+      <div className="mt-6">
+        <h3 className="font-display font-semibold text-foreground mb-3">Các bản phiên dịch của tôi</h3>
+        {listLoading ? (
+          <p className="text-sm text-muted-foreground">Đang tải...</p>
+        ) : transcriptions.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">Chưa có bản phiên dịch nào.</p>
+        ) : (
+          <div className="space-y-2">
+            {transcriptions.map(t => (
+              <TranscriptionListItem key={t.id} transcription={t} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

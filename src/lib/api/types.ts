@@ -15,11 +15,17 @@ export interface TranscriptResult {
   segments: TranscriptSegment[];
 }
 
+export type SourceSite = 'youtube' | 'upload';
+export type TranscriptionStatus = 'pending' | 'processing' | 'completed' | 'failed';
+
 export interface TranscriptionResponse {
   id: string;
   videoUrl: string;
   title: string;
-  transcript: TranscriptResult;
+  thumbnailUrl: string;
+  sourceSite: SourceSite;
+  status: TranscriptionStatus;
+  transcript: TranscriptResult | null;
   createdAt: string;
   isPublic: boolean;
   userId: string;
@@ -53,11 +59,28 @@ export interface Deck {
 
 export type SRSRating = 'again' | 'hard' | 'good' | 'easy';
 
+// ─── Grammar Flashcard ─────────────────────────────────────────────────
+export interface GrammarCard {
+  id: string;
+  pattern: string;
+  meaning: string;
+  example: string;
+  exampleTranslation: string;
+  level: 'N5' | 'N4' | 'N3' | 'N2' | 'N1';
+  interval: number;
+  easeFactor: number;
+  repetitions: number;
+  nextReview: string;
+  lastReview: string | null;
+}
+
 // ─── Public transcripts ─────────────────────────────────────────────────
 export interface PublicTranscript {
   id: string;
   title: string;
   videoUrl: string;
+  thumbnailUrl: string;
+  sourceSite: SourceSite;
   language: string;
   createdAt: string;
   userId: string;
@@ -88,10 +111,12 @@ export interface TokenizedResult {
 }
 
 // ─── Sentence Practice ──────────────────────────────────────────────────
+export type PracticeMode = 'jp-to-vn' | 'vn-to-jp';
+
 export interface SentencePractice {
   id: string;
-  sourceLanguage: string;
-  targetSentence: string;
+  japanese: string;
+  vietnamese: string;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   interval: number;
   easeFactor: number;
@@ -103,7 +128,7 @@ export interface SentencePractice {
 export interface PracticeResult {
   isCorrect: boolean;
   userAnswer: string;
-  targetSentence: string;
+  correctAnswer: string;
   feedback: string;
   grammarNotes: string[];
 }
@@ -111,18 +136,21 @@ export interface PracticeResult {
 // ─── Payment / Credits ──────────────────────────────────────────────────
 export interface UserUsage {
   creditsRemaining: number;
-  dailyCredits: number;
-  creditsUsedToday: number;
-  overageCreditsUsed: number;
-  plan: 'free' | 'pro' | 'unlimited';
-  lastRefuel: string;
+  creditsUsedTotal: number;
 }
 
-export interface PricingPlan {
+export interface CreditPack {
+  id: string;
+  credits: number;
+  price: number;
+  currency: string;
+  popular?: boolean;
+}
+
+// ─── Auth ───────────────────────────────────────────────────────────────
+export interface User {
   id: string;
   name: string;
-  price: number;
-  dailyCredits: number;
-  overage: { pricePerCredit: number; currency: string } | null;
-  features: string[];
+  email: string;
+  avatarUrl?: string;
 }

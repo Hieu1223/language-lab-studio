@@ -5,6 +5,8 @@ interface TranscriptViewerProps {
 }
 
 export function TranscriptViewer({ transcript }: TranscriptViewerProps) {
+  if (!transcript.transcript) return null;
+
   return (
     <div className="bg-card border border-border rounded-lg p-4">
       <div className="flex items-center justify-between mb-4">

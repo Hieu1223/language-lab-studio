@@ -1,20 +1,29 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Video, Search, History, Brain, Type, CreditCard, Menu, X } from 'lucide-react';
+import { BookOpen, Video, Search, History, Brain, Type, CreditCard, Menu, X, BookText, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { useAuth } from '@/lib/auth-context';
 
 const navItems = [
-  { path: '/', label: 'Transcribe', icon: Video },
-  { path: '/flashcards', label: 'Flashcards', icon: BookOpen },
-  { path: '/public', label: 'Public', icon: Search },
-  { path: '/history', label: 'History', icon: History },
-  { path: '/practice', label: 'Practice', icon: Brain },
+  { path: '/', label: 'Phiên dịch', icon: Video },
+  { path: '/vocabulary', label: 'Từ vựng', icon: BookOpen },
+  { path: '/grammar', label: 'Ngữ pháp', icon: BookText },
+  { path: '/public', label: 'Công khai', icon: Search },
+  { path: '/history', label: 'Lịch sử', icon: History },
+  { path: '/practice', label: 'Luyện câu', icon: Brain },
   { path: '/tokenizer', label: 'Tokenizer', icon: Type },
-  { path: '/pricing', label: 'Pricing', icon: CreditCard },
+  { path: '/pricing', label: 'Mua credit', icon: CreditCard },
 ];
+
+// Public pages accessible without login
+const publicPaths = ['/public', '/login'];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, logout } = useAuth();
+
+  // Filter nav items based on auth
+  const visibleNav = user ? navItems : navItems.filter(n => publicPaths.includes(n.path));
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -22,10 +31,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex flex-col w-56 border-r border-border bg-card flex-shrink-0">
         <div className="p-4 border-b border-border">
           <h1 className="font-display font-bold text-lg text-primary tracking-tight">NihonGo</h1>
-          <p className="text-xs text-muted-foreground font-mono mt-0.5">日本語 · transcriber + SRS</p>
+          <p className="text-xs text-muted-foreground font-mono mt-0.5">日本語 · Học tiếng Nhật</p>
         </div>
         <nav className="flex-1 py-2 overflow-y-auto">
-          {navItems.map(item => {
+          {visibleNav.map(item => {
             const active = location.pathname === item.path;
             return (
               <Link
@@ -41,6 +50,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
+        {user && (
+          <div className="p-3 border-t border-border">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground truncate">{user.name}</p>
+              <button onClick={logout} className="p-1 text-muted-foreground hover:text-foreground">
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
 
       {/* Mobile header */}
@@ -52,10 +71,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </header>
 
-        {/* Mobile nav dropdown */}
         {mobileOpen && (
           <div className="md:hidden bg-card border-b border-border">
-            {navItems.map(item => {
+            {visibleNav.map(item => {
               const active = location.pathname === item.path;
               return (
                 <Link
@@ -71,6 +89,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            {user && (
+              <button onClick={logout} className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground w-full">
+                <LogOut className="w-4 h-4" /> Đăng xuất
+              </button>
+            )}
           </div>
         )}
 
