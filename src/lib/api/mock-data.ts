@@ -1,4 +1,4 @@
-import type { Flashcard, Deck, PublicTranscript, HistoryEntry, SentencePractice, CreditPack, UserUsage, TokenInfo, PartOfSpeech, GrammarCard, TranscriptionResponse } from './types';
+import type { Flashcard, Deck, PublicTranscript, HistoryEntry, SentencePractice, CreditPack, UserUsage, TokenInfo, PartOfSpeech, GrammarCard, TranscriptionResponse, GrammarDeck, JLPTLevel } from './types';
 
 // ─── Flashcards & Decks (JP → VN) ──────────────────────────────────────
 const POS_LIST: PartOfSpeech[] = ['noun', 'verb', 'adjective', 'adverb', 'pronoun', 'preposition', 'conjunction', 'particle', 'classifier', 'interjection'];
@@ -63,15 +63,32 @@ export const mockDecks: Deck[] = POS_LIST.map(pos => {
 
 // ─── Grammar Cards ─────────────────────────────────────────────────────
 export const mockGrammarCards: GrammarCard[] = [
-  { id: 'gc-1', pattern: '〜は〜です', meaning: 'A là B (khẳng định)', example: '私は学生です。', exampleTranslation: 'Tôi là học sinh.', level: 'N5', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
-  { id: 'gc-2', pattern: '〜を〜ます', meaning: 'Làm gì đó (tha động từ)', example: 'りんごを食べます。', exampleTranslation: 'Ăn táo.', level: 'N5', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
-  { id: 'gc-3', pattern: '〜たい', meaning: 'Muốn làm gì đó', example: '日本に行きたいです。', exampleTranslation: 'Tôi muốn đi Nhật.', level: 'N5', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
-  { id: 'gc-4', pattern: '〜ている', meaning: 'Đang làm / trạng thái', example: '今、本を読んでいます。', exampleTranslation: 'Bây giờ đang đọc sách.', level: 'N4', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
-  { id: 'gc-5', pattern: '〜たら', meaning: 'Nếu / Khi', example: '雨が降ったら、家にいます。', exampleTranslation: 'Nếu trời mưa, tôi ở nhà.', level: 'N4', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
-  { id: 'gc-6', pattern: '〜なければならない', meaning: 'Phải làm gì đó', example: '宿題をしなければなりません。', exampleTranslation: 'Phải làm bài tập.', level: 'N4', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
-  { id: 'gc-7', pattern: '〜ようにする', meaning: 'Cố gắng làm gì đó', example: '毎日運動するようにしています。', exampleTranslation: 'Tôi cố gắng tập thể dục mỗi ngày.', level: 'N3', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
-  { id: 'gc-8', pattern: '〜てしまう', meaning: 'Hoàn thành / tiếc nuối', example: 'ケーキを全部食べてしまいました。', exampleTranslation: 'Đã ăn hết bánh rồi.', level: 'N3', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-1', pattern: '〜は〜です', meaning: 'A là B (khẳng định)', example: '私は学生です。', exampleTranslation: 'Tôi là học sinh.', level: 'N5', deckId: 'gdeck-N5', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-2', pattern: '〜を〜ます', meaning: 'Làm gì đó (tha động từ)', example: 'りんごを食べます。', exampleTranslation: 'Ăn táo.', level: 'N5', deckId: 'gdeck-N5', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-3', pattern: '〜たい', meaning: 'Muốn làm gì đó', example: '日本に行きたいです。', exampleTranslation: 'Tôi muốn đi Nhật.', level: 'N5', deckId: 'gdeck-N5', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-4', pattern: '〜ている', meaning: 'Đang làm / trạng thái', example: '今、本を読んでいます。', exampleTranslation: 'Bây giờ đang đọc sách.', level: 'N4', deckId: 'gdeck-N4', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-5', pattern: '〜たら', meaning: 'Nếu / Khi', example: '雨が降ったら、家にいます。', exampleTranslation: 'Nếu trời mưa, tôi ở nhà.', level: 'N4', deckId: 'gdeck-N4', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-6', pattern: '〜なければならない', meaning: 'Phải làm gì đó', example: '宿題をしなければなりません。', exampleTranslation: 'Phải làm bài tập.', level: 'N4', deckId: 'gdeck-N4', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-7', pattern: '〜ようにする', meaning: 'Cố gắng làm gì đó', example: '毎日運動するようにしています。', exampleTranslation: 'Tôi cố gắng tập thể dục mỗi ngày.', level: 'N3', deckId: 'gdeck-N3', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
+  { id: 'gc-8', pattern: '〜てしまう', meaning: 'Hoàn thành / tiếc nuối', example: 'ケーキを全部食べてしまいました。', exampleTranslation: 'Đã ăn hết bánh rồi.', level: 'N3', deckId: 'gdeck-N3', interval: 1, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(), lastReview: null },
 ];
+
+const JLPT_LEVELS: JLPTLevel[] = ['N5', 'N4', 'N3', 'N2', 'N1'];
+
+export const mockGrammarDecks: GrammarDeck[] = JLPT_LEVELS.map(level => {
+  const levelCards = mockGrammarCards.filter(c => c.level === level);
+  const now = new Date();
+  return {
+    id: `gdeck-${level}`,
+    name: `JLPT ${level}`,
+    level,
+    cardCount: levelCards.length,
+    dueCount: levelCards.filter(c => new Date(c.nextReview) <= now).length,
+    newCount: levelCards.filter(c => !c.lastReview).length,
+    learningCount: levelCards.filter(c => c.lastReview && c.interval <= 7).length,
+    reviewCount: levelCards.filter(c => c.lastReview && c.interval > 7).length,
+  };
+});
 
 // ─── Transcriptions with thumbnail/source/status ────────────────────────
 const mockSegments = [

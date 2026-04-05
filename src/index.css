@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Syne:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,55 +6,55 @@
 
 @layer base {
   :root {
-    --font-display: 'Syne', sans-serif;
+    --font-display: 'Nunito', sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
-    --font-body: 'Inter', sans-serif;
+    --font-body: 'Nunito', sans-serif;
 
-    --background: 210 40% 5%;
-    --foreground: 214 32% 91%;
+    --background: 0 0% 98%;
+    --foreground: 210 11% 15%;
 
-    --card: 212 40% 7%;
-    --card-foreground: 214 32% 91%;
+    --card: 0 0% 100%;
+    --card-foreground: 210 11% 15%;
 
-    --popover: 212 40% 7%;
-    --popover-foreground: 214 32% 91%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 210 11% 15%;
 
-    --primary: 199 89% 60%;
-    --primary-foreground: 210 40% 5%;
+    --primary: 145 63% 42%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 30% 12%;
-    --secondary-foreground: 214 32% 91%;
+    --secondary: 145 30% 94%;
+    --secondary-foreground: 145 63% 30%;
 
-    --muted: 210 25% 15%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 14% 45%;
 
-    --accent: 199 89% 48%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --success: 142 71% 45%;
-    --success-foreground: 210 40% 5%;
+    --success: 145 63% 42%;
+    --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 210 40% 5%;
+    --warning-foreground: 210 11% 15%;
 
-    --border: 210 40% 22%;
-    --border-faint: 210 30% 12%;
-    --input: 210 40% 22%;
-    --ring: 199 89% 60%;
+    --border: 214 20% 88%;
+    --border-faint: 214 15% 93%;
+    --input: 214 20% 88%;
+    --ring: 145 63% 42%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 210 40% 4%;
-    --sidebar-foreground: 215 20% 65%;
-    --sidebar-primary: 199 89% 60%;
-    --sidebar-primary-foreground: 210 40% 5%;
-    --sidebar-accent: 210 25% 15%;
-    --sidebar-accent-foreground: 214 32% 91%;
-    --sidebar-border: 210 40% 22%;
-    --sidebar-ring: 199 89% 60%;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 215 14% 45%;
+    --sidebar-primary: 145 63% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 145 30% 94%;
+    --sidebar-accent-foreground: 145 63% 30%;
+    --sidebar-border: 214 20% 88%;
+    --sidebar-ring: 145 63% 42%;
   }
 }
 
@@ -85,11 +85,14 @@
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
 
 /* Token styles */
-.token { cursor: pointer; border-radius: 3px; padding: 1px 3px; transition: background 0.08s; display: inline; }
-.token:hover { background: hsl(var(--border)); }
-.active-token { background: hsl(var(--primary)) !important; color: hsl(var(--primary-foreground)) !important; border-radius: 3px; }
+.token { cursor: pointer; border-radius: 6px; padding: 2px 4px; transition: background 0.1s; display: inline; }
+.token:hover { background: hsl(var(--secondary)); }
+.active-token { background: hsl(var(--primary)) !important; color: hsl(var(--primary-foreground)) !important; border-radius: 6px; }
+.cloze-hidden { background: hsl(var(--muted)); color: transparent; border-radius: 6px; user-select: none; }
+.cloze-hidden:hover { background: hsl(var(--primary) / 0.2); color: hsl(var(--primary)); }
 
 /* Animations */
 @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
 @keyframes flashIn { 0% { opacity: 0; transform: scale(0.93); } 60% { opacity: 1; transform: scale(1.02); } 100% { transform: scale(1); } }
 @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+@keyframes bounce-subtle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
