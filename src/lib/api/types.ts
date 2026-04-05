@@ -55,23 +55,40 @@ export interface Deck {
   partOfSpeech: PartOfSpeech;
   cardCount: number;
   dueCount: number;
+  newCount: number;
+  learningCount: number;
+  reviewCount: number;
 }
 
 export type SRSRating = 'again' | 'hard' | 'good' | 'easy';
 
 // ─── Grammar Flashcard ─────────────────────────────────────────────────
+export type JLPTLevel = 'N5' | 'N4' | 'N3' | 'N2' | 'N1';
+
 export interface GrammarCard {
   id: string;
   pattern: string;
   meaning: string;
   example: string;
   exampleTranslation: string;
-  level: 'N5' | 'N4' | 'N3' | 'N2' | 'N1';
+  level: JLPTLevel;
+  deckId: string;
   interval: number;
   easeFactor: number;
   repetitions: number;
   nextReview: string;
   lastReview: string | null;
+}
+
+export interface GrammarDeck {
+  id: string;
+  name: string;
+  level: JLPTLevel;
+  cardCount: number;
+  dueCount: number;
+  newCount: number;
+  learningCount: number;
+  reviewCount: number;
 }
 
 // ─── Public transcripts ─────────────────────────────────────────────────
