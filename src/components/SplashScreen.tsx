@@ -1,47 +1,65 @@
+import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
-
-const stages = [
-  'Đang kết nối máy chủ...',
-  'Đang tải dữ liệu ngôn ngữ...',
-  'Đang khởi tạo SRS engine...',
-  'Sẵn sàng!',
-];
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
+
+const stages = [
+  'Đang kết nối máy chủ...',
+  'Tải dữ liệu ngôn ngữ...',
+  'Khởi tạo SRS engine...',
+  'Sẵn sàng!',
+];
 
 export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [stageIdx, setStageIdx] = useState(0);
 
   useEffect(() => {
     if (stageIdx < stages.length - 1) {
-      const t = setTimeout(() => setStageIdx(stageIdx + 1), 800 + Math.random() * 400);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => setStageIdx(stageIdx + 1), 800);
+      return () => clearTimeout(timer);
     } else {
-      const t = setTimeout(onComplete, 600);
-      return () => clearTimeout(t);
+      const timer = setTimeout(onComplete, 600);
+      return () => clearTimeout(timer);
     }
   }, [stageIdx, onComplete]);
 
   return (
-    <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-50">
-      <h1 className="font-display font-bold text-4xl text-primary mb-2">NihonGo</h1>
-      <p className="text-xs text-muted-foreground font-mono mb-8">日本語 · Học tiếng Nhật</p>
-      <Loader2 className="w-6 h-6 text-primary animate-spin mb-4" />
-      <div className="space-y-1 text-center">
-        {stages.slice(0, stageIdx + 1).map((msg, i) => (
-          <p
-            key={i}
-            className={`text-sm font-mono transition-opacity duration-300 ${
-              i === stageIdx ? 'text-foreground' : 'text-muted-foreground/50'
-            }`}
+    <div className="h-screen flex flex-col items-center justify-center bg-background">
+      <motion.div
+        initial={{ scale: 0.8, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="text-center"
+      >
+        <div className="w-20 h-20 rounded-3xl bg-primary flex items-center justify-center mx-auto mb-6 shadow-lg">
+          <span className="text-primary-foreground font-bold text-3xl">日</span>
+        </div>
+        <h1 className="font-display font-extrabold text-3xl text-foreground mb-2">NihonGo</h1>
+        <p className="text-muted-foreground text-sm mb-8">日本語 · Học tiếng Nhật</p>
+
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <motion.p
+            key={stageIdx}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-sm text-muted-foreground font-medium"
           >
-            {i < stageIdx ? '✓' : '→'} {msg}
-          </p>
-        ))}
-      </div>
+            {stages[stageIdx]}
+          </motion.p>
+        </div>
+
+        <div className="w-48 h-1.5 bg-muted rounded-full overflow-hidden mx-auto">
+          <motion.div
+            className="h-full bg-primary rounded-full"
+            initial={{ width: '0%' }}
+            animate={{ width: `${((stageIdx + 1) / stages.length) * 100}%` }}
+            transition={{ duration: 0.5 }}
+          />
+        </div>
+      </motion.div>
     </div>
   );
 }

@@ -1,14 +1,21 @@
-import type { GrammarCard, SRSRating } from './types';
-import { mockGrammarCards } from './mock-data';
+import type { GrammarCard, GrammarDeck, SRSRating } from './types';
+import { mockGrammarCards, mockGrammarDecks } from './mock-data';
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 let cards = [...mockGrammarCards];
 
-export async function getDueGrammarCards(): Promise<GrammarCard[]> {
+export async function getGrammarDecks(): Promise<GrammarDeck[]> {
   await delay(300);
+  return mockGrammarDecks.filter(d => d.cardCount > 0);
+}
+
+export async function getDueGrammarCards(deckId?: string): Promise<GrammarCard[]> {
+  await delay(200);
   const now = new Date();
-  return cards.filter(c => new Date(c.nextReview) <= now);
+  return cards.filter(c =>
+    (!deckId || c.deckId === deckId) && new Date(c.nextReview) <= now
+  );
 }
 
 export async function getAllGrammarCards(): Promise<GrammarCard[]> {
