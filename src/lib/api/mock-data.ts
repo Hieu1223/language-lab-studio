@@ -40,14 +40,24 @@ export const mockFlashcards: Flashcard[] = sampleWords.map((w, i) => ({
   lastReview: new Date(Date.now() - Math.random() * 86400000 * 7).toISOString(),
 }));
 
+function getCardStatus(card: { lastReview: string | null; interval: number }) {
+  if (!card.lastReview) return 'new';
+  if (card.interval <= 7) return 'learning';
+  return 'review';
+}
+
 export const mockDecks: Deck[] = POS_LIST.map(pos => {
-  const cards = mockFlashcards.filter(c => c.partOfSpeech === pos);
+  const posCards = mockFlashcards.filter(c => c.partOfSpeech === pos);
+  const now = new Date();
   return {
     id: `deck-${pos}`,
     name: pos.charAt(0).toUpperCase() + pos.slice(1) + 's',
     partOfSpeech: pos,
-    cardCount: cards.length,
-    dueCount: cards.filter(c => new Date(c.nextReview) <= new Date()).length,
+    cardCount: posCards.length,
+    dueCount: posCards.filter(c => new Date(c.nextReview) <= now).length,
+    newCount: posCards.filter(c => getCardStatus(c) === 'new').length,
+    learningCount: posCards.filter(c => getCardStatus(c) === 'learning').length,
+    reviewCount: posCards.filter(c => getCardStatus(c) === 'review').length,
   };
 });
 
