@@ -1,4 +1,4 @@
-import type { Deck } from '@/lib/api/types';
+import type { FlashcardTopic as Deck } from '@/lib/api/flashcard';
 import { BookOpen } from 'lucide-react';
 
 interface DeckListProps {

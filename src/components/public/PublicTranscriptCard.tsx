@@ -1,4 +1,4 @@
-import type { PublicTranscript } from '@/lib/api/types';
+import type { PublicTranscript } from '@/lib/api/transcription';
 import { Eye, User } from 'lucide-react';
 
 interface Props {

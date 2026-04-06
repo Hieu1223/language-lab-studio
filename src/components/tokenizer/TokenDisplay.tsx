@@ -1,4 +1,4 @@
-import type { TokenizedResult } from '@/lib/api/types';
+import type { TokenizedResult } from '@/lib/api/transcription';
 import { motion } from 'framer-motion';
 
 const POS_COLORS: Record<string, string> = {
