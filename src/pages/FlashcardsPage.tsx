@@ -1,62 +1,107 @@
 import { useEffect, useState } from 'react';
-import { getDecks, getDueCards, reviewCard } from '@/lib/api/flashcards';
-import type { Deck, Flashcard, SRSRating } from '@/lib/api/types';
+import { getAllTopics, getDueCards, reviewCard, toggleTopicSelection, selectAllTopics, addCard } from '@/lib/api/flashcard';
+import type { FlashcardTopic, Flashcard } from '@/lib/api/flashcard';
+import type { SRSRating } from '@/lib/api/common';
 import { DeckList } from '@/components/flashcards/DeckList';
 import { FlashcardReview } from '@/components/flashcards/FlashcardReview';
-import { AddCardForm } from '@/components/flashcards/AddCardForm';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 export default function FlashcardsPage() {
-  const [decks, setDecks] = useState<Deck[]>([]);
+  const [topics, setTopics] = useState<FlashcardTopic[]>([]);
   const [dueCards, setDueCards] = useState<Flashcard[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
-  const [mode, setMode] = useState<'decks' | 'review'>('decks');
+  const [addWord, setAddWord] = useState('');
+  const [mode, setMode] = useState<'topics' | 'review'>('topics');
+  const [undoStack, setUndoStack] = useState<{ card: Flashcard; idx: number }[]>([]);
 
-  useEffect(() => { getDecks().then(setDecks); }, []);
+  useEffect(() => { getAllTopics().then(setTopics); }, []);
 
-  const startReview = async (deckId: string) => {
-    const cards = await getDueCards(deckId);
-    setDueCards(cards);
-    setCurrentIdx(0);
-    setMode('review');
+  const startReview = async (topicIds: string[]) => {
+    const cards = await getDueCards(topicIds);
+    setDueCards(cards); setCurrentIdx(0); setUndoStack([]); setMode('review');
   };
 
   const handleRate = async (rating: SRSRating) => {
     if (currentIdx >= dueCards.length) return;
+    const prev = dueCards[currentIdx];
+    setUndoStack(s => [...s.slice(-19), { card: prev, idx: currentIdx }]);
     await reviewCard(dueCards[currentIdx].id, rating);
     if (currentIdx + 1 < dueCards.length) setCurrentIdx(currentIdx + 1);
-    else { setMode('decks'); getDecks().then(setDecks); }
+    else { setMode('topics'); getAllTopics().then(setTopics); }
   };
 
-  const handleCardAdded = () => { setShowAdd(false); getDecks().then(setDecks); };
+  const handleUndo = () => {
+    const last = undoStack[undoStack.length - 1];
+    if (!last) return;
+    setUndoStack(s => s.slice(0, -1));
+    setCurrentIdx(last.idx);
+    setDueCards(prev => prev.map((c, i) => i === last.idx ? last.card : c));
+  };
+
+  const handleAdd = async () => {
+    if (!addWord.trim()) return;
+    await addCard(addWord.trim(), topics[0]?.id || 'topic-noun', 'col-default');
+    setAddWord(''); setShowAdd(false); getAllTopics().then(setTopics);
+  };
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (mode !== 'review') return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '1') handleRate('again');
+      else if (e.key === '2') handleRate('hard');
+      else if (e.key === '3') handleRate('good');
+      else if (e.key === '4') handleRate('easy');
+      else if (e.key === 'z' && (e.ctrlKey || e.metaKey)) handleUndo();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [mode, currentIdx, dueCards, undoStack]);
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="font-display font-bold text-2xl text-foreground mb-1">Từ vựng</h2>
-          <p className="text-sm text-muted-foreground">Flashcard từ vựng theo từ loại với thuật toán lặp lại ngắt quãng.</p>
+          <p className="text-sm text-muted-foreground">Chọn chủ đề để ôn tập.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => setShowAdd(!showAdd)} className="gap-1.5">
           <Plus className="w-4 h-4" /> Thêm từ
         </Button>
       </div>
 
-      {showAdd && <AddCardForm onAdded={handleCardAdded} onCancel={() => setShowAdd(false)} />}
+      {showAdd && (
+        <div className="bg-card border border-border rounded-2xl p-4 mb-4">
+          <p className="text-xs text-muted-foreground mb-2">Nhập từ tiếng Nhật — nghĩa tự động tạo.</p>
+          <div className="flex gap-2">
+            <Input value={addWord} onChange={e => setAddWord(e.target.value)} placeholder="Từ tiếng Nhật..." className="bg-background border-border rounded-xl" onKeyDown={e => e.key === 'Enter' && handleAdd()} />
+            <Button onClick={handleAdd} size="sm" disabled={!addWord.trim()}>Thêm</Button>
+            <Button onClick={() => setShowAdd(false)} variant="ghost" size="sm">Huỷ</Button>
+          </div>
+        </div>
+      )}
 
-      {mode === 'decks' ? (
-        <DeckList decks={decks} onStartReview={startReview} />
+      {mode === 'topics' ? (
+        <DeckList
+          topics={topics}
+          onStartReview={startReview}
+          onToggleSelect={async (id, sel) => { await toggleTopicSelection(id, sel); getAllTopics().then(setTopics); }}
+          onSelectAll={async (sel) => { await selectAllTopics('col-default', sel); getAllTopics().then(setTopics); }}
+        />
       ) : (
         <div>
-          <Button variant="ghost" size="sm" onClick={() => setMode('decks')} className="mb-4 text-muted-foreground">
-            ← Quay lại
-          </Button>
+          <div className="flex gap-2 mb-4">
+            <Button variant="ghost" size="sm" onClick={() => setMode('topics')} className="text-muted-foreground">← Quay lại</Button>
+            {undoStack.length > 0 && (
+              <Button variant="outline" size="sm" onClick={handleUndo} className="text-xs">↩ Quay lại (Ctrl+Z)</Button>
+            )}
+          </div>
           {dueCards.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-lg mb-2">🎉 Đã ôn hết!</p>
-              <p className="text-sm">Không có thẻ nào cần ôn trong bộ này.</p>
             </div>
           ) : (
             <FlashcardReview card={dueCards[currentIdx]} progress={`${currentIdx + 1} / ${dueCards.length}`} onRate={handleRate} />
