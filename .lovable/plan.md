@@ -1,59 +1,129 @@
-## Changes
 
-### 1. Language: Japanese → Vietnamese (throughout)
-- Update all mock data, labels, and practice modes from EN to VN
+# Kế hoạch tái cấu trúc app học tiếng Nhật
 
-### 2. Transcription List + Detail Pages
-- **TranscribePage**: Show list of transcriptions with thumbnail, source (YouTube/upload), status (pending/completed)
-- **TranscriptDetailPage**: New page (`/transcript/:id`) showing full transcript + actions
-- Update types: add `thumbnailUrl`, `sourceSite`, `status` fields
+## Phase 1: Tái cấu trúc API & Types (nền tảng)
 
-### 3. Simplified Add Card
-- User inputs word + meaning only; backend handles POS, reading, etc.
-- Remove POS selector from form
+### 1.1 Chia API thành thư mục riêng
+Mỗi module có folder riêng với `index.ts`, `types.ts`, `mock-data.ts`:
+- `src/lib/api/transcription/` — Transcript, YouTube, channels
+- `src/lib/api/flashcard/` — Vocab topics, collections, review
+- `src/lib/api/grammar/` — Grammar topics, collections, review  
+- `src/lib/api/manga/` — Manga, chapters, OCR
+- `src/lib/api/practice/` — Sentence practice (4 loại)
+- `src/lib/api/auth/` — Auth, user settings, Google login
+- `src/lib/api/settings/` — Settings save/load, custom server
+- `src/lib/api/common/` — Credits, keep-alive, history
 
-### 4. On-Demand Credit Pricing
-- Replace subscription plans with credit packs (10, 50, 100, 500 credits)
-- Update PricingPage and payment types
+### 1.2 Định nghĩa tất cả models rõ ràng (không optional)
+- Request/Response types cho mọi API endpoint
+- Tất cả fields required, dùng `null` thay vì `undefined`
 
-### 5. Login Page + Auth Guard
-- Simple login page with Google sign-in button (mock)
-- Unregistered users can only access `/public` and `/login`
-- Auth context to track login state
+---
 
-### 6. Splash Screen
-- Show on app load with init stage messages (connecting to backend, loading data, etc.)
+## Phase 2: Transcript & Video Player
 
-### 7. Sentence Practice: 2 Modes
-- JP→VN mode and VN→JP mode with mode selector
+### 2.1 Split-screen video player
+- Bên trái: Video player (play/pause, tua, tốc độ, thời lượng tua tuỳ chỉnh)
+- Bên phải: Synced transcript + side panel (collapse được)
 
-### 8. Grammar Flashcards
-- New `/grammar` page with grammar-specific SRS cards
-- Separate from vocab flashcards
+### 2.2 Cloze 3 chế độ
+- **Classic (random)**: Ẩn ngẫu nhiên, tuỳ chỉnh số từ min/max trong cloze, khoảng cách min/max giữa cloze
+- **Listening**: Che từ đang đọc và xung quanh (luyện nghe)
+- **Reading**: Chỉ hiện từ đang đọc + vài từ quanh (luyện đọc), slider độ rộng + drag offset
 
-### 9. Rename Pages
-- Flashcards → "Vocabulary" in nav
-- New "Grammar" nav item for grammar flashcards
+### 2.3 Transcript features
+- Transcript toàn bộ hoặc một phần video
+- Filter video đã/chưa transcript
+- Tab lịch sử phiên dịch (thay vì trang riêng)
+- Tab transcript công khai (gộp vào phần phiên dịch)
+- Tra từ + lưu vào flashcard
+- Review flashcard từ trong bài
 
-### Files to create:
-- `src/pages/TranscriptDetailPage.tsx`
-- `src/pages/LoginPage.tsx`
-- `src/pages/GrammarPage.tsx`
-- `src/components/SplashScreen.tsx`
-- `src/components/grammar/GrammarCard.tsx`
-- `src/components/transcription/TranscriptionListItem.tsx`
-- `src/lib/api/grammar.ts`
-- `src/lib/auth-context.tsx`
+### 2.4 YouTube browsing
+- Lướt channel, "đăng ký channel" để quick access
+- Hiện video đã transcript vs chưa
 
-### Files to edit:
-- `src/App.tsx` - routes, auth guard, splash
-- `src/components/layout/AppLayout.tsx` - nav items rename
-- `src/pages/TranscribePage.tsx` - list view
-- `src/pages/PracticePage.tsx` - 2 modes
-- `src/pages/PricingPage.tsx` - credit packs
-- `src/components/flashcards/AddCardForm.tsx` - simplify
-- `src/lib/api/types.ts` - new types
-- `src/lib/api/mock-data.ts` - JP→VN data
-- `src/lib/api/payment.ts` - credit packs
-- `src/lib/api/sentence-practice.ts` - 2 modes, VN
-- `src/lib/api/transcription.ts` - list with status/thumbnail
+---
+
+## Phase 3: Manga Reader
+
+### 3.1 Reader improvements
+- Fit trang theo chiều dọc
+- Điều khiển bàn phím/chuột kéo trang
+- OCR overlay đè lên trang (không phải ở dưới)
+
+### 3.2 Side panel phải
+- Tra cứu từ
+- Chatbot
+- OCR → hiện flashcard đã lưu + cho thêm từ mới
+- OCR tốn credit
+
+---
+
+## Phase 4: Flashcard (Từ vựng)
+
+### 4.1 Topic & Collection system (thay Deck)
+- Tạo chủ đề (topic) thay vì deck
+- Collection of topics (mặc định: theo từ loại)
+- Tick chọn topics để review (chọn hết / từng cái)
+- Counter số từ cần review
+
+### 4.2 Review improvements
+- Phím tắt thao tác nhanh
+- Quay lại max 20 từ đã học (phòng nhầm)
+- Thêm từ: chỉ nhập mặt trước (JP), mặt sau tự tạo
+
+### 4.3 Settings cho flashcard
+- Tuỳ chỉnh fields mặt trước/sau
+- Tỉ lệ xuất hiện từ theo topic
+- Số từ mới mỗi topic
+- Preset điều chỉnh
+
+---
+
+## Phase 5: Grammar
+
+### 5.1 Tương tự flashcard
+- Topic & Collection system
+- 2 lựa chọn ôn: flashcard thường + dịch VN→JP
+- Custom deck/topic
+- Thêm ngữ pháp: list phân trang, tick chọn, tìm kiếm, hiện đã thêm
+
+---
+
+## Phase 6: Practice (Luyện dịch)
+
+### 6.1 4 loại luyện tập
+1. Điền từ vào cloze
+2. Điền câu đúng nghĩa (chọn câu đúng)
+3. Dịch JP → VN
+4. Dịch VN → JP
+
+### 6.2 Tuỳ chỉnh
+- Chọn thứ tự các loại
+- Chọn làm loại nào
+- 2 chế độ: VN→JP và JP→VN
+
+---
+
+## Phase 7: Auth & Settings
+
+### 7.1 Auth
+- Đăng ký tài khoản thường
+- Đăng nhập Google
+- Thay đổi thông tin, password, link Google
+
+### 7.2 Settings
+- Custom server (transcript server, AI API key)
+- Keep-alive polling 10 phút (bật/tắt)
+- Lưu/load file cài đặt
+- Side panel cài đặt ở mỗi trang
+- Cài đặt mỗi module (transcript, manga, flashcard, grammar, practice)
+
+### 7.3 Lịch sử
+- Tab lịch sử ở từng trang (không trang riêng)
+- Bỏ trang transcript công khai riêng (gộp vào phiên dịch)
+
+---
+
+## Ước tính: ~50+ files mới/sửa. Đề xuất chia thành 3-4 lần implement.
