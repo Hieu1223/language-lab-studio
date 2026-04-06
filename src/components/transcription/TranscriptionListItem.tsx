@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Youtube, Upload, Loader2, CheckCircle2, Clock, XCircle } from 'lucide-react';
-import type { TranscriptionResponse } from '@/lib/api/types';
+import type { TranscriptionResponse } from '@/lib/api/transcription';
 
 interface TranscriptionListItemProps {
   transcription: TranscriptionResponse;

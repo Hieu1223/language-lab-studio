@@ -1,4 +1,4 @@
-import type { TranscriptionResponse } from '@/lib/api/types';
+import type { TranscriptionResponse } from '@/lib/api/transcription';
 
 interface TranscriptViewerProps {
   transcript: TranscriptionResponse;

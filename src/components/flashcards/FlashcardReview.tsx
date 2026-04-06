@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { Flashcard, SRSRating } from '@/lib/api/types';
+import type { Flashcard } from '@/lib/api/flashcard';
+import type { SRSRating } from '@/lib/api/common';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 
