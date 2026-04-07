@@ -3,9 +3,11 @@ import { getUserUsage } from '@/lib/api/common';
 import type { UserUsage } from '@/lib/api/common';
 import { Zap } from 'lucide-react';
 
+const USER_ID = 'current-user';
+
 export function UsageBadge() {
   const [usage, setUsage] = useState<UserUsage | null>(null);
-  useEffect(() => { getUserUsage().then(setUsage); }, []);
+  useEffect(() => { getUserUsage(USER_ID).then(setUsage); }, []);
   if (!usage) return null;
   const isLow = usage.creditsRemaining <= 1;
   return (

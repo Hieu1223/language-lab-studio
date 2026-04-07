@@ -16,10 +16,8 @@ import GrammarPage from "./pages/GrammarPage";
 import MangaPage from "./pages/MangaPage";
 import MangaDetailPage from "./pages/MangaDetailPage";
 import MangaReaderPage from "./pages/MangaReaderPage";
-import TranslationPracticePage from "./pages/TranslationPracticePage";
 import PublicTranscriptsPage from "./pages/PublicTranscriptsPage";
 import HistoryPage from "./pages/HistoryPage";
-import PracticePage from "./pages/PracticePage";
 import TokenizerPage from "./pages/TokenizerPage";
 import PricingPage from "./pages/PricingPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -54,9 +52,7 @@ function AppRoutes() {
       <Route path="/manga" element={<ProtectedRoute><AppLayout><MangaPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId" element={<ProtectedRoute><AppLayout><MangaDetailPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId/read/:chapterId" element={<ProtectedRoute><MangaReaderPage /></ProtectedRoute>} />
-      <Route path="/translation-practice" element={<ProtectedRoute><AppLayout><TranslationPracticePage /></AppLayout></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><AppLayout><HistoryPage /></AppLayout></ProtectedRoute>} />
-      <Route path="/practice" element={<ProtectedRoute><AppLayout><PracticePage /></AppLayout></ProtectedRoute>} />
       <Route path="/tokenizer" element={<ProtectedRoute><AppLayout><TokenizerPage /></AppLayout></ProtectedRoute>} />
       <Route path="/pricing" element={<ProtectedRoute><AppLayout><PricingPage /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />

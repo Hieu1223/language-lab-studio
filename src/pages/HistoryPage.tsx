@@ -3,19 +3,20 @@ import { getHistory } from '@/lib/api/common';
 import type { HistoryEntry } from '@/lib/api/common';
 import { Clock } from 'lucide-react';
 
+const USER_ID = 'current-user';
+
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
-  useEffect(() => { getHistory(filter).then(h => { setHistory(h); setLoading(false); }); }, [filter]);
+  useEffect(() => { getHistory(USER_ID, filter).then(h => { setHistory(h); setLoading(false); }); }, [filter]);
 
   const tabs = [
     { key: 'all', label: 'Tất cả' },
     { key: 'transcription', label: 'Phiên dịch' },
     { key: 'flashcard', label: 'Từ vựng' },
     { key: 'grammar', label: 'Ngữ pháp' },
-    { key: 'practice', label: 'Luyện tập' },
     { key: 'manga', label: 'Manga' },
   ];
 

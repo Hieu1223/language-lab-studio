@@ -12,12 +12,12 @@ let collections = [...mockCollections];
 let presets = [...mockPresets];
 
 // ─── Collections ────────────────────────────────────────────────────────
-export async function getCollections(): Promise<FlashcardCollection[]> {
+export async function getCollections(userId: string): Promise<FlashcardCollection[]> {
   await delay(200);
   return [...collections];
 }
 
-export async function createCollection(name: string, description: string): Promise<FlashcardCollection> {
+export async function createCollection(userId: string, name: string, description: string): Promise<FlashcardCollection> {
   await delay(300);
   const col: FlashcardCollection = { id: `col-${Date.now()}`, name, description, topicCount: 0, totalCards: 0, isDefault: false };
   collections.push(col);
@@ -25,55 +25,55 @@ export async function createCollection(name: string, description: string): Promi
 }
 
 // ─── Topics ─────────────────────────────────────────────────────────────
-export async function getTopics(collectionId: string): Promise<FlashcardTopic[]> {
+export async function getTopics(userId: string, collectionId: string): Promise<FlashcardTopic[]> {
   await delay(200);
   return topics.filter(t => t.collectionId === collectionId);
 }
 
-export async function getAllTopics(): Promise<FlashcardTopic[]> {
+export async function getAllTopics(userId: string): Promise<FlashcardTopic[]> {
   await delay(200);
   return [...topics];
 }
 
-export async function createTopic(name: string, collectionId: string): Promise<FlashcardTopic> {
+export async function createTopic(userId: string, name: string, collectionId: string): Promise<FlashcardTopic> {
   await delay(300);
   const topic: FlashcardTopic = { id: `topic-${Date.now()}`, name, collectionId, cardCount: 0, dueCount: 0, newCount: 0, learningCount: 0, reviewCount: 0, selected: true, newCardsPerDay: 10, weight: 1 };
   topics.push(topic);
   return topic;
 }
 
-export async function toggleTopicSelection(topicId: string, selected: boolean): Promise<FlashcardTopic> {
+export async function toggleTopicSelection(userId: string, topicId: string, selected: boolean): Promise<FlashcardTopic> {
   await delay(100);
   topics = topics.map(t => t.id === topicId ? { ...t, selected } : t);
   return topics.find(t => t.id === topicId)!;
 }
 
-export async function selectAllTopics(collectionId: string, selected: boolean): Promise<FlashcardTopic[]> {
+export async function selectAllTopics(userId: string, collectionId: string, selected: boolean): Promise<FlashcardTopic[]> {
   await delay(100);
   topics = topics.map(t => t.collectionId === collectionId ? { ...t, selected } : t);
   return topics.filter(t => t.collectionId === collectionId);
 }
 
-export async function updateTopicWeight(topicId: string, weight: number): Promise<FlashcardTopic> {
+export async function updateTopicWeight(userId: string, topicId: string, weight: number): Promise<FlashcardTopic> {
   await delay(100);
   topics = topics.map(t => t.id === topicId ? { ...t, weight } : t);
   return topics.find(t => t.id === topicId)!;
 }
 
-export async function updateTopicNewCards(topicId: string, count: number): Promise<FlashcardTopic> {
+export async function updateTopicNewCards(userId: string, topicId: string, count: number): Promise<FlashcardTopic> {
   await delay(100);
   topics = topics.map(t => t.id === topicId ? { ...t, newCardsPerDay: count } : t);
   return topics.find(t => t.id === topicId)!;
 }
 
 // ─── Cards ──────────────────────────────────────────────────────────────
-export async function getDueCards(topicIds: string[]): Promise<Flashcard[]> {
+export async function getDueCards(userId: string, topicIds: string[]): Promise<Flashcard[]> {
   await delay(200);
   const now = new Date();
   return cards.filter(c => topicIds.includes(c.topicId) && new Date(c.nextReview) <= now);
 }
 
-export async function reviewCard(cardId: string, rating: SRSRating): Promise<Flashcard> {
+export async function reviewCard(userId: string, cardId: string, rating: SRSRating): Promise<Flashcard> {
   await delay(200);
   const card = cards.find(c => c.id === cardId);
   if (!card) throw new Error('Card not found');
@@ -92,7 +92,7 @@ export async function reviewCard(cardId: string, rating: SRSRating): Promise<Fla
   return updated;
 }
 
-export async function addCard(front: string, topicId: string, collectionId: string): Promise<AddFlashcardResponse> {
+export async function addCard(userId: string, front: string, topicId: string, collectionId: string): Promise<AddFlashcardResponse> {
   await delay(500);
   const mockPos: PartOfSpeech[] = ['noun', 'verb', 'adjective', 'particle'];
   const detectedPos = mockPos[Math.floor(Math.random() * mockPos.length)];
@@ -115,7 +115,7 @@ export async function addCard(front: string, topicId: string, collectionId: stri
 }
 
 // ─── Lookup ─────────────────────────────────────────────────────────────
-export async function lookupWord(word: string): Promise<LookupWordResponse> {
+export async function lookupWord(userId: string, word: string): Promise<LookupWordResponse> {
   await delay(400);
   const existing = cards.find(c => c.front === word);
   return {
@@ -130,12 +130,12 @@ export async function lookupWord(word: string): Promise<LookupWordResponse> {
 }
 
 // ─── Presets ─────────────────────────────────────────────────────────────
-export async function getPresets(): Promise<FlashcardPreset[]> {
+export async function getPresets(userId: string): Promise<FlashcardPreset[]> {
   await delay(200);
   return [...presets];
 }
 
-export async function savePreset(preset: FlashcardPreset): Promise<FlashcardPreset> {
+export async function savePreset(userId: string, preset: FlashcardPreset): Promise<FlashcardPreset> {
   await delay(300);
   const idx = presets.findIndex(p => p.id === preset.id);
   if (idx >= 0) presets[idx] = preset;
@@ -143,12 +143,12 @@ export async function savePreset(preset: FlashcardPreset): Promise<FlashcardPres
   return preset;
 }
 
-export async function getFieldConfig(): Promise<FlashcardFieldConfig[]> {
+export async function getFieldConfig(userId: string): Promise<FlashcardFieldConfig[]> {
   await delay(100);
   return [...defaultFieldConfig];
 }
 
-export async function saveFieldConfig(config: FlashcardFieldConfig[]): Promise<FlashcardFieldConfig[]> {
+export async function saveFieldConfig(userId: string, config: FlashcardFieldConfig[]): Promise<FlashcardFieldConfig[]> {
   await delay(200);
   return config;
 }

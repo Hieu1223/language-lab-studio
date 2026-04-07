@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
+const USER_ID = 'current-user';
+
 export default function FlashcardsPage() {
   const [topics, setTopics] = useState<FlashcardTopic[]>([]);
   const [dueCards, setDueCards] = useState<Flashcard[]>([]);
@@ -17,10 +19,11 @@ export default function FlashcardsPage() {
   const [mode, setMode] = useState<'topics' | 'review'>('topics');
   const [undoStack, setUndoStack] = useState<{ card: Flashcard; idx: number }[]>([]);
 
-  useEffect(() => { getAllTopics().then(setTopics); }, []);
+  const reload = () => getAllTopics(USER_ID).then(setTopics);
+  useEffect(() => { reload(); }, []);
 
   const startReview = async (topicIds: string[]) => {
-    const cards = await getDueCards(topicIds);
+    const cards = await getDueCards(USER_ID, topicIds);
     setDueCards(cards); setCurrentIdx(0); setUndoStack([]); setMode('review');
   };
 
@@ -28,9 +31,9 @@ export default function FlashcardsPage() {
     if (currentIdx >= dueCards.length) return;
     const prev = dueCards[currentIdx];
     setUndoStack(s => [...s.slice(-19), { card: prev, idx: currentIdx }]);
-    await reviewCard(dueCards[currentIdx].id, rating);
+    await reviewCard(USER_ID, dueCards[currentIdx].id, rating);
     if (currentIdx + 1 < dueCards.length) setCurrentIdx(currentIdx + 1);
-    else { setMode('topics'); getAllTopics().then(setTopics); }
+    else { setMode('topics'); reload(); }
   };
 
   const handleUndo = () => {
@@ -43,11 +46,10 @@ export default function FlashcardsPage() {
 
   const handleAdd = async () => {
     if (!addWord.trim()) return;
-    await addCard(addWord.trim(), topics[0]?.id || 'topic-noun', 'col-default');
-    setAddWord(''); setShowAdd(false); getAllTopics().then(setTopics);
+    await addCard(USER_ID, addWord.trim(), topics[0]?.id || 'topic-noun', 'col-default');
+    setAddWord(''); setShowAdd(false); reload();
   };
 
-  // Keyboard shortcuts
   useEffect(() => {
     if (mode !== 'review') return;
     const handler = (e: KeyboardEvent) => {
@@ -88,8 +90,8 @@ export default function FlashcardsPage() {
         <DeckList
           topics={topics}
           onStartReview={startReview}
-          onToggleSelect={async (id, sel) => { await toggleTopicSelection(id, sel); getAllTopics().then(setTopics); }}
-          onSelectAll={async (sel) => { await selectAllTopics('col-default', sel); getAllTopics().then(setTopics); }}
+          onToggleSelect={async (id, sel) => { await toggleTopicSelection(USER_ID, id, sel); reload(); }}
+          onSelectAll={async (sel) => { await selectAllTopics(USER_ID, 'col-default', sel); reload(); }}
         />
       ) : (
         <div>

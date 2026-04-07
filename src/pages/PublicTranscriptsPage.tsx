@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { searchPublicTranscripts } from '@/lib/api/public-transcripts';
-import type { PublicTranscript } from '@/lib/api/types';
+import { getPublicTranscripts } from '@/lib/api/transcription';
+import type { PublicTranscript } from '@/lib/api/transcription';
 import { PublicTranscriptCard } from '@/components/public/PublicTranscriptCard';
 import { Search } from 'lucide-react';
 
@@ -13,7 +13,7 @@ export default function PublicTranscriptsPage() {
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(() => {
-      searchPublicTranscripts(query).then(r => { setResults(r); setLoading(false); });
+      getPublicTranscripts(query).then(r => { setResults(r); setLoading(false); });
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);

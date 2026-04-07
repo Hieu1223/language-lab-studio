@@ -1,7 +1,7 @@
-import type { TranscriptionResponse, YouTubeVideo, YouTubeChannel, PublicTranscript, TokenInfo } from './types';
+import type { Transcript, TranscriptionHistory, YouTubeVideo, YouTubeChannel, PublicTranscript, TokenInfo, TranscriptSegment, TranscriptStatus } from './types';
 import type { PartOfSpeech } from '../common/types';
 
-const mockSegments = [
+const mockSegments: TranscriptSegment[] = [
   { text: 'みなさん、こんにちは。今日は日本語を勉強しましょう。', words: [
     { start: 0, end: 0.8, token: 'みなさん、' }, { start: 0.8, end: 1.5, token: 'こんにちは。' },
     { start: 1.5, end: 2, token: '今日は' }, { start: 2, end: 2.8, token: '日本語を' },
@@ -26,11 +26,18 @@ const mockSegments = [
   ]},
 ];
 
-export const mockTranscriptions: TranscriptionResponse[] = [
-  { id: 'tr-1', videoUrl: 'https://youtube.com/watch?v=abc123', title: 'Bài học tiếng Nhật cho người mới bắt đầu', thumbnailUrl: 'https://img.youtube.com/vi/abc123/mqdefault.jpg', sourceSite: 'youtube', status: 'completed', transcript: { segments: mockSegments }, createdAt: '2026-04-01T10:00:00Z', isPublic: false, userId: 'current-user', language: 'ja' },
-  { id: 'tr-2', videoUrl: 'https://youtube.com/watch?v=def456', title: 'Từ vựng nấu ăn - 料理の単語', thumbnailUrl: 'https://img.youtube.com/vi/def456/mqdefault.jpg', sourceSite: 'youtube', status: 'completed', transcript: { segments: mockSegments }, createdAt: '2026-03-28T14:00:00Z', isPublic: true, userId: 'current-user', language: 'ja' },
-  { id: 'tr-3', videoUrl: '', title: 'Ghi âm bài giảng tuần 5', thumbnailUrl: '', sourceSite: 'upload', status: 'processing', transcript: null, createdAt: '2026-04-03T09:00:00Z', isPublic: false, userId: 'current-user', language: 'ja' },
-  { id: 'tr-4', videoUrl: 'https://youtube.com/watch?v=ghi789', title: 'JLPT N3 Listening Practice', thumbnailUrl: 'https://img.youtube.com/vi/ghi789/mqdefault.jpg', sourceSite: 'youtube', status: 'pending', transcript: null, createdAt: '2026-04-04T08:00:00Z', isPublic: false, userId: 'current-user', language: 'ja' },
+export const mockTranscripts: Transcript[] = [
+  { id: 'tr-1', original_source: 'Youtube', resource_id: 'abc123', resource_url: 'https://youtube.com/watch?v=abc123', thumnail_url: 'https://img.youtube.com/vi/abc123/mqdefault.jpg', name: 'Bài học tiếng Nhật cho người mới bắt đầu', date_created: '2026-04-01T10:00:00Z', data: JSON.stringify({ segments: mockSegments }), status: 3, public: false },
+  { id: 'tr-2', original_source: 'Youtube', resource_id: 'def456', resource_url: 'https://youtube.com/watch?v=def456', thumnail_url: 'https://img.youtube.com/vi/def456/mqdefault.jpg', name: 'Từ vựng nấu ăn - 料理の単語', date_created: '2026-03-28T14:00:00Z', data: JSON.stringify({ segments: mockSegments }), status: 3, public: true },
+  { id: 'tr-3', original_source: 'FileUpload', resource_id: null, resource_url: '', thumnail_url: '', name: 'Ghi âm bài giảng tuần 5', date_created: '2026-04-03T09:00:00Z', data: null, status: 2, public: false },
+  { id: 'tr-4', original_source: 'Youtube', resource_id: 'ghi789', resource_url: 'https://youtube.com/watch?v=ghi789', thumnail_url: 'https://img.youtube.com/vi/ghi789/mqdefault.jpg', name: 'JLPT N3 Listening Practice', date_created: '2026-04-04T08:00:00Z', data: null, status: 1, public: false },
+];
+
+export const mockTranscriptionHistories: TranscriptionHistory[] = [
+  { id: 'th-1', transcript_id: 'tr-1', job_status: 'done', queued_at: '2026-04-01T09:58:00Z', started_at: '2026-04-01T09:59:00Z', finished_at: '2026-04-01T10:00:00Z', error: null },
+  { id: 'th-2', transcript_id: 'tr-2', job_status: 'done', queued_at: '2026-03-28T13:58:00Z', started_at: '2026-03-28T13:59:00Z', finished_at: '2026-03-28T14:00:00Z', error: null },
+  { id: 'th-3', transcript_id: 'tr-3', job_status: 'processing', queued_at: '2026-04-03T08:58:00Z', started_at: '2026-04-03T09:00:00Z', finished_at: null, error: null },
+  { id: 'th-4', transcript_id: 'tr-4', job_status: 'queued', queued_at: '2026-04-04T08:00:00Z', started_at: null, finished_at: null, error: null },
 ];
 
 export const mockYouTubeVideos: YouTubeVideo[] = [
@@ -54,9 +61,9 @@ export const mockChannels: YouTubeChannel[] = [
 ];
 
 export const mockPublicTranscripts: PublicTranscript[] = [
-  { id: 'pt-1', title: 'Tiếng Nhật cho người mới - あいさつ', videoUrl: 'https://youtube.com/watch?v=abc123', thumbnailUrl: 'https://img.youtube.com/vi/abc123/mqdefault.jpg', sourceSite: 'youtube', language: 'ja', createdAt: '2026-03-28T10:00:00Z', userId: 'user-1', userName: 'TanakaLearner', viewCount: 342 },
-  { id: 'pt-2', title: 'Hội thoại hàng ngày ở Tokyo', videoUrl: 'https://youtube.com/watch?v=def456', thumbnailUrl: 'https://img.youtube.com/vi/def456/mqdefault.jpg', sourceSite: 'youtube', language: 'ja', createdAt: '2026-03-25T14:00:00Z', userId: 'user-2', userName: 'JapanExplorer', viewCount: 128 },
-  { id: 'pt-3', title: 'Chương trình nấu ăn Nhật - ラーメン', videoUrl: 'https://youtube.com/watch?v=ghi789', thumbnailUrl: 'https://img.youtube.com/vi/ghi789/mqdefault.jpg', sourceSite: 'youtube', language: 'ja', createdAt: '2026-03-20T08:00:00Z', userId: 'user-3', userName: 'FoodieJP', viewCount: 567 },
+  { id: 'pt-1', title: 'Tiếng Nhật cho người mới - あいさつ', videoUrl: 'https://youtube.com/watch?v=abc123', thumbnailUrl: 'https://img.youtube.com/vi/abc123/mqdefault.jpg', sourceSite: 'Youtube', language: 'ja', createdAt: '2026-03-28T10:00:00Z', userId: 'user-1', userName: 'TanakaLearner', viewCount: 342 },
+  { id: 'pt-2', title: 'Hội thoại hàng ngày ở Tokyo', videoUrl: 'https://youtube.com/watch?v=def456', thumbnailUrl: 'https://img.youtube.com/vi/def456/mqdefault.jpg', sourceSite: 'Youtube', language: 'ja', createdAt: '2026-03-25T14:00:00Z', userId: 'user-2', userName: 'JapanExplorer', viewCount: 128 },
+  { id: 'pt-3', title: 'Chương trình nấu ăn Nhật - ラーメン', videoUrl: 'https://youtube.com/watch?v=ghi789', thumbnailUrl: 'https://img.youtube.com/vi/ghi789/mqdefault.jpg', sourceSite: 'Youtube', language: 'ja', createdAt: '2026-03-20T08:00:00Z', userId: 'user-3', userName: 'FoodieJP', viewCount: 567 },
 ];
 
 export const mockTokenSegments = mockSegments;

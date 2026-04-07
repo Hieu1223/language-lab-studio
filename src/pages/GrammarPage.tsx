@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getGrammarTopics, getDueGrammarCards, reviewGrammarCard, browseGrammar, addGrammarToTopic, toggleGrammarTopicSelection, selectAllGrammarTopics } from '@/lib/api/grammar';
 import type { GrammarTopic, GrammarCard, GrammarListItem } from '@/lib/api/grammar';
-import type { SRSRating, JLPTLevel } from '@/lib/api/common';
+import type { SRSRating } from '@/lib/api/common';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, BookText, RotateCcw, Search, Plus, Check } from 'lucide-react';
+import { ArrowLeft, BookText, Search, Plus, Check } from 'lucide-react';
 
+const USER_ID = 'current-user';
 type Mode = 'topics' | 'review' | 'translate' | 'browse';
 
 export default function GrammarPage() {
@@ -16,40 +17,40 @@ export default function GrammarPage() {
   const [mode, setMode] = useState<Mode>('topics');
   const [browseItems, setBrowseItems] = useState<GrammarListItem[]>([]);
   const [browseSearch, setBrowseSearch] = useState('');
-  const [browseLevel, setBrowseLevel] = useState<JLPTLevel | 'all'>('all');
 
-  useEffect(() => { getGrammarTopics('gcol-default').then(setTopics); }, []);
+  const reload = () => getGrammarTopics(USER_ID, 'gcol-default').then(setTopics);
+  useEffect(() => { reload(); }, []);
 
   const startReview = async (reviewMode: 'flashcard' | 'translate') => {
     const selectedIds = topics.filter(t => t.selected).map(t => t.id);
-    const cards = await getDueGrammarCards(selectedIds);
+    const cards = await getDueGrammarCards(USER_ID, selectedIds);
     setDueCards(cards); setCurrentIdx(0); setShowAnswer(false);
     setMode(reviewMode === 'flashcard' ? 'review' : 'translate');
   };
 
   const handleRate = async (rating: SRSRating) => {
-    await reviewGrammarCard(dueCards[currentIdx].id, rating);
+    await reviewGrammarCard(USER_ID, dueCards[currentIdx].id, rating);
     setShowAnswer(false);
     if (currentIdx + 1 < dueCards.length) setCurrentIdx(currentIdx + 1);
-    else { setMode('topics'); getGrammarTopics('gcol-default').then(setTopics); }
+    else { setMode('topics'); reload(); }
   };
 
   const openBrowse = async () => {
-    const result = await browseGrammar(1, 20, '', 'all');
+    const result = await browseGrammar(USER_ID, 1, 20, '');
     setBrowseItems(result.items); setMode('browse');
   };
 
   const handleBrowseSearch = async () => {
-    const result = await browseGrammar(1, 20, browseSearch, browseLevel);
+    const result = await browseGrammar(USER_ID, 1, 20, browseSearch);
     setBrowseItems(result.items);
   };
 
-  useEffect(() => { if (mode === 'browse') handleBrowseSearch(); }, [browseSearch, browseLevel]);
+  useEffect(() => { if (mode === 'browse') handleBrowseSearch(); }, [browseSearch]);
 
   const handleAddToTopic = async (grammarId: string) => {
     const targetTopic = topics.find(t => t.selected) || topics[0];
     if (!targetTopic) return;
-    await addGrammarToTopic(grammarId, targetTopic.id);
+    await addGrammarToTopic(USER_ID, grammarId, targetTopic.id);
     handleBrowseSearch();
   };
 
@@ -62,7 +63,7 @@ export default function GrammarPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="font-display font-bold text-2xl text-foreground mb-1">Ngữ pháp</h2>
-          <p className="text-sm text-muted-foreground">Ôn tập ngữ pháp theo cấp JLPT.</p>
+          <p className="text-sm text-muted-foreground">Ôn tập ngữ pháp tiếng Nhật.</p>
         </div>
         <Button variant="outline" size="sm" onClick={openBrowse} className="gap-1.5 text-xs">
           <Plus className="w-3.5 h-3.5" /> Thêm ngữ pháp
@@ -73,7 +74,7 @@ export default function GrammarPage() {
         <>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <input type="checkbox" checked={selectedCount === topics.length} onChange={e => { selectAllGrammarTopics('gcol-default', e.target.checked); getGrammarTopics('gcol-default').then(setTopics); }} className="rounded" />
+              <input type="checkbox" checked={selectedCount === topics.length && topics.length > 0} onChange={e => { selectAllGrammarTopics(USER_ID, 'gcol-default', e.target.checked).then(() => reload()); }} className="rounded" />
               <span className="text-xs text-muted-foreground font-bold">{selectedCount}/{topics.length} chủ đề · {totalDue} cần ôn</span>
             </div>
             <div className="flex gap-1.5">
@@ -89,7 +90,7 @@ export default function GrammarPage() {
             {topics.map(topic => (
               <div key={topic.id} className={`bg-card border rounded-2xl p-3 ${topic.selected ? 'border-primary/30' : 'border-border opacity-60'}`}>
                 <div className="flex items-center gap-2 mb-2">
-                  <input type="checkbox" checked={topic.selected} onChange={e => { toggleGrammarTopicSelection(topic.id, e.target.checked); getGrammarTopics('gcol-default').then(setTopics); }} className="rounded" />
+                  <input type="checkbox" checked={topic.selected} onChange={e => { toggleGrammarTopicSelection(USER_ID, topic.id, e.target.checked).then(() => reload()); }} className="rounded" />
                   <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                     <BookText className="w-4 h-4 text-primary" />
                   </div>
@@ -118,7 +119,7 @@ export default function GrammarPage() {
             <div className="text-center py-12 text-muted-foreground"><p className="text-lg mb-2">🎉 Đã ôn hết!</p></div>
           ) : (
             <div className="max-w-md mx-auto">
-              <div className="text-xs font-mono text-muted-foreground mb-3 text-center">{currentIdx + 1} / {dueCards.length} · {card.level}</div>
+              <div className="text-xs font-mono text-muted-foreground mb-3 text-center">{currentIdx + 1} / {dueCards.length}</div>
               <div className="bg-card border border-border rounded-2xl p-6 text-center">
                 <p className="text-2xl font-display font-bold text-primary mb-2">{card.pattern}</p>
                 <p className="text-sm text-muted-foreground">{card.meaning}</p>
@@ -155,10 +156,6 @@ export default function GrammarPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input value={browseSearch} onChange={e => setBrowseSearch(e.target.value)} placeholder="Tìm ngữ pháp..." className="pl-9 bg-card border-border rounded-xl" />
             </div>
-            <select value={browseLevel} onChange={e => setBrowseLevel(e.target.value as JLPTLevel | 'all')} className="text-xs bg-card border border-border rounded-xl px-3 text-foreground">
-              <option value="all">Tất cả</option>
-              {(['N5', 'N4', 'N3', 'N2', 'N1'] as JLPTLevel[]).map(l => <option key={l} value={l}>{l}</option>)}
-            </select>
           </div>
           <div className="space-y-1.5">
             {browseItems.map(item => (
@@ -166,7 +163,6 @@ export default function GrammarPage() {
                 <div>
                   <span className="font-bold text-sm text-foreground">{item.pattern}</span>
                   <span className="text-xs text-muted-foreground ml-2">{item.meaning}</span>
-                  <span className="text-[10px] ml-2 px-1.5 py-0.5 bg-muted rounded-full text-muted-foreground">{item.level}</span>
                 </div>
                 {item.addedToTopic ? (
                   <span className="text-xs text-primary font-bold flex items-center gap-1"><Check className="w-3 h-3" /> Đã thêm</span>

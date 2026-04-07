@@ -1,10 +1,82 @@
-export type SourceSite = 'youtube' | 'upload';
-export type TranscriptionStatus = 'pending' | 'processing' | 'completed' | 'failed';
-export type ClozeMode = 'classic' | 'listening' | 'reading';
+// ─── Transcription types aligned with backend Pydantic models ────────────
+
+export type SupportedSite = 'Youtube' | 'FileUpload';
+
+export enum TranscriptStatus {
+  Uploading = 0,
+  InQueue = 1,
+  Transcripting = 2,
+  Finish = 3,
+}
+
+export interface Transcript {
+  id: string;
+  original_source: SupportedSite;
+  resource_id: string | null;
+  resource_url: string;
+  thumnail_url: string;
+  name: string;
+  date_created: string;
+  data: string | null;
+  status: number;
+  public: boolean;
+}
+
+export interface TranscriptionHistory {
+  id: string;
+  transcript_id: string;
+  job_status: 'queued' | 'processing' | 'done' | 'failed';
+  queued_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  error: string | null;
+}
+
+// ── Request / Response schemas ────────────────────────────────────────────
+
+export interface YoutubeIDTranscriptRequestForm {
+  resource_id: string;
+}
+
+export interface YoutubeTranscriptRequestForm {
+  name: string;
+  resource_id: string;
+  original_source: SupportedSite;
+  public: boolean;
+  thumbnail_url: string;
+  resource_url: string;
+}
+
+export interface TranscriptRequestResponse {
+  transcript_id: string;
+  success: boolean;
+}
+
+export interface TranscriptStatusRequest {
+  transcript_id: string;
+}
+
+export interface TranscriptStatusResponse {
+  done: boolean;
+  msg: string;
+}
+
+export interface TranscriptInfoRequest {
+  transcript_id: string;
+}
+
+export interface TranscriptInfoResponse {
+  id: string;
+  original_source: SupportedSite;
+  thumnail_url: string;
+  resource_url: string;
+  resource_id: string | null;
+  status: number;
+}
 
 export interface TokenTimestamp {
-  start: number;
-  end: number;
+  start: number | null;
+  end: number | null;
   token: string;
 }
 
@@ -17,19 +89,13 @@ export interface TranscriptResult {
   segments: TranscriptSegment[];
 }
 
-export interface TranscriptionResponse {
-  id: string;
-  videoUrl: string;
-  title: string;
-  thumbnailUrl: string;
-  sourceSite: SourceSite;
-  status: TranscriptionStatus;
-  transcript: TranscriptResult | null;
-  createdAt: string;
-  isPublic: boolean;
-  userId: string;
-  language: string;
+export interface ErrorMessage {
+  msg: string;
 }
+
+// ── App-level types (UI helpers) ──────────────────────────────────────────
+
+export type ClozeMode = 'classic' | 'listening' | 'reading';
 
 export interface ClozeSettings {
   mode: ClozeMode;
@@ -44,17 +110,6 @@ export interface ClozeSettings {
 export interface VideoPlayerSettings {
   playbackRate: number;
   seekDuration: number;
-}
-
-export interface TranscribeRequest {
-  videoUrl: string;
-  fullTranscript: boolean;
-  startTime: number;
-  endTime: number;
-}
-
-export interface TranscribeResponse {
-  transcription: TranscriptionResponse;
 }
 
 export interface YouTubeVideo {
@@ -82,7 +137,7 @@ export interface PublicTranscript {
   title: string;
   videoUrl: string;
   thumbnailUrl: string;
-  sourceSite: SourceSite;
+  sourceSite: SupportedSite;
   language: string;
   createdAt: string;
   userId: string;
@@ -91,8 +146,8 @@ export interface PublicTranscript {
 }
 
 export interface TranscriptionFilter {
-  status: TranscriptionStatus | 'all';
-  sourceSite: SourceSite | 'all';
+  status: 'all' | number;
+  sourceSite: SupportedSite | 'all';
   search: string;
 }
 

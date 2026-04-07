@@ -1,22 +1,29 @@
 import type {
-  TranscriptionResponse, TranscriptResult, TranscriptSegment, YouTubeVideo,
+  Transcript, TranscriptionHistory, TranscriptResult, TranscriptSegment, YouTubeVideo,
   YouTubeChannel, PublicTranscript, TranscriptionFilter, ClozeSettings,
-  VideoPlayerSettings, TokenInfo, TokenizedResult, TokenTimestamp, ClozeMode
+  VideoPlayerSettings, TokenInfo, TokenizedResult, TokenTimestamp, ClozeMode,
+  TranscriptRequestResponse, TranscriptStatusResponse, TranscriptInfoResponse,
+  YoutubeTranscriptRequestForm
 } from './types';
 import {
-  mockTranscriptions, mockYouTubeVideos, mockChannels,
+  mockTranscripts, mockTranscriptionHistories, mockYouTubeVideos, mockChannels,
   mockPublicTranscripts, mockTokenSegments, mockTokenize
 } from './mock-data';
 
 export type {
-  TranscriptionResponse, TranscriptResult, TranscriptSegment, YouTubeVideo,
+  Transcript, TranscriptionHistory, TranscriptResult, TranscriptSegment, YouTubeVideo,
   YouTubeChannel, PublicTranscript, TranscriptionFilter, ClozeSettings,
-  VideoPlayerSettings, TokenInfo, TokenizedResult, TokenTimestamp, ClozeMode
+  VideoPlayerSettings, TokenInfo, TokenizedResult, TokenTimestamp, ClozeMode,
+  TranscriptRequestResponse, TranscriptStatusResponse, TranscriptInfoResponse,
+  YoutubeTranscriptRequestForm
 } from './types';
+
+export { TranscriptStatus } from './types';
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-let transcriptions = [...mockTranscriptions];
+let transcripts = [...mockTranscripts];
+let histories = [...mockTranscriptionHistories];
 let channels = [...mockChannels];
 
 // ─── YouTube Videos ─────────────────────────────────────────────────────
@@ -49,46 +56,83 @@ export async function toggleChannelSubscription(channelId: string): Promise<YouT
   return channels.find(c => c.id === channelId)!;
 }
 
-// ─── Transcriptions ─────────────────────────────────────────────────────
-export async function getMyTranscriptions(filter: TranscriptionFilter): Promise<TranscriptionResponse[]> {
+// ─── Transcripts ────────────────────────────────────────────────────────
+export async function getMyTranscripts(userId: string, filter: TranscriptionFilter): Promise<Transcript[]> {
   await delay(300);
-  let results = [...transcriptions];
+  let results = [...transcripts];
   if (filter.status !== 'all') results = results.filter(t => t.status === filter.status);
-  if (filter.sourceSite !== 'all') results = results.filter(t => t.sourceSite === filter.sourceSite);
+  if (filter.sourceSite !== 'all') results = results.filter(t => t.original_source === filter.sourceSite);
   if (filter.search) {
     const q = filter.search.toLowerCase();
-    results = results.filter(t => t.title.toLowerCase().includes(q));
+    results = results.filter(t => t.name.toLowerCase().includes(q));
   }
   return results;
 }
 
-export async function getTranscription(id: string): Promise<TranscriptionResponse> {
+export async function getTranscript(transcriptId: string): Promise<Transcript> {
   await delay(200);
-  const t = transcriptions.find(t => t.id === id);
-  if (!t) throw new Error('Transcription not found');
+  const t = transcripts.find(t => t.id === transcriptId);
+  if (!t) throw new Error('Transcript not found');
   return t;
 }
 
-export async function transcribeVideo(videoId: string, fullTranscript: boolean, startTime: number, endTime: number): Promise<TranscriptionResponse> {
-  await delay(1500);
-  const newTranscription: TranscriptionResponse = {
-    id: `tr-${Date.now()}`,
-    videoUrl: `https://youtube.com/watch?v=${videoId}`,
-    title: `Transcript - ${new Date().toLocaleDateString('vi-VN')}`,
-    thumbnailUrl: 'https://img.youtube.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
-    sourceSite: 'youtube',
-    status: 'completed',
-    transcript: { segments: mockTokenSegments },
-    createdAt: new Date().toISOString(),
-    isPublic: false,
-    userId: 'current-user',
-    language: 'ja',
-  };
-  transcriptions = [newTranscription, ...transcriptions];
-  return newTranscription;
+export async function getTranscriptData(transcriptId: string): Promise<TranscriptResult | null> {
+  await delay(200);
+  const t = transcripts.find(t => t.id === transcriptId);
+  if (!t || !t.data) return null;
+  return JSON.parse(t.data) as TranscriptResult;
 }
 
-export async function* streamTranscript(videoId: string) {
+export async function requestTranscription(form: YoutubeTranscriptRequestForm): Promise<TranscriptRequestResponse> {
+  await delay(1500);
+  const newTranscript: Transcript = {
+    id: `tr-${Date.now()}`,
+    original_source: form.original_source,
+    resource_id: form.resource_id,
+    resource_url: form.resource_url,
+    thumnail_url: form.thumbnail_url,
+    name: form.name,
+    date_created: new Date().toISOString(),
+    data: JSON.stringify({ segments: mockTokenSegments }),
+    status: 3, // Simulate instant finish
+    public: form.public,
+  };
+  transcripts = [newTranscript, ...transcripts];
+  const history: TranscriptionHistory = {
+    id: `th-${Date.now()}`,
+    transcript_id: newTranscript.id,
+    job_status: 'done',
+    queued_at: new Date().toISOString(),
+    started_at: new Date().toISOString(),
+    finished_at: new Date().toISOString(),
+    error: null,
+  };
+  histories = [history, ...histories];
+  return { transcript_id: newTranscript.id, success: true };
+}
+
+export async function getTranscriptStatus(transcriptId: string): Promise<TranscriptStatusResponse> {
+  await delay(200);
+  const t = transcripts.find(t => t.id === transcriptId);
+  if (!t) return { done: false, msg: 'Transcript not found' };
+  return { done: t.status === 3, msg: t.status === 3 ? 'Finished' : 'Processing' };
+}
+
+export async function getTranscriptInfo(transcriptId: string): Promise<TranscriptInfoResponse> {
+  await delay(200);
+  const t = transcripts.find(t => t.id === transcriptId);
+  if (!t) throw new Error('Transcript not found');
+  return {
+    id: t.id,
+    original_source: t.original_source,
+    thumnail_url: t.thumnail_url,
+    resource_url: t.resource_url,
+    resource_id: t.resource_id,
+    status: t.status,
+  };
+}
+
+export async function* streamTranscript(transcriptId: string) {
   for (const seg of mockTokenSegments) {
     await delay(800);
     yield seg;
@@ -96,9 +140,11 @@ export async function* streamTranscript(videoId: string) {
 }
 
 // ─── Public Transcripts ─────────────────────────────────────────────────
-export async function getPublicTranscripts(): Promise<PublicTranscript[]> {
+export async function getPublicTranscripts(search: string): Promise<PublicTranscript[]> {
   await delay(300);
-  return [...mockPublicTranscripts];
+  if (!search) return [...mockPublicTranscripts];
+  const q = search.toLowerCase();
+  return mockPublicTranscripts.filter(p => p.title.toLowerCase().includes(q));
 }
 
 // ─── Tokenizer ──────────────────────────────────────────────────────────
@@ -159,9 +205,9 @@ export function generateClozeIndices(
       });
     });
   } else if (settings.mode === 'listening') {
-    // Hide the current word and surrounding words
     segments.forEach((seg, si) => {
       seg.words.forEach((word, wi) => {
+        if (word.start === null) return;
         const dist = Math.abs(word.start - currentTime);
         if (dist < settings.windowSize * 0.5) {
           indices.add(`${si}-${wi}`);
@@ -169,9 +215,9 @@ export function generateClozeIndices(
       });
     });
   } else if (settings.mode === 'reading') {
-    // Show only current word + surrounding, hide everything else
     segments.forEach((seg, si) => {
       seg.words.forEach((word, wi) => {
+        if (word.start === null) return;
         const dist = Math.abs(word.start - currentTime + settings.windowOffset);
         if (dist >= settings.windowSize * 0.5) {
           indices.add(`${si}-${wi}`);
