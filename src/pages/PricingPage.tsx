@@ -4,6 +4,8 @@ import type { CreditPack, UserUsage } from '@/lib/api/common';
 import { Button } from '@/components/ui/button';
 import { Zap, Loader2, Check } from 'lucide-react';
 
+const USER_ID = 'current-user';
+
 export default function PricingPage() {
   const [packs, setPacks] = useState<CreditPack[]>([]);
   const [usage, setUsage] = useState<UserUsage | null>(null);
@@ -11,12 +13,12 @@ export default function PricingPage() {
   const [buying, setBuying] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([getCreditPacks(), getUserUsage()]).then(([p, u]) => { setPacks(p); setUsage(u); setLoading(false); });
+    Promise.all([getCreditPacks(), getUserUsage(USER_ID)]).then(([p, u]) => { setPacks(p); setUsage(u); setLoading(false); });
   }, []);
 
   const handleBuy = async (packId: string) => {
     setBuying(packId);
-    const updated = await purchaseCredits(packId);
+    const updated = await purchaseCredits(USER_ID, packId);
     setUsage(updated); setBuying(null);
   };
 
