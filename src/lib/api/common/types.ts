@@ -37,11 +37,9 @@ export interface KeepAliveResponse {
 
 export type PartOfSpeech = 'noun' | 'verb' | 'adjective' | 'adverb' | 'pronoun' | 'preposition' | 'conjunction' | 'particle' | 'classifier' | 'interjection';
 
-export type JLPTLevel = 'N5' | 'N4' | 'N3' | 'N2' | 'N1';
-
 export interface HistoryEntry {
   id: string;
-  type: 'transcription' | 'flashcard' | 'grammar' | 'practice' | 'manga' | 'tokenizer';
+  type: 'transcription' | 'flashcard' | 'grammar' | 'manga' | 'tokenizer';
   title: string;
   description: string;
   timestamp: string;

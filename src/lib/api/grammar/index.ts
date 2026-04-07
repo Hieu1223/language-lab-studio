@@ -1,5 +1,5 @@
 import type { GrammarCard, GrammarTopic, GrammarCollection, GrammarListItem, GrammarReviewMode } from './types';
-import type { SRSRating, PaginatedResponse, JLPTLevel } from '../common/types';
+import type { SRSRating, PaginatedResponse } from '../common/types';
 import { mockGrammarCards, mockGrammarTopics, mockGrammarCollections, allGrammarList } from './mock-data';
 
 export type { GrammarCard, GrammarTopic, GrammarCollection, GrammarListItem, GrammarReviewMode } from './types';
@@ -12,12 +12,12 @@ let collections = [...mockGrammarCollections];
 let grammarList = [...allGrammarList];
 
 // ─── Collections ────────────────────────────────────────────────────────
-export async function getGrammarCollections(): Promise<GrammarCollection[]> {
+export async function getGrammarCollections(userId: string): Promise<GrammarCollection[]> {
   await delay(200);
   return [...collections];
 }
 
-export async function createGrammarCollection(name: string, description: string): Promise<GrammarCollection> {
+export async function createGrammarCollection(userId: string, name: string, description: string): Promise<GrammarCollection> {
   await delay(300);
   const col: GrammarCollection = { id: `gcol-${Date.now()}`, name, description, topicCount: 0, totalCards: 0, isDefault: false };
   collections.push(col);
@@ -25,38 +25,38 @@ export async function createGrammarCollection(name: string, description: string)
 }
 
 // ─── Topics ─────────────────────────────────────────────────────────────
-export async function getGrammarTopics(collectionId: string): Promise<GrammarTopic[]> {
+export async function getGrammarTopics(userId: string, collectionId: string): Promise<GrammarTopic[]> {
   await delay(200);
   return topics.filter(t => t.collectionId === collectionId);
 }
 
-export async function createGrammarTopic(name: string, collectionId: string, level: JLPTLevel): Promise<GrammarTopic> {
+export async function createGrammarTopic(userId: string, name: string, collectionId: string): Promise<GrammarTopic> {
   await delay(300);
-  const topic: GrammarTopic = { id: `gtopic-${Date.now()}`, name, collectionId, level, cardCount: 0, dueCount: 0, newCount: 0, learningCount: 0, reviewCount: 0, selected: true, newCardsPerDay: 5, weight: 1 };
+  const topic: GrammarTopic = { id: `gtopic-${Date.now()}`, name, collectionId, cardCount: 0, dueCount: 0, newCount: 0, learningCount: 0, reviewCount: 0, selected: true, newCardsPerDay: 5, weight: 1 };
   topics.push(topic);
   return topic;
 }
 
-export async function toggleGrammarTopicSelection(topicId: string, selected: boolean): Promise<GrammarTopic> {
+export async function toggleGrammarTopicSelection(userId: string, topicId: string, selected: boolean): Promise<GrammarTopic> {
   await delay(100);
   topics = topics.map(t => t.id === topicId ? { ...t, selected } : t);
   return topics.find(t => t.id === topicId)!;
 }
 
-export async function selectAllGrammarTopics(collectionId: string, selected: boolean): Promise<GrammarTopic[]> {
+export async function selectAllGrammarTopics(userId: string, collectionId: string, selected: boolean): Promise<GrammarTopic[]> {
   await delay(100);
   topics = topics.map(t => t.collectionId === collectionId ? { ...t, selected } : t);
   return topics.filter(t => t.collectionId === collectionId);
 }
 
 // ─── Cards ──────────────────────────────────────────────────────────────
-export async function getDueGrammarCards(topicIds: string[]): Promise<GrammarCard[]> {
+export async function getDueGrammarCards(userId: string, topicIds: string[]): Promise<GrammarCard[]> {
   await delay(200);
   const now = new Date();
   return cards.filter(c => topicIds.includes(c.topicId) && new Date(c.nextReview) <= now);
 }
 
-export async function reviewGrammarCard(cardId: string, rating: SRSRating): Promise<GrammarCard> {
+export async function reviewGrammarCard(userId: string, cardId: string, rating: SRSRating): Promise<GrammarCard> {
   await delay(200);
   const card = cards.find(c => c.id === cardId);
   if (!card) throw new Error('Card not found');
@@ -76,23 +76,22 @@ export async function reviewGrammarCard(cardId: string, rating: SRSRating): Prom
 }
 
 // ─── Grammar browsing (paginated) ───────────────────────────────────────
-export async function browseGrammar(page: number, pageSize: number, search: string, level: JLPTLevel | 'all'): Promise<PaginatedResponse<GrammarListItem>> {
+export async function browseGrammar(userId: string, page: number, pageSize: number, search: string): Promise<PaginatedResponse<GrammarListItem>> {
   await delay(300);
   let filtered = [...grammarList];
-  if (level !== 'all') filtered = filtered.filter(g => g.level === level);
   if (search) filtered = filtered.filter(g => g.pattern.includes(search) || g.meaning.includes(search));
   const total = filtered.length;
   const items = filtered.slice((page - 1) * pageSize, page * pageSize);
   return { items, total, page, pageSize, totalPages: Math.ceil(total / pageSize) };
 }
 
-export async function addGrammarToTopic(grammarId: string, topicId: string): Promise<GrammarListItem> {
+export async function addGrammarToTopic(userId: string, grammarId: string, topicId: string): Promise<GrammarListItem> {
   await delay(300);
   grammarList = grammarList.map(g => g.id === grammarId ? { ...g, addedToTopic: true, topicId } : g);
   return grammarList.find(g => g.id === grammarId)!;
 }
 
-export async function removeGrammarFromTopic(grammarId: string): Promise<GrammarListItem> {
+export async function removeGrammarFromTopic(userId: string, grammarId: string): Promise<GrammarListItem> {
   await delay(200);
   grammarList = grammarList.map(g => g.id === grammarId ? { ...g, addedToTopic: false, topicId: null } : g);
   return grammarList.find(g => g.id === grammarId)!;

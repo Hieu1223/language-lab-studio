@@ -1,4 +1,4 @@
-import type { JLPTLevel, SRSFields } from '../common/types';
+import type { SRSFields } from '../common/types';
 
 export interface GrammarCard extends SRSFields {
   id: string;
@@ -6,7 +6,6 @@ export interface GrammarCard extends SRSFields {
   meaning: string;
   example: string;
   exampleTranslation: string;
-  level: JLPTLevel;
   topicId: string;
   collectionId: string;
 }
@@ -15,7 +14,6 @@ export interface GrammarTopic {
   id: string;
   name: string;
   collectionId: string;
-  level: JLPTLevel;
   cardCount: number;
   dueCount: number;
   newCount: number;
@@ -41,7 +39,6 @@ export interface GrammarListItem {
   id: string;
   pattern: string;
   meaning: string;
-  level: JLPTLevel;
   addedToTopic: boolean;
   topicId: string | null;
 }
