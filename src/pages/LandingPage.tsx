@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { searchPublicTranscripts } from '@/lib/api/public-transcripts';
-import type { PublicTranscript } from '@/lib/api/types';
+import { getPublicTranscripts } from '@/lib/api/transcription';
+import type { PublicTranscript } from '@/lib/api/transcription';
 import { PublicTranscriptCard } from '@/components/public/PublicTranscriptCard';
 import { Search, BookOpen, Brain, Video, BookText, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ export default function LandingPage() {
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(() => {
-      searchPublicTranscripts(query).then(r => { setResults(r); setLoading(false); });
+      getPublicTranscripts(query).then(r => { setResults(r); setLoading(false); });
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
@@ -23,13 +23,12 @@ export default function LandingPage() {
   const features = [
     { icon: Video, title: 'Phiên dịch YouTube', desc: 'Xem video với transcript đồng bộ, cloze test, lặp đoạn' },
     { icon: BookOpen, title: 'Flashcard từ vựng', desc: 'Học từ vựng với spaced repetition theo từ loại' },
-    { icon: BookText, title: 'Ngữ pháp JLPT', desc: 'Ôn tập ngữ pháp theo cấp độ N5 đến N1' },
-    { icon: Brain, title: 'Luyện dịch câu', desc: 'Dịch Nhật↔Việt với AI kiểm tra và gợi ý' },
+    { icon: BookText, title: 'Ngữ pháp', desc: 'Ôn tập ngữ pháp với flashcard và dịch' },
+    { icon: Brain, title: 'Đọc manga', desc: 'Đọc manga với OCR và tra cứu từ' },
   ];
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -44,7 +43,6 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="py-16 px-4 text-center">
         <h2 className="font-display font-extrabold text-4xl md:text-5xl text-foreground mb-4">
           Học tiếng Nhật <span className="text-primary">thông minh hơn</span>
@@ -59,7 +57,6 @@ export default function LandingPage() {
         </Link>
       </section>
 
-      {/* Features */}
       <section className="max-w-5xl mx-auto px-4 pb-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-16">
           {features.map(f => (
@@ -74,7 +71,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Public transcripts */}
       <section className="max-w-5xl mx-auto px-4 pb-16">
         <h3 className="font-display font-bold text-xl text-foreground mb-4">Transcript công khai</h3>
         <div className="relative mb-4">

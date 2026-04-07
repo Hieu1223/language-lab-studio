@@ -2,33 +2,44 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertCircle, Plus } from 'lucide-react';
-import { getMyTranscriptions, transcribeVideo } from '@/lib/api/transcription';
+import { getMyTranscripts, requestTranscription } from '@/lib/api/transcription';
 import { canSpendCredits, spendCredits } from '@/lib/api/common';
 import { UsageBadge } from '@/components/transcription/UsageBadge';
 import { TranscriptionListItem } from '@/components/transcription/TranscriptionListItem';
-import type { TranscriptionResponse } from '@/lib/api/transcription';
-import { useEffect, useState as us2 } from 'react';
+import type { Transcript } from '@/lib/api/transcription';
+import { useEffect } from 'react';
+
+const USER_ID = 'current-user';
 
 export default function TranscribePage() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [transcriptions, setTranscriptions] = useState<TranscriptionResponse[]>([]);
+  const [transcriptions, setTranscriptions] = useState<Transcript[]>([]);
   const [listLoading, setListLoading] = useState(true);
 
   useEffect(() => {
-    getMyTranscriptions({ status: 'all', sourceSite: 'all', search: '' }).then(t => { setTranscriptions(t); setListLoading(false); });
+    getMyTranscripts(USER_ID, { status: 'all', sourceSite: 'all', search: '' }).then(t => { setTranscriptions(t); setListLoading(false); });
   }, []);
 
   const handleTranscribe = async () => {
     if (!url.trim()) return;
     setError(''); setLoading(true);
     try {
-      const allowed = await canSpendCredits(1);
+      const allowed = await canSpendCredits(USER_ID, 1);
       if (!allowed) { setError('Không đủ credit.'); setLoading(false); return; }
-      const data = await transcribeVideo(url, true, 0, 0);
-      await spendCredits(1);
-      setTranscriptions(prev => [data, ...prev]); setUrl('');
+      await requestTranscription({
+        name: `Transcript - ${new Date().toLocaleDateString('vi-VN')}`,
+        resource_id: url,
+        original_source: 'Youtube',
+        public: false,
+        thumbnail_url: '',
+        resource_url: url,
+      });
+      await spendCredits(USER_ID, 1);
+      const updated = await getMyTranscripts(USER_ID, { status: 'all', sourceSite: 'all', search: '' });
+      setTranscriptions(updated);
+      setUrl('');
     } catch { setError('Không thể phiên dịch video.'); }
     finally { setLoading(false); }
   };
