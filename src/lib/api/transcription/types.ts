@@ -95,7 +95,7 @@ export interface ErrorMessage {
 
 // ── App-level types (UI helpers) ──────────────────────────────────────────
 
-export type ClozeMode = 'classic' | 'listening' | 'reading';
+export type ClozeMode = 'classic';
 
 export interface ClozeSettings {
   mode: ClozeMode;
@@ -122,27 +122,6 @@ export interface YouTubeVideo {
   publishedAt: string;
   duration: string;
   isTranscribed: boolean;
-}
-
-export interface YouTubeChannel {
-  id: string;
-  name: string;
-  avatarUrl: string;
-  subscriberCount: string;
-  isSubscribed: boolean;
-}
-
-export interface PublicTranscript {
-  id: string;
-  title: string;
-  videoUrl: string;
-  thumbnailUrl: string;
-  sourceSite: SupportedSite;
-  language: string;
-  createdAt: string;
-  userId: string;
-  userName: string;
-  viewCount: number;
 }
 
 export interface TranscriptionFilter {

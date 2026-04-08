@@ -1,21 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { searchYouTubeVideos, getSubscribedChannels, toggleChannelSubscription, getMyTranscripts, getPublicTranscripts } from '@/lib/api/transcription';
-import type { YouTubeVideo, YouTubeChannel, Transcript, PublicTranscript } from '@/lib/api/transcription';
+import { searchYouTubeVideos, getMyTranscripts } from '@/lib/api/transcription';
+import type { YouTubeVideo, Transcript } from '@/lib/api/transcription';
 import { TranscriptStatus } from '@/lib/api/transcription';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search, Check, Bell, Filter, Video, Globe } from 'lucide-react';
+import { Search, Check, Video, Filter } from 'lucide-react';
 
 const USER_ID = 'current-user';
-type Tab = 'browse' | 'transcribed' | 'public' | 'channels';
+type Tab = 'browse' | 'transcribed';
 
 export default function YouTubeBrowsePage() {
   const [query, setQuery] = useState('');
   const [videos, setVideos] = useState<YouTubeVideo[]>([]);
-  const [channels, setChannels] = useState<YouTubeChannel[]>([]);
   const [transcriptions, setTranscriptions] = useState<Transcript[]>([]);
-  const [publicTranscripts, setPublicTranscripts] = useState<PublicTranscript[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('browse');
   const [filter, setFilter] = useState<'all' | 'transcribed' | 'not-transcribed'>('all');
@@ -24,22 +21,14 @@ export default function YouTubeBrowsePage() {
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(() => {
-      searchYouTubeVideos(query).then(v => { setVideos(v); setLoading(false); });
+      searchYouTubeVideos(USER_ID, query).then(v => { setVideos(v); setLoading(false); });
     }, 300);
     return () => clearTimeout(timer);
   }, [query]);
 
   useEffect(() => {
-    getSubscribedChannels().then(setChannels);
     getMyTranscripts(USER_ID, { status: 'all', sourceSite: 'all', search: '' }).then(setTranscriptions);
-    getPublicTranscripts('').then(setPublicTranscripts);
   }, []);
-
-  const handleToggleSubscribe = async (channelId: string) => {
-    await toggleChannelSubscription(channelId);
-    const updated = await getSubscribedChannels();
-    setChannels(updated);
-  };
 
   const filteredVideos = filter === 'all' ? videos :
     filter === 'transcribed' ? videos.filter(v => v.isTranscribed) :
@@ -48,8 +37,6 @@ export default function YouTubeBrowsePage() {
   const tabs: { key: Tab; label: string; icon: typeof Video }[] = [
     { key: 'browse', label: 'Duyệt video', icon: Video },
     { key: 'transcribed', label: 'Đã phiên dịch', icon: Check },
-    { key: 'public', label: 'Công khai', icon: Globe },
-    { key: 'channels', label: 'Kênh đã đăng ký', icon: Bell },
   ];
 
   return (
@@ -113,8 +100,8 @@ export default function YouTubeBrowsePage() {
             transcriptions.map(t => (
               <button
                 key={t.id}
-                onClick={() => t.status === TranscriptStatus.Finish ? navigate(`/transcript/${t.id}`) : undefined}
-                className={`w-full flex items-center gap-3 p-3 bg-card border border-border rounded-xl text-left transition-colors ${t.status === TranscriptStatus.Finish ? 'hover:border-primary/40 cursor-pointer' : 'opacity-60'}`}
+                onClick={() => navigate(`/transcript/${t.id}`)}
+                className="w-full flex items-center gap-3 p-3 bg-card border border-border rounded-xl text-left transition-colors hover:border-primary/40 cursor-pointer"
               >
                 <div className="w-20 h-12 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                   {t.thumnail_url && <img src={t.thumnail_url} alt="" className="w-full h-full object-cover" />}
@@ -125,49 +112,12 @@ export default function YouTubeBrowsePage() {
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                   t.status === TranscriptStatus.Finish ? 'bg-primary/10 text-primary' :
-                  t.status === TranscriptStatus.Transcripting ? 'bg-warning/10 text-warning' :
+                  t.status === TranscriptStatus.Transcripting ? 'bg-yellow-500/10 text-yellow-600' :
                   'bg-muted text-muted-foreground'
                 }`}>
                   {t.status === TranscriptStatus.Finish ? 'Hoàn thành' : t.status === TranscriptStatus.Transcripting ? 'Đang xử lý' : 'Chờ'}
                 </span>
               </button>
-            ))
-          )}
-        </div>
-      )}
-
-      {tab === 'public' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {publicTranscripts.map(pt => (
-            <div key={pt.id} className="bg-card border border-border rounded-2xl overflow-hidden">
-              <div className="aspect-video bg-muted">
-                <img src={pt.thumbnailUrl} alt={pt.title} className="w-full h-full object-cover" />
-              </div>
-              <div className="p-3">
-                <h3 className="font-bold text-sm text-foreground line-clamp-2 mb-1">{pt.title}</h3>
-                <p className="text-xs text-muted-foreground">{pt.userName} · {pt.viewCount} lượt xem</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {tab === 'channels' && (
-        <div className="space-y-2">
-          {channels.length === 0 ? (
-            <p className="text-center py-12 text-muted-foreground text-sm">Chưa đăng ký kênh nào.</p>
-          ) : (
-            channels.map(ch => (
-              <div key={ch.id} className="flex items-center gap-3 p-3 bg-card border border-border rounded-xl">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{ch.name.charAt(0)}</div>
-                <div className="flex-1">
-                  <p className="text-sm font-bold text-foreground">{ch.name}</p>
-                  <p className="text-xs text-muted-foreground">{ch.subscriberCount} subscribers</p>
-                </div>
-                <Button variant={ch.isSubscribed ? 'default' : 'outline'} size="sm" onClick={() => handleToggleSubscribe(ch.id)} className="text-xs rounded-xl">
-                  {ch.isSubscribed ? 'Đã đăng ký' : 'Đăng ký'}
-                </Button>
-              </div>
             ))
           )}
         </div>

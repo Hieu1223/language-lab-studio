@@ -1,19 +1,19 @@
 import type {
   Transcript, TranscriptionHistory, TranscriptResult, TranscriptSegment, YouTubeVideo,
-  YouTubeChannel, PublicTranscript, TranscriptionFilter, ClozeSettings,
-  VideoPlayerSettings, TokenInfo, TokenizedResult, TokenTimestamp, ClozeMode,
+  TranscriptionFilter, ClozeSettings,
+  VideoPlayerSettings, TokenInfo, TokenizedResult, TokenTimestamp,
   TranscriptRequestResponse, TranscriptStatusResponse, TranscriptInfoResponse,
   YoutubeTranscriptRequestForm
 } from './types';
 import {
-  mockTranscripts, mockTranscriptionHistories, mockYouTubeVideos, mockChannels,
-  mockPublicTranscripts, mockTokenSegments, mockTokenize
+  mockTranscripts, mockTranscriptionHistories, mockYouTubeVideos,
+  mockTokenSegments, mockTokenize
 } from './mock-data';
 
 export type {
   Transcript, TranscriptionHistory, TranscriptResult, TranscriptSegment, YouTubeVideo,
-  YouTubeChannel, PublicTranscript, TranscriptionFilter, ClozeSettings,
-  VideoPlayerSettings, TokenInfo, TokenizedResult, TokenTimestamp, ClozeMode,
+  TranscriptionFilter, ClozeSettings,
+  VideoPlayerSettings, TokenInfo, TokenizedResult, TokenTimestamp,
   TranscriptRequestResponse, TranscriptStatusResponse, TranscriptInfoResponse,
   YoutubeTranscriptRequestForm
 } from './types';
@@ -24,36 +24,13 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 let transcripts = [...mockTranscripts];
 let histories = [...mockTranscriptionHistories];
-let channels = [...mockChannels];
 
 // ─── YouTube Videos ─────────────────────────────────────────────────────
-export async function searchYouTubeVideos(query: string): Promise<YouTubeVideo[]> {
+export async function searchYouTubeVideos(userId: string, query: string): Promise<YouTubeVideo[]> {
   await delay(400);
   if (!query) return [...mockYouTubeVideos];
   const q = query.toLowerCase();
   return mockYouTubeVideos.filter(v => v.title.toLowerCase().includes(q) || v.channelName.toLowerCase().includes(q));
-}
-
-export async function getVideosByChannel(channelId: string): Promise<YouTubeVideo[]> {
-  await delay(300);
-  return mockYouTubeVideos.filter(v => v.channelId === channelId);
-}
-
-// ─── Channels ───────────────────────────────────────────────────────────
-export async function getChannels(): Promise<YouTubeChannel[]> {
-  await delay(200);
-  return [...channels];
-}
-
-export async function getSubscribedChannels(): Promise<YouTubeChannel[]> {
-  await delay(200);
-  return channels.filter(c => c.isSubscribed);
-}
-
-export async function toggleChannelSubscription(channelId: string): Promise<YouTubeChannel> {
-  await delay(200);
-  channels = channels.map(c => c.id === channelId ? { ...c, isSubscribed: !c.isSubscribed } : c);
-  return channels.find(c => c.id === channelId)!;
 }
 
 // ─── Transcripts ────────────────────────────────────────────────────────
@@ -83,7 +60,7 @@ export async function getTranscriptData(transcriptId: string): Promise<Transcrip
   return JSON.parse(t.data) as TranscriptResult;
 }
 
-export async function requestTranscription(form: YoutubeTranscriptRequestForm): Promise<TranscriptRequestResponse> {
+export async function requestTranscription(userId: string, form: YoutubeTranscriptRequestForm): Promise<TranscriptRequestResponse> {
   await delay(1500);
   const newTranscript: Transcript = {
     id: `tr-${Date.now()}`,
@@ -94,7 +71,7 @@ export async function requestTranscription(form: YoutubeTranscriptRequestForm): 
     name: form.name,
     date_created: new Date().toISOString(),
     data: JSON.stringify({ segments: mockTokenSegments }),
-    status: 3, // Simulate instant finish
+    status: 3,
     public: form.public,
   };
   transcripts = [newTranscript, ...transcripts];
@@ -111,14 +88,14 @@ export async function requestTranscription(form: YoutubeTranscriptRequestForm): 
   return { transcript_id: newTranscript.id, success: true };
 }
 
-export async function getTranscriptStatus(transcriptId: string): Promise<TranscriptStatusResponse> {
+export async function getTranscriptStatus(userId: string, transcriptId: string): Promise<TranscriptStatusResponse> {
   await delay(200);
   const t = transcripts.find(t => t.id === transcriptId);
   if (!t) return { done: false, msg: 'Transcript not found' };
   return { done: t.status === 3, msg: t.status === 3 ? 'Finished' : 'Processing' };
 }
 
-export async function getTranscriptInfo(transcriptId: string): Promise<TranscriptInfoResponse> {
+export async function getTranscriptInfo(userId: string, transcriptId: string): Promise<TranscriptInfoResponse> {
   await delay(200);
   const t = transcripts.find(t => t.id === transcriptId);
   if (!t) throw new Error('Transcript not found');
@@ -132,23 +109,8 @@ export async function getTranscriptInfo(transcriptId: string): Promise<Transcrip
   };
 }
 
-export async function* streamTranscript(transcriptId: string) {
-  for (const seg of mockTokenSegments) {
-    await delay(800);
-    yield seg;
-  }
-}
-
-// ─── Public Transcripts ─────────────────────────────────────────────────
-export async function getPublicTranscripts(search: string): Promise<PublicTranscript[]> {
-  await delay(300);
-  if (!search) return [...mockPublicTranscripts];
-  const q = search.toLowerCase();
-  return mockPublicTranscripts.filter(p => p.title.toLowerCase().includes(q));
-}
-
 // ─── Tokenizer ──────────────────────────────────────────────────────────
-export async function tokenizeText(text: string): Promise<TokenizedResult> {
+export async function tokenizeText(userId: string, text: string): Promise<TokenizedResult> {
   await delay(500);
   return { original: text, tokens: mockTokenize(text) };
 }
@@ -173,58 +135,37 @@ export function getDefaultVideoPlayerSettings(): VideoPlayerSettings {
 export function generateClozeIndices(
   segments: TranscriptSegment[],
   settings: ClozeSettings,
-  currentTime: number
+  _currentTime: number
 ): Set<string> {
   const indices = new Set<string>();
 
-  if (settings.mode === 'classic') {
-    let gapCounter = 0;
-    let clozeCounter = 0;
-    let inCloze = false;
-    const targetGap = settings.minGapBetweenCloze + Math.floor(Math.random() * (settings.maxGapBetweenCloze - settings.minGapBetweenCloze + 1));
-    const targetClozeLen = settings.minWordsInCloze + Math.floor(Math.random() * (settings.maxWordsInCloze - settings.minWordsInCloze + 1));
+  // Only classic mode
+  let gapCounter = 0;
+  let clozeCounter = 0;
+  let inCloze = false;
+  const targetGap = settings.minGapBetweenCloze + Math.floor(Math.random() * (settings.maxGapBetweenCloze - settings.minGapBetweenCloze + 1));
+  const targetClozeLen = settings.minWordsInCloze + Math.floor(Math.random() * (settings.maxWordsInCloze - settings.minWordsInCloze + 1));
 
-    segments.forEach((seg, si) => {
-      seg.words.forEach((_, wi) => {
-        if (!inCloze) {
-          gapCounter++;
-          if (gapCounter >= targetGap) {
-            inCloze = true;
-            clozeCounter = 0;
-            gapCounter = 0;
-          }
+  segments.forEach((seg, si) => {
+    seg.words.forEach((_, wi) => {
+      if (!inCloze) {
+        gapCounter++;
+        if (gapCounter >= targetGap) {
+          inCloze = true;
+          clozeCounter = 0;
+          gapCounter = 0;
         }
-        if (inCloze) {
-          indices.add(`${si}-${wi}`);
-          clozeCounter++;
-          if (clozeCounter >= targetClozeLen) {
-            inCloze = false;
-            gapCounter = 0;
-          }
+      }
+      if (inCloze) {
+        indices.add(`${si}-${wi}`);
+        clozeCounter++;
+        if (clozeCounter >= targetClozeLen) {
+          inCloze = false;
+          gapCounter = 0;
         }
-      });
+      }
     });
-  } else if (settings.mode === 'listening') {
-    segments.forEach((seg, si) => {
-      seg.words.forEach((word, wi) => {
-        if (word.start === null) return;
-        const dist = Math.abs(word.start - currentTime);
-        if (dist < settings.windowSize * 0.5) {
-          indices.add(`${si}-${wi}`);
-        }
-      });
-    });
-  } else if (settings.mode === 'reading') {
-    segments.forEach((seg, si) => {
-      seg.words.forEach((word, wi) => {
-        if (word.start === null) return;
-        const dist = Math.abs(word.start - currentTime + settings.windowOffset);
-        if (dist >= settings.windowSize * 0.5) {
-          indices.add(`${si}-${wi}`);
-        }
-      });
-    });
-  }
+  });
 
   return indices;
 }

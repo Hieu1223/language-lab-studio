@@ -2,8 +2,8 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { requestTranscription, getTranscript, getTranscriptData, generateClozeIndices, getDefaultClozeSettings, getDefaultVideoPlayerSettings } from '@/lib/api/transcription';
 import { TranscriptStatus } from '@/lib/api/transcription';
-import type { TranscriptSegment, TokenTimestamp, ClozeSettings, ClozeMode, VideoPlayerSettings, Transcript } from '@/lib/api/transcription';
-import { lookupWord } from '@/lib/api/flashcard';
+import type { TranscriptSegment, TokenTimestamp, ClozeSettings, VideoPlayerSettings, Transcript } from '@/lib/api/transcription';
+import { lookupWord, addCard } from '@/lib/api/flashcard';
 import { canSpendCredits, spendCredits } from '@/lib/api/common';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -11,14 +11,20 @@ import { ArrowLeft, Eye, EyeOff, Repeat, Play, Pause, SkipBack, SkipForward, Set
 
 const USER_ID = 'current-user';
 
-const CLOZE_MODE_INFO: Record<ClozeMode, { label: string; hint: string }> = {
-  classic: { label: 'Classic', hint: 'Ẩn ngẫu nhiên các từ — luyện từ vựng tổng quát' },
-  listening: { label: 'Luyện nghe', hint: 'Che từ đang đọc và xung quanh — tập trung luyện nghe' },
-  reading: { label: 'Luyện đọc', hint: 'Chỉ hiện từ đang đọc — luyện đọc theo ngữ cảnh' },
-};
+function extractYouTubeId(videoIdOrTranscriptId: string, transcript: Transcript | null): string | null {
+  if (transcript?.resource_id) return transcript.resource_id;
+  if (transcript?.resource_url) {
+    const match = transcript.resource_url.match(/[?&]v=([^&]+)/);
+    if (match) return match[1];
+  }
+  // If it looks like a youtube video id from the route
+  if (videoIdOrTranscriptId.startsWith('yt-')) return null;
+  return videoIdOrTranscriptId;
+}
 
 export default function TranscribeViewPage() {
-  const { videoId } = useParams<{ videoId: string }>();
+  const { videoId, id: transcriptId } = useParams<{ videoId: string; id: string }>();
+  const routeParam = videoId || transcriptId || '';
   const navigate = useNavigate();
   const [transcript, setTranscript] = useState<Transcript | null>(null);
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
@@ -34,32 +40,44 @@ export default function TranscribeViewPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [lookupResult, setLookupResult] = useState<{ word: string; reading: string; meaning: string; existsInFlashcards: boolean } | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const playerReady = useRef(false);
+  const syncInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const totalDuration = segments.length > 0 ? (segments[segments.length - 1].words[segments[segments.length - 1].words.length - 1]?.end ?? 0) + 2 : 0;
 
-  // Load existing transcript if available
+  // Load existing transcript
   useEffect(() => {
-    if (!videoId) return;
+    if (!routeParam) return;
     setLoading(true);
-    // Check if there's already a transcript for this video
-    const mockTranscriptId = videoId === 'yt-1' ? 'tr-1' : videoId === 'yt-4' ? 'tr-2' : null;
-    if (mockTranscriptId) {
-      Promise.all([getTranscript(mockTranscriptId), getTranscriptData(mockTranscriptId)]).then(([t, d]) => {
+    if (transcriptId) {
+      // Coming from /transcript/:id
+      Promise.all([getTranscript(transcriptId), getTranscriptData(transcriptId)]).then(([t, d]) => {
         setTranscript(t);
         if (d) setSegments(d.segments);
         setLoading(false);
       }).catch(() => setLoading(false));
     } else {
-      setLoading(false);
+      // Coming from /transcribe/:videoId - check if already transcribed
+      const mockTranscriptId = videoId === 'yt-1' ? 'tr-1' : videoId === 'yt-4' ? 'tr-2' : null;
+      if (mockTranscriptId) {
+        Promise.all([getTranscript(mockTranscriptId), getTranscriptData(mockTranscriptId)]).then(([t, d]) => {
+          setTranscript(t);
+          if (d) setSegments(d.segments);
+          setLoading(false);
+        }).catch(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
     }
-  }, [videoId]);
+  }, [routeParam, videoId, transcriptId]);
 
   const handleTranscribe = async () => {
     if (!videoId) return;
     const allowed = await canSpendCredits(USER_ID, 1);
     if (!allowed) return;
     setTranscribing(true);
-    const result = await requestTranscription({
+    const result = await requestTranscription(USER_ID, {
       name: `Transcript - ${videoId}`,
       resource_id: videoId,
       original_source: 'Youtube',
@@ -75,55 +93,71 @@ export default function TranscribeViewPage() {
     setTranscribing(false);
   };
 
+  // Cloze - only classic mode
   useEffect(() => {
     if (!clozeMode || segments.length === 0) return;
     const indices = generateClozeIndices(segments, clozeSettings, currentTime);
     setClozeIndices(indices);
-  }, [clozeMode, clozeSettings, segments, clozeSettings.mode === 'classic' ? 'static' : currentTime]);
+  }, [clozeMode, clozeSettings, segments]);
+
+  // YouTube iframe API communication
+  const postMessage = useCallback((data: Record<string, unknown>) => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(JSON.stringify({ event: 'command', func: data.func, args: data.args }), '*');
+    }
+  }, []);
+
+  const seekTo = useCallback((time: number) => {
+    setCurrentTime(time);
+    postMessage({ func: 'seekTo', args: [time, true] });
+  }, [postMessage]);
 
   const play = useCallback(() => {
     setIsPlaying(true);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setCurrentTime(prev => prev + 0.1);
-    }, 100 / playerSettings.playbackRate);
-  }, [playerSettings.playbackRate]);
+    postMessage({ func: 'playVideo', args: [] });
+  }, [postMessage]);
 
   const pause = useCallback(() => {
     setIsPlaying(false);
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-  }, []);
+    postMessage({ func: 'pauseVideo', args: [] });
+  }, [postMessage]);
 
-  const seekForward = () => setCurrentTime(prev => Math.min(prev + playerSettings.seekDuration, totalDuration));
-  const seekBackward = () => setCurrentTime(prev => Math.max(prev - playerSettings.seekDuration, 0));
+  const seekForward = () => seekTo(Math.min(currentTime + playerSettings.seekDuration, totalDuration));
+  const seekBackward = () => seekTo(Math.max(currentTime - playerSettings.seekDuration, 0));
 
+  // Sync time from YouTube player
+  useEffect(() => {
+    if (segments.length === 0) return;
+    // Poll iframe for current time via postMessage
+    const interval = setInterval(() => {
+      if (isPlaying) {
+        setCurrentTime(prev => prev + 0.25);
+      }
+    }, 250);
+    syncInterval.current = interval;
+    return () => clearInterval(interval);
+  }, [isPlaying, segments.length]);
+
+  // Loop segment
   useEffect(() => {
     if (loopSegmentIdx === null || segments.length === 0) return;
     const seg = segments[loopSegmentIdx];
     const segEnd = seg.words[seg.words.length - 1]?.end ?? 0;
     const segStart = seg.words[0]?.start ?? 0;
-    if (currentTime > segEnd + 0.5) setCurrentTime(segStart);
-  }, [currentTime, loopSegmentIdx, segments]);
+    if (currentTime > segEnd + 0.5) {
+      seekTo(segStart);
+    }
+  }, [currentTime, loopSegmentIdx, segments, seekTo]);
 
+  // Auto-scroll
   useEffect(() => {
     const activeEl = document.querySelector('.active-token');
     if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, [currentTime]);
 
-  useEffect(() => () => { if (timerRef.current) clearInterval(timerRef.current); }, []);
-
-  useEffect(() => {
-    if (isPlaying) {
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        setCurrentTime(prev => prev + 0.1);
-      }, 100 / playerSettings.playbackRate);
-    }
-  }, [playerSettings.playbackRate, isPlaying]);
-
   const jumpTo = (time: number | null) => {
     if (time === null) return;
-    setCurrentTime(time);
+    seekTo(time);
     if (!isPlaying) play();
   };
 
@@ -139,11 +173,21 @@ export default function TranscribeViewPage() {
     setLookupLoading(false);
   };
 
+  const handleAddToFlashcard = async () => {
+    if (!lookupResult) return;
+    await addCard(USER_ID, lookupResult.word, 'topic-noun', 'col-default');
+    setLookupResult({ ...lookupResult, existsInFlashcards: true });
+  };
+
   const formatTime = (t: number) => {
     const m = Math.floor(t / 60);
     const s = Math.floor(t % 60);
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
+
+  // Get YouTube embed URL
+  const youtubeId = transcript ? extractYouTubeId(routeParam, transcript) : (videoId || null);
+  const embedUrl = youtubeId ? `https://www.youtube.com/embed/${youtubeId}?enablejsapi=1&origin=${window.location.origin}` : null;
 
   if (loading) return (
     <div className="p-6 text-center">
@@ -158,42 +202,53 @@ export default function TranscribeViewPage() {
       <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="mb-4 gap-1 text-muted-foreground">
         <ArrowLeft className="w-4 h-4" /> Quay lại
       </Button>
-      <div className="bg-card border border-border rounded-2xl p-6 text-center">
-        <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-          <Play className="w-8 h-8 text-primary" />
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        {embedUrl && (
+          <div className="aspect-video">
+            <iframe src={embedUrl} className="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+          </div>
+        )}
+        <div className="p-6 text-center">
+          <h2 className="font-display font-bold text-xl text-foreground mb-2">Video chưa được phiên dịch</h2>
+          <p className="text-sm text-muted-foreground mb-6">Ấn nút bên dưới để bắt đầu phiên dịch.</p>
+          <Button onClick={handleTranscribe} disabled={transcribing} className="gap-2 rounded-xl font-bold">
+            {transcribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            {transcribing ? 'Đang phiên dịch...' : 'Phiên dịch (1 credit)'}
+          </Button>
         </div>
-        <h2 className="font-display font-bold text-xl text-foreground mb-2">Video: {videoId}</h2>
-        <p className="text-sm text-muted-foreground mb-6">Video chưa được phiên dịch. Ấn nút bên dưới để bắt đầu.</p>
-        <Button onClick={handleTranscribe} disabled={transcribing} className="gap-2 rounded-xl font-bold">
-          {transcribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-          {transcribing ? 'Đang phiên dịch...' : 'Phiên dịch (1 credit)'}
-        </Button>
       </div>
     </div>
   );
 
   return (
     <div className="flex h-[calc(100vh-3rem)] md:h-screen animate-fade-in">
-      {/* Left: Video Player */}
+      {/* Left: Real YouTube Video Player */}
       <div className="flex-1 flex flex-col min-w-0">
         <div className="p-3 border-b border-border flex items-center gap-2">
           <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1 text-muted-foreground">
             <ArrowLeft className="w-4 h-4" /> Quay lại
           </Button>
+          {transcript && <span className="text-xs text-muted-foreground truncate">{transcript.name}</span>}
         </div>
 
-        <div className="flex-1 bg-foreground/5 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
-              <Play className="w-8 h-8 text-primary" />
+        <div className="flex-1 bg-foreground/5">
+          {embedUrl ? (
+            <iframe
+              ref={iframeRef}
+              src={embedUrl}
+              className="w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className="text-sm text-muted-foreground">Không tìm thấy video</p>
             </div>
-            <p className="text-sm text-muted-foreground">Video Player</p>
-            <p className="text-xs text-muted-foreground font-mono mt-1">{formatTime(currentTime)} / {formatTime(totalDuration)}</p>
-          </div>
+          )}
         </div>
 
         <div className="p-3 border-t border-border space-y-2">
-          <Slider value={[currentTime]} max={totalDuration || 1} step={0.1} onValueChange={([v]) => setCurrentTime(v)} className="w-full" />
+          <Slider value={[currentTime]} max={totalDuration || 1} step={0.1} onValueChange={([v]) => seekTo(v)} className="w-full" />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="sm" onClick={seekBackward} className="w-8 h-8 p-0"><SkipBack className="w-4 h-4" /></Button>
@@ -234,54 +289,26 @@ export default function TranscribeViewPage() {
         {settingsOpen ? (
           <div className="flex-1 overflow-y-auto p-3 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="font-bold text-sm text-foreground">Cài đặt Transcript</h3>
+              <h3 className="font-bold text-sm text-foreground">Cài đặt Cloze</h3>
               <Button variant="ghost" size="sm" onClick={() => setSettingsOpen(false)} className="w-6 h-6 p-0"><X className="w-3.5 h-3.5" /></Button>
             </div>
-            <div>
-              <p className="text-xs font-bold text-muted-foreground mb-2">Chế độ Cloze</p>
-              <div className="space-y-1.5">
-                {(Object.keys(CLOZE_MODE_INFO) as ClozeMode[]).map(mode => (
-                  <button key={mode} onClick={() => setClozeSettings(prev => ({ ...prev, mode }))} className={`w-full text-left p-2.5 rounded-xl text-xs transition-colors ${clozeSettings.mode === mode ? 'bg-primary/10 border border-primary/30 text-primary' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
-                    <span className="font-bold">{CLOZE_MODE_INFO[mode].label}</span>
-                    <p className="text-[10px] mt-0.5 opacity-80">{CLOZE_MODE_INFO[mode].hint}</p>
-                  </button>
-                ))}
+            <p className="text-xs text-muted-foreground">Chế độ Classic — ẩn ngẫu nhiên các từ để luyện từ vựng.</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Từ trong cloze (min-max)</p>
+                <div className="flex gap-2">
+                  <input type="number" min={1} max={5} value={clozeSettings.minWordsInCloze} onChange={e => setClozeSettings(prev => ({ ...prev, minWordsInCloze: +e.target.value }))} className="w-16 text-xs bg-muted border border-border rounded px-2 py-1 text-foreground" />
+                  <input type="number" min={1} max={10} value={clozeSettings.maxWordsInCloze} onChange={e => setClozeSettings(prev => ({ ...prev, maxWordsInCloze: +e.target.value }))} className="w-16 text-xs bg-muted border border-border rounded px-2 py-1 text-foreground" />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Khoảng cách giữa cloze (min-max)</p>
+                <div className="flex gap-2">
+                  <input type="number" min={1} max={10} value={clozeSettings.minGapBetweenCloze} onChange={e => setClozeSettings(prev => ({ ...prev, minGapBetweenCloze: +e.target.value }))} className="w-16 text-xs bg-muted border border-border rounded px-2 py-1 text-foreground" />
+                  <input type="number" min={1} max={20} value={clozeSettings.maxGapBetweenCloze} onChange={e => setClozeSettings(prev => ({ ...prev, maxGapBetweenCloze: +e.target.value }))} className="w-16 text-xs bg-muted border border-border rounded px-2 py-1 text-foreground" />
+                </div>
               </div>
             </div>
-            {clozeSettings.mode === 'classic' && (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Từ trong cloze (min-max)</p>
-                  <div className="flex gap-2">
-                    <input type="number" min={1} max={5} value={clozeSettings.minWordsInCloze} onChange={e => setClozeSettings(prev => ({ ...prev, minWordsInCloze: +e.target.value }))} className="w-16 text-xs bg-muted border border-border rounded px-2 py-1 text-foreground" />
-                    <input type="number" min={1} max={10} value={clozeSettings.maxWordsInCloze} onChange={e => setClozeSettings(prev => ({ ...prev, maxWordsInCloze: +e.target.value }))} className="w-16 text-xs bg-muted border border-border rounded px-2 py-1 text-foreground" />
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Khoảng cách giữa cloze (min-max)</p>
-                  <div className="flex gap-2">
-                    <input type="number" min={1} max={10} value={clozeSettings.minGapBetweenCloze} onChange={e => setClozeSettings(prev => ({ ...prev, minGapBetweenCloze: +e.target.value }))} className="w-16 text-xs bg-muted border border-border rounded px-2 py-1 text-foreground" />
-                    <input type="number" min={1} max={20} value={clozeSettings.maxGapBetweenCloze} onChange={e => setClozeSettings(prev => ({ ...prev, maxGapBetweenCloze: +e.target.value }))} className="w-16 text-xs bg-muted border border-border rounded px-2 py-1 text-foreground" />
-                  </div>
-                </div>
-              </div>
-            )}
-            {(clozeSettings.mode === 'listening' || clozeSettings.mode === 'reading') && (
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Độ rộng cửa sổ</p>
-                  <Slider value={[clozeSettings.windowSize]} min={1} max={10} step={1} onValueChange={([v]) => setClozeSettings(prev => ({ ...prev, windowSize: v }))} />
-                  <span className="text-[10px] text-muted-foreground">{clozeSettings.windowSize} từ</span>
-                </div>
-                {clozeSettings.mode === 'reading' && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Offset tâm</p>
-                    <Slider value={[clozeSettings.windowOffset]} min={-5} max={5} step={0.5} onValueChange={([v]) => setClozeSettings(prev => ({ ...prev, windowOffset: v }))} />
-                    <span className="text-[10px] text-muted-foreground">Offset: {clozeSettings.windowOffset}</span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -294,7 +321,7 @@ export default function TranscribeViewPage() {
                 {lookupResult.existsInFlashcards ? (
                   <span className="text-[10px] text-primary font-bold">✓ Đã có trong flashcard</span>
                 ) : (
-                  <Button variant="outline" size="sm" className="gap-1 text-[10px] mt-1 h-6">
+                  <Button variant="outline" size="sm" className="gap-1 text-[10px] mt-1 h-6" onClick={handleAddToFlashcard}>
                     <Plus className="w-3 h-3" /> Thêm vào flashcard
                   </Button>
                 )}
@@ -318,10 +345,11 @@ export default function TranscribeViewPage() {
                     return (
                       <span
                         key={wi}
-                        onClick={e => { e.stopPropagation(); if (!hidden) { jumpTo(word.start); handleLookup(word.token); } }}
-                        className={`inline-block transition-all cursor-pointer rounded px-0.5 ${active ? 'active-token bg-primary/20 text-primary font-bold scale-105' : ''} ${hidden ? 'bg-muted text-transparent select-none rounded-md mx-0.5' : 'hover:bg-muted/50'}`}
+                        onClick={e => { e.stopPropagation(); jumpTo(word.start); handleLookup(word.token); }}
+                        className={`inline-block transition-all cursor-pointer rounded px-0.5 ${active ? 'active-token bg-primary/20 text-primary font-bold scale-105' : ''} ${hidden ? 'bg-muted select-none rounded-md mx-0.5' : 'hover:bg-muted/50'}`}
+                        style={hidden ? { minWidth: `${word.token.length * 0.75}em` } : undefined}
                       >
-                        {hidden ? '████' : word.token}
+                        {hidden ? '\u00A0'.repeat(word.token.length) : word.token}
                       </span>
                     );
                   })}

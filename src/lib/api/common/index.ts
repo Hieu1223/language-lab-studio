@@ -26,7 +26,7 @@ export async function getUserUsage(userId: string): Promise<UserUsage> {
   return { ...usage };
 }
 
-export async function getCreditPacks(): Promise<CreditPack[]> {
+export async function getCreditPacks(userId: string): Promise<CreditPack[]> {
   await delay(200);
   return [...creditPacks];
 }
@@ -51,7 +51,7 @@ export async function purchaseCredits(userId: string, packId: string): Promise<U
 }
 
 // ─── Keep Alive ─────────────────────────────────────────────────────────
-export async function keepAlive(): Promise<KeepAliveResponse> {
+export async function keepAlive(userId: string): Promise<KeepAliveResponse> {
   await delay(100);
   return { status: 'ok', serverTime: new Date().toISOString() };
 }
@@ -61,7 +61,6 @@ const historyEntries: HistoryEntry[] = [
   { id: 'h-1', type: 'transcription', title: 'Chào hỏi tiếng Nhật - あいさつ', description: 'Phiên dịch video YouTube', timestamp: '2026-04-02T09:00:00Z', metadata: { videoUrl: 'https://youtube.com/watch?v=abc123' } },
   { id: 'h-2', type: 'flashcard', title: 'Ôn 15 từ vựng', description: 'Ôn tập chủ đề Danh từ', timestamp: '2026-04-02T10:00:00Z', metadata: { topicId: 'topic-noun' } },
   { id: 'h-3', type: 'manga', title: 'Đọc One Piece Ch. 1', description: 'Đọc manga với OCR', timestamp: '2026-04-01T15:00:00Z', metadata: { mangaId: 'manga-1' } },
-  { id: 'h-5', type: 'grammar', title: 'Ôn ngữ pháp cơ bản', description: '8 mẫu ngữ pháp', timestamp: '2026-03-31T11:00:00Z', metadata: {} },
 ];
 
 export async function getHistory(userId: string, type: string): Promise<HistoryEntry[]> {
