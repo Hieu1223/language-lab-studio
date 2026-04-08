@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
-import { getAllTopics, getDueCards, reviewCard, toggleTopicSelection, selectAllTopics, addCard } from '@/lib/api/flashcard';
-import type { FlashcardTopic, Flashcard } from '@/lib/api/flashcard';
+import { getAllTopics, getDueCards, reviewCard, toggleTopicSelection, selectAllTopics, addCard, getFieldConfig } from '@/lib/api/flashcard';
+import type { FlashcardTopic, Flashcard, FlashcardFieldConfig } from '@/lib/api/flashcard';
 import type { SRSRating } from '@/lib/api/common';
+import { tokenizeText } from '@/lib/api/transcription';
+import type { TokenInfo } from '@/lib/api/transcription';
 import { DeckList } from '@/components/flashcards/DeckList';
 import { FlashcardReview } from '@/components/flashcards/FlashcardReview';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Plus, Type, X, Check } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 
 const USER_ID = 'current-user';
 
@@ -15,11 +17,19 @@ export default function FlashcardsPage() {
   const [dueCards, setDueCards] = useState<Flashcard[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showAdd, setShowAdd] = useState(false);
-  const [addWord, setAddWord] = useState('');
+  const [addText, setAddText] = useState('');
+  const [tokenizedTokens, setTokenizedTokens] = useState<TokenInfo[]>([]);
+  const [selectedTokens, setSelectedTokens] = useState<Set<number>>(new Set());
+  const [tokenizing, setTokenizing] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [mode, setMode] = useState<'topics' | 'review'>('topics');
   const [undoStack, setUndoStack] = useState<{ card: Flashcard; idx: number }[]>([]);
+  const [fieldConfig, setFieldConfig] = useState<FlashcardFieldConfig[]>([]);
 
-  const reload = () => getAllTopics(USER_ID).then(setTopics);
+  const reload = () => {
+    getAllTopics(USER_ID).then(setTopics);
+    getFieldConfig(USER_ID).then(setFieldConfig);
+  };
   useEffect(() => { reload(); }, []);
 
   const startReview = async (topicIds: string[]) => {
@@ -44,10 +54,36 @@ export default function FlashcardsPage() {
     setDueCards(prev => prev.map((c, i) => i === last.idx ? last.card : c));
   };
 
-  const handleAdd = async () => {
-    if (!addWord.trim()) return;
-    await addCard(USER_ID, addWord.trim(), topics[0]?.id || 'topic-noun', 'col-default');
-    setAddWord(''); setShowAdd(false); reload();
+  const handleTokenize = async () => {
+    if (!addText.trim()) return;
+    setTokenizing(true);
+    const result = await tokenizeText(USER_ID, addText.trim());
+    setTokenizedTokens(result.tokens);
+    setSelectedTokens(new Set());
+    setTokenizing(false);
+  };
+
+  const toggleToken = (idx: number) => {
+    setSelectedTokens(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const handleAddSelected = async () => {
+    setAdding(true);
+    for (const idx of selectedTokens) {
+      const token = tokenizedTokens[idx];
+      await addCard(USER_ID, token.token, 'topic-noun', 'col-default');
+    }
+    setAdding(false);
+    setShowAdd(false);
+    setAddText('');
+    setTokenizedTokens([]);
+    setSelectedTokens(new Set());
+    reload();
   };
 
   useEffect(() => {
@@ -77,12 +113,41 @@ export default function FlashcardsPage() {
 
       {showAdd && (
         <div className="bg-card border border-border rounded-2xl p-4 mb-4">
-          <p className="text-xs text-muted-foreground mb-2">Nhập từ tiếng Nhật — nghĩa tự động tạo.</p>
-          <div className="flex gap-2">
-            <Input value={addWord} onChange={e => setAddWord(e.target.value)} placeholder="Từ tiếng Nhật..." className="bg-background border-border rounded-xl" onKeyDown={e => e.key === 'Enter' && handleAdd()} />
-            <Button onClick={handleAdd} size="sm" disabled={!addWord.trim()}>Thêm</Button>
-            <Button onClick={() => setShowAdd(false)} variant="ghost" size="sm">Huỷ</Button>
+          <p className="text-xs text-muted-foreground mb-2">Nhập đoạn văn bản tiếng Nhật, hệ thống sẽ tách từ và bạn chọn từ muốn thêm.</p>
+          <Textarea value={addText} onChange={e => setAddText(e.target.value)} placeholder="Nhập đoạn văn bản tiếng Nhật..." className="bg-background border-border rounded-xl mb-2 min-h-[80px]" />
+          <div className="flex gap-2 mb-3">
+            <Button onClick={handleTokenize} size="sm" disabled={!addText.trim() || tokenizing} className="gap-1">
+              <Type className="w-3 h-3" /> {tokenizing ? 'Đang tách từ...' : 'Tách từ'}
+            </Button>
+            <Button onClick={() => { setShowAdd(false); setTokenizedTokens([]); setSelectedTokens(new Set()); }} variant="ghost" size="sm">Huỷ</Button>
           </div>
+
+          {tokenizedTokens.length > 0 && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Chọn các từ muốn thêm vào flashcard:</p>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {tokenizedTokens.map((token, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => toggleToken(idx)}
+                    className={`px-2.5 py-1.5 rounded-lg text-sm border transition-colors ${
+                      selectedTokens.has(idx)
+                        ? 'bg-primary text-primary-foreground border-primary font-bold'
+                        : 'bg-muted text-foreground border-border hover:border-primary/40'
+                    }`}
+                  >
+                    <span className="font-bold">{token.token}</span>
+                    <span className="text-[10px] ml-1 opacity-70">{token.partOfSpeech}</span>
+                  </button>
+                ))}
+              </div>
+              {selectedTokens.size > 0 && (
+                <Button onClick={handleAddSelected} size="sm" disabled={adding} className="gap-1">
+                  <Check className="w-3 h-3" /> Thêm {selectedTokens.size} từ đã chọn
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

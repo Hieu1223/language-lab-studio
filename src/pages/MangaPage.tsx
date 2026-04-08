@@ -14,7 +14,7 @@ export default function MangaPage() {
   useEffect(() => {
     setLoading(true);
     const timer = setTimeout(() => {
-      (query ? searchManga(query) : getMangaList()).then(m => {
+      (query ? searchManga('current-user', query) : getMangaList('current-user')).then(m => {
         setMangas(m);
         setLoading(false);
       });

@@ -1,28 +1,20 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Video, Search, History, Brain, Type, CreditCard, Menu, X, BookText, LogOut, BookMarked, Settings } from 'lucide-react';
+import { BookOpen, Video, BookMarked, CreditCard, Menu, X, LogOut, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 
 const navItems = [
   { path: '/youtube', label: 'Phiên dịch', icon: Video },
   { path: '/vocabulary', label: 'Từ vựng', icon: BookOpen },
-  { path: '/grammar', label: 'Ngữ pháp', icon: BookText },
   { path: '/manga', label: 'Manga', icon: BookMarked },
-  { path: '/public', label: 'Công khai', icon: Search },
-  { path: '/history', label: 'Lịch sử', icon: History },
-  { path: '/tokenizer', label: 'Tokenizer', icon: Type },
   { path: '/pricing', label: 'Mua credit', icon: CreditCard },
   { path: '/settings', label: 'Cài đặt', icon: Settings },
 ];
-
-const publicPaths = ['/public', '/login', '/landing'];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { user, logout } = useAuth();
-
-  const visibleNav = user ? navItems : navItems.filter(n => publicPaths.includes(n.path));
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -39,7 +31,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <nav className="flex-1 py-2 overflow-y-auto">
-          {visibleNav.map(item => {
+          {navItems.map(item => {
             const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
             return (
               <Link key={item.path} to={item.path} className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors rounded-r-xl mr-2 ${active ? 'bg-primary/10 text-primary font-bold border-l-4 border-primary' : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'}`}>
@@ -73,7 +65,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         {mobileOpen && (
           <div className="md:hidden bg-card border-b border-border">
-            {visibleNav.map(item => {
+            {navItems.map(item => {
               const active = location.pathname === item.path;
               return (
                 <Link key={item.path} to={item.path} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-4 py-2.5 text-sm ${active ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground'}`}>

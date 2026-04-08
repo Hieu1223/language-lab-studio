@@ -7,12 +7,12 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 let mangas = [...mockMangas];
 
-export async function getMangaList(): Promise<Manga[]> {
+export async function getMangaList(userId: string): Promise<Manga[]> {
   await delay(300);
   return [...mangas];
 }
 
-export async function searchManga(query: string): Promise<Manga[]> {
+export async function searchManga(userId: string, query: string): Promise<Manga[]> {
   await delay(300);
   const q = query.toLowerCase();
   return mangas.filter(m => m.title.toLowerCase().includes(q) || m.author.toLowerCase().includes(q));
@@ -40,7 +40,7 @@ export async function ocrMangaPage(pageId: string): Promise<OcrResult> {
   return getMockOcrResult(pageId);
 }
 
-export async function toggleMangaSave(mangaId: string): Promise<Manga> {
+export async function toggleMangaSave(userId: string, mangaId: string): Promise<Manga> {
   await delay(200);
   mangas = mangas.map(m => m.id === mangaId ? { ...m, isSaved: !m.isSaved } : m);
   return mangas.find(m => m.id === mangaId)!;

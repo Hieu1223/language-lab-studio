@@ -1,6 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { getFieldConfig, saveFieldConfig } from '@/lib/api/flashcard';
+import type { FlashcardFieldConfig } from '@/lib/api/flashcard';
+
+const USER_ID = 'current-user';
 
 interface SettingSection {
   title: string;
@@ -13,7 +18,6 @@ const sections: SettingSection[] = [
     settings: [
       { key: 'autoScroll', label: 'Tự động cuộn', desc: 'Tự cuộn transcript theo video', type: 'toggle' },
       { key: 'clozeDefault', label: 'Bật Cloze mặc định', desc: 'Ẩn từ khi mở transcript', type: 'toggle' },
-      { key: 'clozePercent', label: 'Tỷ lệ ẩn từ', desc: 'Phần trăm từ bị ẩn', type: 'select', options: ['10%', '25%', '50%'] },
     ]
   },
   {
@@ -23,29 +27,26 @@ const sections: SettingSection[] = [
       { key: 'autoOcr', label: 'Tự động OCR', desc: 'Chạy OCR khi mở trang mới', type: 'toggle' },
     ]
   },
-  {
-    title: 'Flashcard',
-    settings: [
-      { key: 'dailyLimit', label: 'Giới hạn thẻ mới/ngày', desc: 'Số thẻ mới tối đa mỗi ngày', type: 'select', options: ['5', '10', '20', '50'] },
-      { key: 'autoAudio', label: 'Tự phát âm', desc: 'Phát âm thanh khi hiện thẻ', type: 'toggle' },
-    ]
-  },
-  {
-    title: 'Luyện tập',
-    settings: [
-      { key: 'defaultMode', label: 'Chế độ mặc định', desc: 'Chế độ luyện câu mặc định', type: 'select', options: ['JP → VN', 'VN → JP'] },
-      { key: 'showHints', label: 'Hiện gợi ý', desc: 'Hiện gợi ý ngữ pháp khi luyện', type: 'toggle' },
-    ]
-  },
 ];
 
 export default function SettingsPage() {
   const [toggles, setToggles] = useState<Record<string, boolean>>({
-    autoScroll: true, clozeDefault: false, autoOcr: false, autoAudio: false, showHints: true,
+    autoScroll: true, clozeDefault: false, autoOcr: false,
   });
   const [selects, setSelects] = useState<Record<string, string>>({
-    clozePercent: '25%', readingMode: 'Cuộn dọc', dailyLimit: '20', defaultMode: 'JP → VN',
+    readingMode: 'Cuộn dọc',
   });
+  const [fieldConfig, setFieldConfig] = useState<FlashcardFieldConfig[]>([]);
+
+  useEffect(() => {
+    getFieldConfig(USER_ID).then(setFieldConfig);
+  }, []);
+
+  const handleFieldToggle = async (index: number, side: 'showOnFront' | 'showOnBack', value: boolean) => {
+    const updated = fieldConfig.map((f, i) => i === index ? { ...f, [side]: value } : f);
+    setFieldConfig(updated);
+    await saveFieldConfig(USER_ID, updated);
+  };
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto animate-fade-in">
@@ -86,6 +87,39 @@ export default function SettingsPage() {
             </div>
           </div>
         ))}
+
+        {/* Flashcard field display settings */}
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-border bg-muted/30">
+            <h3 className="font-bold text-sm text-foreground">Flashcard - Hiển thị field</h3>
+          </div>
+          <div className="p-4">
+            <p className="text-xs text-muted-foreground mb-3">Chọn field nào hiển thị ở mặt trước và mặt sau của flashcard.</p>
+            <div className="space-y-2">
+              {fieldConfig.map((field, idx) => (
+                <div key={field.field} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <span className="text-sm font-medium text-foreground">{field.label}</span>
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Checkbox
+                        checked={field.showOnFront}
+                        onCheckedChange={(v) => handleFieldToggle(idx, 'showOnFront', !!v)}
+                      />
+                      Mặt trước
+                    </label>
+                    <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Checkbox
+                        checked={field.showOnBack}
+                        onCheckedChange={(v) => handleFieldToggle(idx, 'showOnBack', !!v)}
+                      />
+                      Mặt sau
+                    </label>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

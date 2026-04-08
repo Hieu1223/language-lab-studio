@@ -13,7 +13,7 @@ export default function PricingPage() {
   const [buying, setBuying] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([getCreditPacks(), getUserUsage(USER_ID)]).then(([p, u]) => { setPacks(p); setUsage(u); setLoading(false); });
+    Promise.all([getCreditPacks(USER_ID), getUserUsage(USER_ID)]).then(([p, u]) => { setPacks(p); setUsage(u); setLoading(false); });
   }, []);
 
   const handleBuy = async (packId: string) => {

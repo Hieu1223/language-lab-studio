@@ -1,69 +1,44 @@
-import { useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, Plus } from 'lucide-react';
-import { getMyTranscripts, requestTranscription } from '@/lib/api/transcription';
-import { canSpendCredits, spendCredits } from '@/lib/api/common';
-import { UsageBadge } from '@/components/transcription/UsageBadge';
-import { TranscriptionListItem } from '@/components/transcription/TranscriptionListItem';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getMyTranscripts } from '@/lib/api/transcription';
 import type { Transcript } from '@/lib/api/transcription';
-import { useEffect } from 'react';
+import { TranscriptStatus } from '@/lib/api/transcription';
 
 const USER_ID = 'current-user';
 
 export default function TranscribePage() {
-  const [url, setUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [transcriptions, setTranscriptions] = useState<Transcript[]>([]);
-  const [listLoading, setListLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    getMyTranscripts(USER_ID, { status: 'all', sourceSite: 'all', search: '' }).then(t => { setTranscriptions(t); setListLoading(false); });
+    getMyTranscripts(USER_ID, { status: 'all', sourceSite: 'all', search: '' }).then(t => { setTranscriptions(t); setLoading(false); });
   }, []);
-
-  const handleTranscribe = async () => {
-    if (!url.trim()) return;
-    setError(''); setLoading(true);
-    try {
-      const allowed = await canSpendCredits(USER_ID, 1);
-      if (!allowed) { setError('Không đủ credit.'); setLoading(false); return; }
-      await requestTranscription({
-        name: `Transcript - ${new Date().toLocaleDateString('vi-VN')}`,
-        resource_id: url,
-        original_source: 'Youtube',
-        public: false,
-        thumbnail_url: '',
-        resource_url: url,
-      });
-      await spendCredits(USER_ID, 1);
-      const updated = await getMyTranscripts(USER_ID, { status: 'all', sourceSite: 'all', search: '' });
-      setTranscriptions(updated);
-      setUrl('');
-    } catch { setError('Không thể phiên dịch video.'); }
-    finally { setLoading(false); }
-  };
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto animate-fade-in">
       <div className="mb-6">
-        <h2 className="font-display font-bold text-2xl text-foreground mb-1">Phiên dịch Video</h2>
-        <p className="text-sm text-muted-foreground">Dán URL YouTube hoặc tải lên video.</p>
+        <h2 className="font-display font-bold text-2xl text-foreground mb-1">Các bản phiên dịch</h2>
+        <p className="text-sm text-muted-foreground">Xem lại các video đã phiên dịch.</p>
       </div>
-      <UsageBadge />
-      <div className="flex gap-2 mt-4">
-        <Input value={url} onChange={e => setUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." className="flex-1 bg-card border-border font-mono text-sm" onKeyDown={e => e.key === 'Enter' && handleTranscribe()} />
-        <Button onClick={handleTranscribe} disabled={loading || !url.trim()} className="gap-2">
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Phiên dịch
-        </Button>
-      </div>
-      {error && <div className="mt-4 flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-lg border border-destructive/20"><AlertCircle className="w-4 h-4" />{error}</div>}
-      <div className="mt-6">
-        <h3 className="font-display font-semibold text-foreground mb-3">Các bản phiên dịch</h3>
-        {listLoading ? <p className="text-sm text-muted-foreground">Đang tải...</p> : (
-          <div className="space-y-2">{transcriptions.map(t => <TranscriptionListItem key={t.id} transcription={t} />)}</div>
-        )}
-      </div>
+      {loading ? <p className="text-sm text-muted-foreground">Đang tải...</p> : (
+        <div className="space-y-2">
+          {transcriptions.map(t => (
+            <button key={t.id} onClick={() => navigate(`/transcript/${t.id}`)} className="w-full flex items-center gap-3 p-3 bg-card border border-border rounded-xl text-left hover:border-primary/40 transition-colors">
+              <div className="w-20 h-12 rounded-lg bg-muted overflow-hidden flex-shrink-0">
+                {t.thumnail_url && <img src={t.thumnail_url} alt="" className="w-full h-full object-cover" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-bold text-foreground truncate">{t.name}</h3>
+                <p className="text-xs text-muted-foreground">{new Date(t.date_created).toLocaleDateString('vi-VN')}</p>
+              </div>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${t.status === TranscriptStatus.Finish ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                {t.status === TranscriptStatus.Finish ? 'Hoàn thành' : 'Đang xử lý'}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
