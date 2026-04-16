@@ -10,7 +10,8 @@
     --font-mono: 'JetBrains Mono', monospace;
     --font-body: 'Nunito', sans-serif;
 
-    --background: 0 0% 98%;
+    /* Duolingo Green Theme */
+    --background: 0 0% 99%;
     --foreground: 210 11% 15%;
 
     --card: 0 0% 100%;
@@ -19,22 +20,25 @@
     --popover: 0 0% 100%;
     --popover-foreground: 210 11% 15%;
 
-    --primary: 145 63% 42%;
+    /* Vibrant green (Duolingo-inspired) */
+    --primary: 142 72% 29%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 145 30% 94%;
-    --secondary-foreground: 145 63% 30%;
+    /* Light green background */
+    --secondary: 142 60% 88%;
+    --secondary-foreground: 142 72% 22%;
 
     --muted: 210 20% 96%;
     --muted-foreground: 215 14% 45%;
 
+    /* Warm accent color */
     --accent: 38 92% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 145 63% 42%;
+    --success: 142 72% 29%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
@@ -43,18 +47,18 @@
     --border: 214 20% 88%;
     --border-faint: 214 15% 93%;
     --input: 214 20% 88%;
-    --ring: 145 63% 42%;
+    --ring: 142 72% 29%;
 
     --radius: 0.75rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 215 14% 45%;
-    --sidebar-primary: 145 63% 42%;
+    --sidebar-primary: 142 72% 29%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 145 30% 94%;
-    --sidebar-accent-foreground: 145 63% 30%;
+    --sidebar-accent: 142 60% 88%;
+    --sidebar-accent-foreground: 142 72% 22%;
     --sidebar-border: 214 20% 88%;
-    --sidebar-ring: 145 63% 42%;
+    --sidebar-ring: 142 72% 29%;
   }
 }
 

@@ -1,35 +1,107 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { User } from './api/auth/types';
+import { clearToken, getStoredToken, storeToken } from './api-client';
+
+export interface User {
+  id: string;
+  name: string;
+  email?: string;
+  avatarUrl?: string;
+  createdAt?: string;
+}
 
 interface AuthContextType {
   user: User | null;
+  token: string | null;
   isLoading: boolean;
-  login: () => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
+  register: (username: string, password: string, displayName?: string) => Promise<void>;
   logout: () => void;
+  setUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('nihongo-user');
-    if (stored) setUser(JSON.parse(stored));
+    const storedToken = getStoredToken();
+    const storedUser = localStorage.getItem('nihongo-user');
+    if (storedToken) {
+      setToken(storedToken);
+    }
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
     setIsLoading(false);
   }, []);
 
-  const login = async () => {
-    await new Promise(r => setTimeout(r, 800));
-    const mockUser: User = { id: 'current-user', name: 'Nguyễn Văn A', email: 'nguyenvana@gmail.com', avatarUrl: '', googleLinked: false, createdAt: '2026-01-01T00:00:00Z' };
+  const login = async (username: string, password: string) => {
+    const response = await fetch('https://japlearningbackend.onrender.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        username,
+        password,
+        grant_type: 'password',
+      }).toString(),
+    });
+
+    if (!response.ok) {
+      throw new Error('Login failed');
+    }
+
+    const data = await response.json();
+    const newToken = data.access_token;
+    setToken(newToken);
+    storeToken(newToken);
+
+    // Extract user info (in a real app, you'd fetch the user info separately)
+    const mockUser: User = {
+      id: 'current-user',
+      name: username,
+      email: `${username}@example.com`,
+      createdAt: new Date().toISOString(),
+    };
     setUser(mockUser);
     localStorage.setItem('nihongo-user', JSON.stringify(mockUser));
   };
 
-  const logout = () => { setUser(null); localStorage.removeItem('nihongo-user'); };
+  const register = async (username: string, password: string, displayName?: string) => {
+    const response = await fetch('https://japlearningbackend.onrender.com/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        password,
+        display_name: displayName,
+      }),
+    });
 
-  return <AuthContext.Provider value={{ user, isLoading, login, logout }}>{children}</AuthContext.Provider>;
+    if (!response.ok) {
+      throw new Error('Registration failed');
+    }
+
+    // After successful registration, auto-login
+    await login(username, password);
+  };
+
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    clearToken();
+    localStorage.removeItem('nihongo-user');
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{ user, token, isLoading, login, register, logout, setUser }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

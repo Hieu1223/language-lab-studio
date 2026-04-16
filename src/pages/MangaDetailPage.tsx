@@ -1,68 +1,98 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getMangaDetail, getMangaChapters, type Manga, type MangaChapter } from '@/lib/api/manga';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, BookOpen } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { getChapterList, type ChapterInfo } from '@/lib/api/manga-real';
 
 export default function MangaDetailPage() {
   const { mangaId } = useParams<{ mangaId: string }>();
   const navigate = useNavigate();
-  const [manga, setManga] = useState<Manga | null>(null);
-  const [chapters, setChapters] = useState<MangaChapter[]>([]);
+
+  const [chapters, setChapters] = useState<ChapterInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!mangaId) return;
-    Promise.all([getMangaDetail(mangaId), getMangaChapters(mangaId)]).then(([m, c]) => {
-      setManga(m);
-      setChapters(c);
-      setLoading(false);
-    });
-  }, [mangaId]);
+    if (!mangaId) {
+      navigate('/manga');
+      return;
+    }
 
-  if (loading) return <div className="p-6 text-sm text-muted-foreground">Đang tải...</div>;
-  if (!manga) return <div className="p-6 text-sm text-muted-foreground">Không tìm thấy manga.</div>;
+    const loadChapters = async () => {
+      try {
+        setLoading(true);
+        // In a real app, you'd have the actual manga URL
+        const mangaUrl = `https://example.com/manga/${decodeURIComponent(mangaId)}`;
+        const chapterList = await getChapterList(mangaUrl);
+        setChapters(chapterList);
+      } catch (error) {
+        toast.error('Failed to load chapters');
+        console.error(error);
+        navigate('/manga');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadChapters();
+  }, [mangaId, navigate]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto animate-fade-in">
-      <Button variant="ghost" size="sm" onClick={() => navigate('/manga')} className="mb-4 text-muted-foreground gap-1">
-        <ArrowLeft className="w-4 h-4" /> Quay lại
-      </Button>
+      <div className="mb-6">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/manga')}>
+          ← Back to Manga
+        </Button>
+      </div>
 
-      <div className="flex gap-6 mb-8">
-        <img src={manga.coverUrl} alt={manga.title} className="w-32 md:w-40 rounded-2xl object-cover border border-border" />
-        <div className="flex-1">
-          <h2 className="font-display font-bold text-2xl text-foreground mb-2">{manga.title}</h2>
-          <p className="text-sm text-muted-foreground mb-2">{manga.author}</p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {manga.genres.map(g => (
-              <span key={g} className="text-xs px-2 py-0.5 bg-secondary text-secondary-foreground rounded-full font-bold">{g}</span>
-            ))}
-          </div>
-          <p className="text-sm text-muted-foreground">{manga.description}</p>
-          <p className="text-xs text-muted-foreground mt-2 font-mono">{manga.chapterCount} chương</p>
+      <div className="mb-8">
+        <h2 className="font-display font-bold text-2xl text-foreground mb-2">
+          {decodeURIComponent(mangaId || '')}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          {chapters.length} chương có sẵn
+        </p>
+      </div>
+
+      {chapters.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>No chapters found</p>
         </div>
-      </div>
-
-      <h3 className="font-bold text-foreground mb-3">Danh sách chương</h3>
-      <div className="space-y-2">
-        {chapters.map(ch => (
-          <button
-            key={ch.id}
-            onClick={() => navigate(`/manga/${mangaId}/read/${ch.id}`)}
-            className="w-full flex items-center justify-between bg-card border border-border rounded-xl p-3 hover:border-primary/40 transition-colors text-left group"
-          >
-            <div className="flex items-center gap-3">
-              <BookOpen className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-              <div>
-                <span className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Chương {ch.number}</span>
-                <span className="text-xs text-muted-foreground ml-2">{ch.title}</span>
-              </div>
-            </div>
-            <span className="text-xs text-muted-foreground font-mono">{ch.pageCount} trang</span>
-          </button>
-        ))}
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {chapters.reverse().map((chapter, idx) => (
+            <Card
+              key={idx}
+              className="hover:shadow-md transition-shadow cursor-pointer"
+              onClick={() =>
+                navigate(
+                  `/manga/${encodeURIComponent(mangaId || '')}/read/${encodeURIComponent(
+                    chapter.url
+                  )}`
+                )
+              }
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">
+                  {chapter.title || `Chapter ${chapter.num}`}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-xs text-muted-foreground">Chapter {chapter.num}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

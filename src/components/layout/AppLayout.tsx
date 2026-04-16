@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Video, BookMarked, CreditCard, Menu, X, LogOut, Settings } from 'lucide-react';
+import { BookOpen, Video, BookMarked, Menu, X, LogOut, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 
@@ -7,7 +7,6 @@ const navItems = [
   { path: '/youtube', label: 'Phiên dịch', icon: Video },
   { path: '/vocabulary', label: 'Từ vựng', icon: BookOpen },
   { path: '/manga', label: 'Manga', icon: BookMarked },
-  { path: '/pricing', label: 'Mua credit', icon: CreditCard },
   { path: '/settings', label: 'Cài đặt', icon: Settings },
 ];
 

@@ -1,125 +1,190 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { searchYouTubeVideos, getMyTranscripts } from '@/lib/api/transcription';
-import type { YouTubeVideo, Transcript } from '@/lib/api/transcription';
-import { TranscriptStatus } from '@/lib/api/transcription';
 import { Input } from '@/components/ui/input';
-import { Search, Check, Video, Filter } from 'lucide-react';
-
-const USER_ID = 'current-user';
-type Tab = 'browse' | 'transcribed';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { Search, Loader2, Play } from 'lucide-react';
+import { requestTranscription, searchYouTube, type VideoPreview } from '@/lib/api/transcription-real';
+import { useAuth } from '@/lib/auth-context';
 
 export default function YouTubeBrowsePage() {
   const [query, setQuery] = useState('');
-  const [videos, setVideos] = useState<YouTubeVideo[]>([]);
-  const [transcriptions, setTranscriptions] = useState<Transcript[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<Tab>('browse');
-  const [filter, setFilter] = useState<'all' | 'transcribed' | 'not-transcribed'>('all');
+  const [searchResults, setSearchResults] = useState<VideoPreview[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [transcribing, setTranscribing] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => {
-      searchYouTubeVideos(USER_ID, query).then(v => { setVideos(v); setLoading(false); });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
 
-  useEffect(() => {
-    getMyTranscripts(USER_ID, { status: 'all', sourceSite: 'all', search: '' }).then(setTranscriptions);
-  }, []);
+    try {
+      setSearching(true);
+      const results = await searchYouTube(query);
+      setSearchResults(results);
+      if (results.length === 0) {
+        toast.info('No results found');
+      }
+    } catch (error) {
+      toast.error('Failed to search YouTube');
+      console.error(error);
+    } finally {
+      setSearching(false);
+    }
+  };
 
-  const filteredVideos = filter === 'all' ? videos :
-    filter === 'transcribed' ? videos.filter(v => v.isTranscribed) :
-    videos.filter(v => !v.isTranscribed);
+  const handleTranscribe = async (video: VideoPreview) => {
+    if (!user) {
+      toast.error('You must be logged in to transcribe');
+      return;
+    }
 
-  const tabs: { key: Tab; label: string; icon: typeof Video }[] = [
-    { key: 'browse', label: 'Duyệt video', icon: Video },
-    { key: 'transcribed', label: 'Đã phiên dịch', icon: Check },
-  ];
+    try {
+      setTranscribing(video.id);
+      const result = await requestTranscription(
+        `https://www.youtube.com/watch?v=${video.id}`,
+        video.id,
+        video.title,
+        video.thumbnail_url || '',
+        true
+      );
+
+      if (result.success) {
+        toast.success('Transcription started! Please wait...');
+        // Navigate to the transcript view
+        setTimeout(() => {
+          navigate(`/transcript/${result.transcript_id}`);
+        }, 1000);
+      } else {
+        toast.error('Failed to start transcription');
+      }
+    } catch (error) {
+      toast.error('Failed to transcribe video');
+      console.error(error);
+    } finally {
+      setTranscribing(null);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto animate-fade-in">
-      <div className="mb-6">
-        <h2 className="font-display font-bold text-2xl text-foreground mb-1">Phiên dịch YouTube</h2>
-        <p className="text-sm text-muted-foreground">Tìm video, phiên dịch với transcript đồng bộ.</p>
+      <div className="mb-8">
+        <h2 className="font-display font-bold text-2xl text-foreground mb-2">Phiên dịch</h2>
+        <p className="text-sm text-muted-foreground">
+          Tìm và phiên dịch các video YouTube để ôn tập tiếng Nhật
+        </p>
       </div>
 
-      <div className="flex gap-1.5 mb-4 overflow-x-auto">
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors ${tab === t.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
-            <t.icon className="w-3.5 h-3.5" />{t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'browse' && (
-        <>
-          <div className="flex gap-2 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm kiếm video..." className="pl-9 bg-card border-border rounded-xl" />
-            </div>
-            <select value={filter} onChange={e => setFilter(e.target.value as typeof filter)} className="text-xs bg-card border border-border rounded-xl px-3 text-foreground">
-              <option value="all">Tất cả</option>
-              <option value="transcribed">Đã transcript</option>
-              <option value="not-transcribed">Chưa transcript</option>
-            </select>
+      {/* Search Form */}
+      <form onSubmit={handleSearch} className="mb-8">
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Tìm video YouTube..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-10"
+              disabled={searching}
+            />
           </div>
-          {loading ? (
-            <div className="text-center py-12 text-muted-foreground text-sm">Đang tải...</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filteredVideos.map(video => (
-                <button key={video.id} onClick={() => navigate(`/transcribe/${video.id}`)} className="bg-card border border-border rounded-2xl overflow-hidden text-left hover:border-primary/40 transition-all hover:shadow-md group">
-                  <div className="relative aspect-video bg-muted">
-                    <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
-                    <span className="absolute bottom-2 right-2 bg-foreground/80 text-background text-xs px-1.5 py-0.5 rounded font-mono">{video.duration}</span>
-                    {video.isTranscribed && (
-                      <span className="absolute top-2 left-2 bg-primary text-primary-foreground text-[10px] px-1.5 py-0.5 rounded-full font-bold">✓ Đã dịch</span>
+          <Button type="submit" disabled={searching || !query.trim()}>
+            {searching ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Đang tìm...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                Tìm kiếm
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+
+      {/* Results Grid */}
+      {searchResults.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">
+            Kết quả ({searchResults.length})
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {searchResults.map((video) => (
+              <Card
+                key={video.id}
+                className="overflow-hidden hover:shadow-lg transition-shadow"
+              >
+                {/* Thumbnail */}
+                <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
+                  {video.thumbnail_url ? (
+                    <img
+                      src={video.thumbnail_url}
+                      alt={video.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+                      <Play className="w-8 h-8 text-gray-600" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Button
+                      onClick={() => handleTranscribe(video)}
+                      disabled={transcribing === video.id}
+                      className="gap-2"
+                    >
+                      {transcribing === video.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Đang phiên dịch...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4" />
+                          Phiên dịch
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Info */}
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm line-clamp-2">{video.title}</CardTitle>
+                  <CardDescription className="text-xs">
+                    {video.channel.name || 'Unknown Channel'}
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent>
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    {video.duration && <p>Duration: {video.duration}</p>}
+                    {video.view_count !== null && (
+                      <p>Views: {video.view_count.toLocaleString()}</p>
                     )}
                   </div>
-                  <div className="p-3">
-                    <h3 className="font-bold text-sm text-foreground line-clamp-2 mb-1 group-hover:text-primary transition-colors">{video.title}</h3>
-                    <p className="text-xs text-muted-foreground">{video.channelName}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{video.viewCount} lượt xem · {video.publishedAt}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
 
-      {tab === 'transcribed' && (
-        <div className="space-y-2">
-          {transcriptions.length === 0 ? (
-            <p className="text-center py-12 text-muted-foreground text-sm">Chưa có video nào được phiên dịch.</p>
-          ) : (
-            transcriptions.map(t => (
-              <button
-                key={t.id}
-                onClick={() => navigate(`/transcript/${t.id}`)}
-                className="w-full flex items-center gap-3 p-3 bg-card border border-border rounded-xl text-left transition-colors hover:border-primary/40 cursor-pointer"
-              >
-                <div className="w-20 h-12 rounded-lg bg-muted overflow-hidden flex-shrink-0">
-                  {t.thumnail_url && <img src={t.thumnail_url} alt="" className="w-full h-full object-cover" />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-bold text-foreground truncate">{t.name}</h3>
-                  <p className="text-xs text-muted-foreground">{t.original_source} · {new Date(t.date_created).toLocaleDateString('vi-VN')}</p>
-                </div>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  t.status === TranscriptStatus.Finish ? 'bg-primary/10 text-primary' :
-                  t.status === TranscriptStatus.Transcripting ? 'bg-yellow-500/10 text-yellow-600' :
-                  'bg-muted text-muted-foreground'
-                }`}>
-                  {t.status === TranscriptStatus.Finish ? 'Hoàn thành' : t.status === TranscriptStatus.Transcripting ? 'Đang xử lý' : 'Chờ'}
-                </span>
-              </button>
-            ))
-          )}
+      {/* Empty State */}
+      {!searching && searchResults.length === 0 && query && (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>No videos found. Try a different search.</p>
+        </div>
+      )}
+
+      {!searching && searchResults.length === 0 && !query && (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>Search for a YouTube video to get started</p>
         </div>
       )}
     </div>

@@ -1,83 +1,115 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getMangaList, searchManga, type Manga } from '@/lib/api/manga';
 import { Input } from '@/components/ui/input';
-import { Search, BookMarked } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from 'sonner';
+import { Search, Loader2 } from 'lucide-react';
+import { searchManga, type MangaInfo } from '@/lib/api/manga-real';
 
 export default function MangaPage() {
   const [query, setQuery] = useState('');
-  const [mangas, setMangas] = useState<Manga[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'saved' | 'all'>('saved');
+  const [results, setResults] = useState<MangaInfo[]>([]);
+  const [searching, setSearching] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => {
-      (query ? searchManga('current-user', query) : getMangaList('current-user')).then(m => {
-        setMangas(m);
-        setLoading(false);
-      });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [query]);
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
 
-  const filtered = tab === 'saved' ? mangas.filter(m => m.isSaved) : mangas;
+    try {
+      setSearching(true);
+      const mangaResults = await searchManga(query);
+      setResults(mangaResults);
+      if (mangaResults.length === 0) {
+        toast.info('No manga found');
+      }
+    } catch (error) {
+      toast.error('Failed to search manga');
+      console.error(error);
+    } finally {
+      setSearching(false);
+    }
+  };
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto animate-fade-in">
-      <div className="mb-6">
-        <h2 className="font-display font-bold text-2xl text-foreground mb-1">Đọc Manga</h2>
-        <p className="text-sm text-muted-foreground">Đọc manga tiếng Nhật với OCR và dịch tích hợp.</p>
+      <div className="mb-8">
+        <h2 className="font-display font-bold text-2xl text-foreground mb-2">Manga</h2>
+        <p className="text-sm text-muted-foreground">
+          Tìm và đọc manga để ôn tập tiếng Nhật với OCR
+        </p>
       </div>
 
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setTab('saved')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${tab === 'saved' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-        >
-          <BookMarked className="w-4 h-4 inline mr-1" /> Đã lưu
-        </button>
-        <button
-          onClick={() => setTab('all')}
-          className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${tab === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
-        >
-          Tất cả
-        </button>
-      </div>
-
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Tìm manga..." className="pl-9 bg-card border-border rounded-xl" />
-      </div>
-
-      {loading ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">Đang tải...</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg mb-2">📚</p>
-          <p className="text-sm">{tab === 'saved' ? 'Chưa lưu manga nào.' : 'Không tìm thấy manga.'}</p>
+      {/* Search Form */}
+      <form onSubmit={handleSearch} className="mb-8">
+        <div className="flex gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="text"
+              placeholder="Tìm kiếm manga..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="pl-10"
+              disabled={searching}
+            />
+          </div>
+          <Button type="submit" disabled={searching || !query.trim()}>
+            {searching ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Đang tìm...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                Tìm kiếm
+              </>
+            )}
+          </Button>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {filtered.map(manga => (
-            <button
-              key={manga.id}
-              onClick={() => navigate(`/manga/${manga.id}`)}
-              className="bg-card border border-border rounded-2xl overflow-hidden text-left hover:border-primary/40 transition-all hover:shadow-md group"
-            >
-              <div className="aspect-[2/3] bg-muted">
-                <img src={manga.coverUrl} alt={manga.title} className="w-full h-full object-cover" />
-              </div>
-              <div className="p-3">
-                <h3 className="font-bold text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">{manga.title}</h3>
-                <p className="text-xs text-muted-foreground">{manga.author}</p>
-                {manga.lastRead && (
-                  <span className="text-[10px] px-2 py-0.5 bg-primary/10 text-primary rounded-full font-mono mt-1 inline-block">{manga.lastRead}</span>
-                )}
-              </div>
-            </button>
-          ))}
+      </form>
+
+      {/* Results Grid */}
+      {results.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-foreground mb-4">
+            Kết quả ({results.length})
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {results.map((manga, idx) => (
+              <Card
+                key={idx}
+                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => navigate(`/manga/${encodeURIComponent(manga.name)}`)}
+              >
+                <div className="aspect-[3/4] bg-muted overflow-hidden">
+                  <img
+                    src={manga.cover_url}
+                    alt={manga.name}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform"
+                  />
+                </div>
+                <CardHeader className="p-3">
+                  <CardTitle className="text-sm line-clamp-2">{manga.name}</CardTitle>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!searching && results.length === 0 && query && (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>No manga found. Try a different search.</p>
+        </div>
+      )}
+
+      {!searching && results.length === 0 && !query && (
+        <div className="text-center py-12 text-muted-foreground">
+          <p>Search for a manga to get started</p>
         </div>
       )}
     </div>
