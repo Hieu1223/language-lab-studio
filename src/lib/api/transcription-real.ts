@@ -85,16 +85,18 @@ export async function requestTranscription(
   videoId: string,
   title: string,
   thumbnailUrl: string,
+  userId: string,
+  token?: string,
   isPublic: boolean = true
 ): Promise<{ transcript_id: string; success: boolean }> {
-  const token = getStoredToken();
-  if (!token) throw new Error('Not authenticated');
+  const authToken = token || getStoredToken();
+  if (!authToken) throw new Error('Not authenticated');
 
   return apiCall<{ transcript_id: string; success: boolean }>(
     '/transcription/transcribe/youtube',
     {
       method: 'POST',
-      token,
+      token: authToken,
       body: {
         name: title,
         resource_id: videoId,
@@ -102,7 +104,7 @@ export async function requestTranscription(
         public: isPublic,
         thumbnail_url: thumbnailUrl,
         resource_url: youtubeUrl,
-        user_id: 'current-user', // This should be replaced with actual user ID
+        user_id: userId,
       },
     }
   );

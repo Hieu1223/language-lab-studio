@@ -30,7 +30,7 @@ export default function YouTubeVideoPage() {
   }
 
   const handleStartTranscription = async () => {
-    if (!user) {
+    if (!user || !user.id) {
       toast.error('You must be logged in');
       return;
     }
@@ -42,7 +42,7 @@ export default function YouTubeVideoPage() {
         videoId,
         video.title,
         video.thumbnail_url || '',
-        true
+        user.id
       );
 
       if (result.success) {
