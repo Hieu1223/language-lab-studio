@@ -41,8 +41,6 @@ function AppRoutes() {
 
       <Route path="/youtube" element={<ProtectedRoute><AppLayout><YouTubeBrowsePage /></AppLayout></ProtectedRoute>} />
       <Route path="/youtube/video/:videoId" element={<ProtectedRoute><AppLayout><YouTubeVideoPage /></AppLayout></ProtectedRoute>} />
-      <Route path="/transcribe/:videoId" element={<ProtectedRoute><AppLayout><TranscribeViewPage /></AppLayout></ProtectedRoute>} />
-      <Route path="/transcript/:id" element={<ProtectedRoute><AppLayout><TranscribeViewPage /></AppLayout></ProtectedRoute>} />
       <Route path="/vocabulary" element={<ProtectedRoute><AppLayout><FlashcardsPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga" element={<ProtectedRoute><AppLayout><MangaPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId" element={<ProtectedRoute><AppLayout><MangaDetailPage /></AppLayout></ProtectedRoute>} />

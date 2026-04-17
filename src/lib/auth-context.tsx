@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Extract user info (in a real app, you'd fetch the user info separately)
     const mockUser: User = {
-      id: 'current-user',
+      id: '8d0d3722-3169-4fe8-aa3b-5d41f06ba1d0',
       name: username,
       email: `${username}@example.com`,
       createdAt: new Date().toISOString(),

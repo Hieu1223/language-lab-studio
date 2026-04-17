@@ -92,6 +92,17 @@ export async function requestTranscription(
   const authToken = token || getStoredToken();
   if (!authToken) throw new Error('Not authenticated');
 
+  console.log(
+     {
+        name: title,
+        resource_id: videoId,
+        original_source: 'Youtube',
+        public: isPublic,
+        thumbnail_url: thumbnailUrl,
+        resource_url: youtubeUrl,
+        user_id: userId,
+      }
+  )
   return apiCall<{ transcript_id: string; success: boolean }>(
     '/transcription/transcribe/youtube',
     {
