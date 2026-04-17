@@ -49,7 +49,8 @@ export function TranscriptViewerWithCloze({
   }
 
   return (
-    <div className="space-y-4 select-text">
+    <TooltipProvider>
+      <div className="space-y-4 select-text">
       {segments.map((segment, segIdx) => {
         const isActive = Math.abs(segIdx - activeSegmentIndex) <= 1;
         const segmentStart = segment.words[0]?.start || 0;
@@ -65,8 +66,7 @@ export function TranscriptViewerWithCloze({
           >
             <div className="flex items-start justify-between gap-3">
               {/* Text Content */}
-              <TooltipProvider>
-                <p className="flex-1 text-base leading-relaxed flex flex-wrap gap-1">
+              <p className="flex-1 text-base leading-relaxed flex flex-wrap gap-1">
                   {segment.words.map((word, wordIdx) => {
                     const clozeId = `seg-${segIdx}-word-${wordIdx}`;
                     const isCloze =
@@ -107,8 +107,7 @@ export function TranscriptViewerWithCloze({
                       </Tooltip>
                     );
                   })}
-                </p>
-              </TooltipProvider>
+              </p>
 
               {/* Loop Button */}
               <button
@@ -122,6 +121,7 @@ export function TranscriptViewerWithCloze({
           </div>
         );
       })}
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

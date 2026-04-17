@@ -10,26 +10,26 @@
     --font-mono: 'JetBrains Mono', monospace;
     --font-body: 'Nunito', sans-serif;
 
-    /* Duolingo Green Theme */
-    --background: 0 0% 99%;
-    --foreground: 210 11% 15%;
+    /* Light Green Theme (Duolingo-inspired) */
+    --background: 120 40% 96%;
+    --foreground: 120 20% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 210 11% 15%;
+    --card-foreground: 120 20% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 210 11% 15%;
+    --popover-foreground: 120 20% 20%;
 
-    /* Vibrant green (Duolingo-inspired) */
-    --primary: 142 72% 29%;
+    /* Bright Green Primary */
+    --primary: 120 60% 45%;
     --primary-foreground: 0 0% 100%;
 
-    /* Light green background */
-    --secondary: 142 60% 88%;
-    --secondary-foreground: 142 72% 22%;
+    /* Very Light Green Secondary */
+    --secondary: 120 70% 85%;
+    --secondary-foreground: 120 60% 35%;
 
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 14% 45%;
+    --muted: 120 20% 92%;
+    --muted-foreground: 120 15% 50%;
 
     /* Warm accent color */
     --accent: 38 92% 50%;
@@ -38,27 +38,27 @@
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 72% 29%;
+    --success: 120 60% 45%;
     --success-foreground: 0 0% 100%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 210 11% 15%;
+    --warning-foreground: 120 20% 20%;
 
-    --border: 214 20% 88%;
-    --border-faint: 214 15% 93%;
-    --input: 214 20% 88%;
-    --ring: 142 72% 29%;
+    --border: 120 30% 90%;
+    --border-faint: 120 20% 94%;
+    --input: 120 30% 90%;
+    --ring: 120 60% 45%;
 
     --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 215 14% 45%;
-    --sidebar-primary: 142 72% 29%;
+    --sidebar-background: 120 40% 96%;
+    --sidebar-foreground: 120 20% 40%;
+    --sidebar-primary: 120 60% 45%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 142 60% 88%;
-    --sidebar-accent-foreground: 142 72% 22%;
-    --sidebar-border: 214 20% 88%;
-    --sidebar-ring: 142 72% 29%;
+    --sidebar-accent: 120 70% 85%;
+    --sidebar-accent-foreground: 120 60% 35%;
+    --sidebar-border: 120 30% 90%;
+    --sidebar-ring: 120 60% 45%;
   }
 }
 

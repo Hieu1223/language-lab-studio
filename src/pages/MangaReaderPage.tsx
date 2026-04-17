@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { LoadingScreen } from '@/components/LoadingScreen';
 import { OCROverlay } from '@/components/manga/OCROverlay';
 import {
   getChapterImages,
@@ -112,9 +113,10 @@ export default function MangaReaderPage() {
 
   if (loadingImages) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
+      <LoadingScreen
+        isOpen={true}
+        message="Loading chapter..."
+      />
     );
   }
 
@@ -129,8 +131,13 @@ export default function MangaReaderPage() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
+      <LoadingScreen
+        isOpen={loadingOCR}
+        message="Processing OCR..."
+      />
+
       {/* Header */}
-      <div className="border-b border-border p-4 flex items-center justify-between">
+      <div className="border-b border-border p-4 flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="font-bold text-lg text-foreground">
             Chapter {chapterId}
@@ -146,14 +153,14 @@ export default function MangaReaderPage() {
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden gap-4 p-4">
-        {/* Image Viewer */}
+        {/* Image Viewer - Full Height */}
         <div className="flex-1 bg-black rounded-lg overflow-auto flex items-center justify-center relative">
           {currentImage && (
-            <>
+            <div className="relative w-full h-full flex items-center justify-center">
               <img
                 src={currentImage}
                 alt={`Page ${currentPageIndex + 1}`}
-                className="max-w-full max-h-full"
+                className="max-w-full h-full object-contain"
               />
               {currentOCR && (
                 <OCROverlay
@@ -163,12 +170,12 @@ export default function MangaReaderPage() {
                   showOCR={pageOCREnabled.has(currentPageIndex)}
                 />
               )}
-            </>
+            </div>
           )}
         </div>
 
-        {/* Navigation */}
-        <div className="flex flex-col gap-2 justify-center">
+        {/* Navigation Buttons */}
+        <div className="flex flex-col gap-2 justify-center flex-shrink-0">
           <Button
             onClick={handlePreviousPage}
             disabled={currentPageIndex === 0}
@@ -189,7 +196,7 @@ export default function MangaReaderPage() {
 
         {/* Right Panel */}
         {rightPanelOpen && (
-          <div className="w-64 bg-card border border-border rounded-lg p-4 overflow-y-auto flex flex-col gap-4">
+          <div className="w-64 bg-card border border-border rounded-lg p-4 overflow-y-auto flex flex-col gap-4 flex-shrink-0">
             <div>
               <h3 className="font-semibold text-sm text-foreground mb-3">
                 OCR Settings
@@ -207,7 +214,7 @@ export default function MangaReaderPage() {
                 >
                   {loadingOCR ? (
                     <>
-                      <Loader2 className="w-3 h-3 animate-spin mr-2" />
+                      <span className="inline-block w-3 h-3 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin mr-2" />
                       Loading...
                     </>
                   ) : pageOCREnabled.has(currentPageIndex) ? (
@@ -259,18 +266,6 @@ export default function MangaReaderPage() {
           </div>
         )}
       </div>
-
-      {/* Right Panel Toggle */}
-      <button
-        onClick={() => setRightPanelOpen(!rightPanelOpen)}
-        className="absolute right-0 top-1/2 -translate-y-1/2 z-40 bg-primary text-primary-foreground rounded-l-lg p-2 hover:bg-primary/90"
-      >
-        {rightPanelOpen ? (
-          <ChevronRight className="w-4 h-4" />
-        ) : (
-          <ChevronLeft className="w-4 h-4" />
-        )}
-      </button>
     </div>
   );
 }

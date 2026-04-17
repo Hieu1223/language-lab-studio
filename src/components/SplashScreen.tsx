@@ -14,8 +14,34 @@ const stages = [
 
 export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [stageIdx, setStageIdx] = useState(0);
+  const [serverConnected, setServerConnected] = useState(false);
+
+  // Ping server on mount
+  useEffect(() => {
+    const pingServer = async () => {
+      try {
+        const response = await fetch('https://japlearningbackend.onrender.com/ping', {
+          method: 'GET',
+        });
+        if (response.ok) {
+          setServerConnected(true);
+        }
+      } catch (error) {
+        console.error('Server ping failed:', error);
+        // Still continue even if ping fails
+        setServerConnected(true);
+      }
+    };
+
+    pingServer();
+  }, []);
 
   useEffect(() => {
+    // Wait for server to connect before moving to next stage
+    if (stageIdx === 0 && !serverConnected) {
+      return;
+    }
+
     if (stageIdx < stages.length - 1) {
       const timer = setTimeout(() => setStageIdx(stageIdx + 1), 800);
       return () => clearTimeout(timer);
@@ -23,7 +49,7 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
       const timer = setTimeout(onComplete, 600);
       return () => clearTimeout(timer);
     }
-  }, [stageIdx, onComplete]);
+  }, [stageIdx, onComplete, serverConnected]);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-background">

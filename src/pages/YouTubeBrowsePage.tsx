@@ -35,6 +35,12 @@ export default function YouTubeBrowsePage() {
     }
   };
 
+  const handleViewVideo = (video: VideoPreview) => {
+    // Store video info in state and navigate to transcription view
+    sessionStorage.setItem('selectedVideo', JSON.stringify(video));
+    navigate('/youtube/video/' + video.id);
+  };
+
   const handleTranscribe = async (video: VideoPreview) => {
     if (!user) {
       toast.error('You must be logged in to transcribe');
@@ -117,10 +123,13 @@ export default function YouTubeBrowsePage() {
             {searchResults.map((video) => (
               <Card
                 key={video.id}
-                className="overflow-hidden hover:shadow-lg transition-shadow"
+                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
               >
-                {/* Thumbnail */}
-                <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
+                {/* Thumbnail - Click to view */}
+                <div
+                  className="relative bg-black aspect-video flex items-center justify-center overflow-hidden hover:brightness-75 transition-all"
+                  onClick={() => handleViewVideo(video)}
+                >
                   {video.thumbnail_url ? (
                     <img
                       src={video.thumbnail_url}
@@ -132,24 +141,8 @@ export default function YouTubeBrowsePage() {
                       <Play className="w-8 h-8 text-gray-600" />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <Button
-                      onClick={() => handleTranscribe(video)}
-                      disabled={transcribing === video.id}
-                      className="gap-2"
-                    >
-                      {transcribing === video.id ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Đang phiên dịch...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4" />
-                          Phiên dịch
-                        </>
-                      )}
-                    </Button>
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50 flex items-center justify-center">
+                    <Play className="w-12 h-12 text-white drop-shadow-lg" />
                   </div>
                 </div>
 
