@@ -32,6 +32,7 @@ export default function MangaDetailPage() {
         navigate('/manga');
       } finally {
         setLoading(false);
+        
       }
     };
 

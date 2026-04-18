@@ -12,9 +12,9 @@ import {
 import { toast } from 'sonner';
 
 export default function MangaReaderPage() {
-  const { mangaId, chapterId } = useParams<{
+  const { mangaId, chapterUrl } = useParams<{
     mangaId: string;
-    chapterId: string;
+    chapterUrl: string;
   }>();
   const navigate = useNavigate();
 
@@ -35,17 +35,19 @@ export default function MangaReaderPage() {
 
   // Load images on mount
   useEffect(() => {
-    if (!mangaId || !chapterId) {
+    /*
+    if (!mangaId || !chapterUrl) {
       navigate('/manga');
       return;
     }
-    console.log(chapterId)
+      */
+    console.log(mangaId)
+    console.log(chapterUrl)
 
     const loadImages = async () => {
       try {
         setLoadingImages(true);
         // Note: In real implementation, you'd pass the actual chapter URL
-        const chapterUrl = chapterId
         const imageUrls = await getChapterImages(chapterUrl);
         setImages(imageUrls);
         setOcrDataPages(new Array(imageUrls.length).fill(null));
@@ -59,14 +61,13 @@ export default function MangaReaderPage() {
     };
 
     loadImages();
-  }, [mangaId, chapterId, navigate]);
+  }, [mangaId, chapterUrl, navigate]);
 
   const loadOCRForPage = async (pageIndex: number) => {
     if (ocrDataPages[pageIndex]) return; // Already loaded
 
     try {
       setLoadingOCR(true);
-      const chapterUrl = `https://example.com/manga/${mangaId}/${chapterId}`;
       const ocrData = await getOCRData(chapterUrl);
 
       // Update the OCR data for this page
@@ -87,7 +88,6 @@ export default function MangaReaderPage() {
   const loadAllOCR = async () => {
     try {
       setLoadingOCR(true);
-      const chapterUrl = `https://example.com/manga/${mangaId}/${chapterId}`;
       const ocrData = await getOCRData(chapterUrl);
       setOcrDataPages(ocrData.pages);
       setPageOCREnabled(new Set(Array.from({ length: images.length }, (_, i) => i)));
@@ -141,7 +141,7 @@ export default function MangaReaderPage() {
       <div className="border-b border-border p-4 flex items-center justify-between flex-shrink-0">
         <div>
           <h1 className="font-bold text-lg text-foreground">
-            Chapter {chapterId}
+            Chapter {chapterUrl}
           </h1>
           <p className="text-sm text-muted-foreground">
             Page {currentPageIndex + 1} of {images.length}
