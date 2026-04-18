@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Search, Loader2, Play } from 'lucide-react';
 import { requestTranscription, searchYouTube, type VideoPreview } from '@/lib/api/transcription-real';
 import { useAuth } from '@/lib/auth-context';
+import { LoadingScreen } from '@/components/LoadingScreen';
 
 export default function YouTubeBrowsePage() {
   const [query, setQuery] = useState('');
