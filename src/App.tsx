@@ -9,7 +9,6 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useState, useCallback } from "react";
 import LandingPage from "./pages/LandingPage";
 import YouTubeBrowsePage from "./pages/YouTubeBrowsePage";
-import YouTubeVideoPage from "./pages/YouTubeVideoPage";
 import TranscribeViewPage from "./pages/TranscribeViewPage";
 import FlashcardsPage from "./pages/FlashcardsPage";
 import MangaPage from "./pages/MangaPage";
@@ -40,7 +39,7 @@ function AppRoutes() {
       <Route path="/" element={user ? <Navigate to="/youtube" replace /> : <LandingPage />} />
 
       <Route path="/youtube" element={<ProtectedRoute><AppLayout><YouTubeBrowsePage /></AppLayout></ProtectedRoute>} />
-      <Route path="/youtube/video/:videoId" element={<ProtectedRoute><AppLayout><YouTubeVideoPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/transcript/:id" element={<ProtectedRoute><AppLayout><TranscribeViewPage /></AppLayout></ProtectedRoute>} />
       <Route path="/vocabulary" element={<ProtectedRoute><AppLayout><FlashcardsPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga" element={<ProtectedRoute><AppLayout><MangaPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId" element={<ProtectedRoute><AppLayout><MangaDetailPage /></AppLayout></ProtectedRoute>} />

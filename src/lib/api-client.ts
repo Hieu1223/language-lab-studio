@@ -79,6 +79,9 @@ export async function apiCall<T>(
     return data as T;
   } catch (error) {
     if (error instanceof APIError) throw error;
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new APIError(0, 'Network error: Could not connect to server. Please check your connection and try again.', error);
+    }
     throw new APIError(0, error instanceof Error ? error.message : 'Unknown error');
   }
 }

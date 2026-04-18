@@ -14,22 +14,22 @@ const stages = [
 
 export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [stageIdx, setStageIdx] = useState(0);
-  const [serverConnected, setServerConnected] = useState(false);
 
-  // Ping server on mount
+  // Attempt to ping server on mount (non-blocking)
   useEffect(() => {
     const pingServer = async () => {
       try {
-        const response = await fetch('https://japlearningbackend.onrender.com/ping', {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+
+        await fetch('https://japlearningbackend.onrender.com/ping', {
           method: 'GET',
+          signal: controller.signal,
         });
-        if (response.ok) {
-          setServerConnected(true);
-        }
-      } catch (error) {
-        console.error('Server ping failed:', error);
-        // Still continue even if ping fails
-        setServerConnected(true);
+
+        clearTimeout(timeoutId);
+      } catch {
+        // Silently fail - server connection will be attempted when needed
       }
     };
 
@@ -37,19 +37,17 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
   }, []);
 
   useEffect(() => {
-    // Wait for server to connect before moving to next stage
-    if (stageIdx === 0 && !serverConnected) {
-      return;
-    }
-
+    // Move to next stage regardless, but prioritize server connection
     if (stageIdx < stages.length - 1) {
-      const timer = setTimeout(() => setStageIdx(stageIdx + 1), 800);
+      // Add extra delay for first stage to allow server connection
+      const delay = stageIdx === 0 ? 1500 : 800;
+      const timer = setTimeout(() => setStageIdx(stageIdx + 1), delay);
       return () => clearTimeout(timer);
     } else {
       const timer = setTimeout(onComplete, 600);
       return () => clearTimeout(timer);
     }
-  }, [stageIdx, onComplete, serverConnected]);
+  }, [stageIdx, onComplete]);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-background">

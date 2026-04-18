@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -35,12 +36,6 @@ export default function YouTubeBrowsePage() {
     }
   };
 
-  const handleViewVideo = (video: VideoPreview) => {
-    // Store video info in state and navigate to transcription view
-    sessionStorage.setItem('selectedVideo', JSON.stringify(video));
-    navigate('/youtube/video/' + video.id);
-  };
-
   const handleTranscribe = async (video: VideoPreview) => {
     if (!user) {
       toast.error('You must be logged in to transcribe');
@@ -54,20 +49,20 @@ export default function YouTubeBrowsePage() {
         video.id,
         video.title,
         video.thumbnail_url || '',
-        true
+        user.id
       );
 
       if (result.success) {
-        toast.success('Transcription started! Please wait...');
+        toast.success('Transcription started! Redirecting...');
         // Navigate to the transcript view
         setTimeout(() => {
           navigate(`/transcript/${result.transcript_id}`);
-        }, 1000);
+        }, 1500);
       } else {
         toast.error('Failed to start transcription');
       }
     } catch (error) {
-      toast.error('Failed to transcribe video');
+      toast.error(error instanceof Error ? error.message : 'Failed to transcribe video');
       console.error(error);
     } finally {
       setTranscribing(null);
@@ -123,13 +118,10 @@ export default function YouTubeBrowsePage() {
             {searchResults.map((video) => (
               <Card
                 key={video.id}
-                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+                className="overflow-hidden hover:shadow-lg transition-shadow"
               >
-                {/* Thumbnail - Click to view */}
-                <div
-                  className="relative bg-black aspect-video flex items-center justify-center overflow-hidden hover:brightness-75 transition-all"
-                  onClick={() => handleViewVideo(video)}
-                >
+                {/* Thumbnail */}
+                <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
                   {video.thumbnail_url ? (
                     <img
                       src={video.thumbnail_url}
@@ -141,8 +133,24 @@ export default function YouTubeBrowsePage() {
                       <Play className="w-8 h-8 text-gray-600" />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/50 flex items-center justify-center">
-                    <Play className="w-12 h-12 text-white drop-shadow-lg" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Button
+                      onClick={() => handleTranscribe(video)}
+                      disabled={transcribing === video.id}
+                      className="gap-2"
+                    >
+                      {transcribing === video.id ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Đang phiên dịch...
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-4 h-4" />
+                          Phiên dịch
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
 
