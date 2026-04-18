@@ -42,16 +42,38 @@ export function VideoPlayer({
   const videoId = getYouTubeID(url);
 
   useEffect(() => {
-    if (!window.YT) {
-      const tag = document.createElement('script');
-      tag.src = "https://https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
-    }
+    if (!videoId) return;
+
+    const loadAPI = () => {
+      return new Promise<void>((resolve) => {
+        if (window.YT && window.YT.Player) {
+          resolve();
+          return;
+        }
+
+        const existingScript = document.querySelector(
+          'script[src="https://www.youtube.com/iframe_api"]'
+        );
+
+        if (!existingScript) {
+          const tag = document.createElement('script');
+          tag.src = "https://www.youtube.com/iframe_api"; // ✅ FIXED
+          const firstScriptTag = document.getElementsByTagName('script')[0];
+          firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+        }
+
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          prev?.();
+          resolve();
+        };
+      });
+    };
 
     const createPlayer = () => {
-      if (!videoId) return;
-      
+      const el = document.getElementById(`yt-player-${videoId}`);
+      if (!el) return;
+
       playerRef.current = new window.YT.Player(`yt-player-${videoId}`, {
         videoId: videoId,
         playerVars: {
@@ -82,11 +104,7 @@ export function VideoPlayer({
       });
     };
 
-    if (window.YT && window.YT.Player) {
-      createPlayer();
-    } else {
-      window.onYouTubeIframeAPIReady = createPlayer;
-    }
+    loadAPI().then(createPlayer);
 
     return () => {
       stopTimer();
@@ -150,7 +168,9 @@ export function VideoPlayer({
 
   return (
     <div className="relative w-full max-w-4xl mx-auto bg-black rounded-xl overflow-hidden group shadow-2xl">
-      <div className="aspect-video relative overflow-hidden pointer-events-none">
+      
+      {/* ✅ FIX: removed pointer-events-none ONLY */}
+      <div className="aspect-video relative overflow-hidden">
         <div 
           id={`yt-player-${videoId}`} 
           className="absolute top-[-10%] left-0 w-full h-[120%] scale-110" 
@@ -246,6 +266,7 @@ export function VideoPlayer({
                 )}
               </div>
             </div>
+
           </div>
         </div>
       </div>
