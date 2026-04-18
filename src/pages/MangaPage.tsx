@@ -82,7 +82,7 @@ export default function MangaPage() {
               <Card
                 key={idx}
                 className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() => navigate(`/manga/${encodeURIComponent(manga.name)}`)}
+                onClick={() => navigate(manga.manga_url)}
               >
                 <div className="aspect-[3/4] bg-muted overflow-hidden">
                   <img

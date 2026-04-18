@@ -22,8 +22,8 @@ export default function MangaDetailPage() {
     const loadChapters = async () => {
       try {
         setLoading(true);
-        // In a real app, you'd have the actual manga URL
-        const mangaUrl = `https://example.com/manga/${decodeURIComponent(mangaId)}`;
+        console.log(mangaId)
+        const mangaUrl = `/manga/${decodeURIComponent(mangaId)}`;
         const chapterList = await getChapterList(mangaUrl);
         setChapters(chapterList);
       } catch (error) {

@@ -39,12 +39,13 @@ export default function MangaReaderPage() {
       navigate('/manga');
       return;
     }
+    console.log(chapterId)
 
     const loadImages = async () => {
       try {
         setLoadingImages(true);
         // Note: In real implementation, you'd pass the actual chapter URL
-        const chapterUrl = `https://example.com/manga/${mangaId}/${chapterId}`;
+        const chapterUrl = chapterId
         const imageUrls = await getChapterImages(chapterUrl);
         setImages(imageUrls);
         setOcrDataPages(new Array(imageUrls.length).fill(null));
