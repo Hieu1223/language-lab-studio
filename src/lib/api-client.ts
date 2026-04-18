@@ -32,7 +32,7 @@ export async function apiCall<T>(
   if (query) {
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
-      params.append(key, String(value));
+      params.append(key, (String(value)));
     });
     url += `?${params.toString()}`;
   }
