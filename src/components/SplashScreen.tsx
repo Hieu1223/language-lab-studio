@@ -14,22 +14,31 @@ const stages = [
 
 export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [stageIdx, setStageIdx] = useState(0);
+  const [serverReady, setServerReady] = useState(false);
 
-  // Attempt to ping server on mount (non-blocking)
+  // Ping server on mount and wait until it responds
   useEffect(() => {
     const pingServer = async () => {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
+      while (true) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout per attempt
 
-        await fetch('https://japlearningbackend.onrender.com/ping', {
-          method: 'GET',
-          signal: controller.signal,
-        });
+          const response = await fetch('https://japlearningbackend.onrender.com/ping', {
+            method: 'GET',
+            signal: controller.signal,
+          });
 
-        clearTimeout(timeoutId);
-      } catch {
-        // Silently fail - server connection will be attempted when needed
+          clearTimeout(timeoutId);
+
+          if (response.ok) {
+            setServerReady(true);
+            break;
+          }
+        } catch {
+          // Server not ready, retry after 2 seconds
+          await new Promise(r => setTimeout(r, 2000));
+        }
       }
     };
 
@@ -37,17 +46,17 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
   }, []);
 
   useEffect(() => {
-    // Move to next stage regardless, but prioritize server connection
+    // Don't proceed to next stage until server is ready
+    if (!serverReady) return;
+
     if (stageIdx < stages.length - 1) {
-      // Add extra delay for first stage to allow server connection
-      const delay = stageIdx === 0 ? 1500 : 800;
-      const timer = setTimeout(() => setStageIdx(stageIdx + 1), delay);
+      const timer = setTimeout(() => setStageIdx(stageIdx + 1), 800);
       return () => clearTimeout(timer);
     } else {
       const timer = setTimeout(onComplete, 600);
       return () => clearTimeout(timer);
     }
-  }, [stageIdx, onComplete]);
+  }, [stageIdx, onComplete, serverReady]);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-background">
