@@ -36,37 +36,10 @@ export default function YouTubeBrowsePage() {
     }
   };
 
-  const handleTranscribe = async (video: VideoPreview) => {
-    if (!user) {
-      toast.error('You must be logged in to transcribe');
-      return;
-    }
-
-    try {
-      setTranscribing(video.id);
-      const result = await requestTranscription(
-        `https://www.youtube.com/watch?v=${video.id}`,
-        video.id,
-        video.title,
-        video.thumbnail_url || '',
-        user.id
-      );
-
-      if (result.success) {
-        toast.success('Transcription started! Redirecting...');
-        // Navigate to the transcript view
-        setTimeout(() => {
-          navigate(`/transcript/${result.transcript_id}`);
-        }, 1500);
-      } else {
-        toast.error('Failed to start transcription');
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to transcribe video');
-      console.error(error);
-    } finally {
-      setTranscribing(null);
-    }
+  const handleViewVideo = (video: VideoPreview) => {
+    // Store video info in sessionStorage and navigate to viewer
+    sessionStorage.setItem('selectedVideo', JSON.stringify(video));
+    navigate(`/youtube/video/${video.id}`);
   };
 
   return (
@@ -135,21 +108,11 @@ export default function YouTubeBrowsePage() {
                   )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
                     <Button
-                      onClick={() => handleTranscribe(video)}
-                      disabled={transcribing === video.id}
+                      onClick={() => handleViewVideo(video)}
                       className="gap-2"
                     >
-                      {transcribing === video.id ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Đang phiên dịch...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="w-4 h-4" />
-                          Phiên dịch
-                        </>
-                      )}
+                      <Play className="w-4 h-4" />
+                      Xem video
                     </Button>
                   </div>
                 </div>
