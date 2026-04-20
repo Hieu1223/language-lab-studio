@@ -159,25 +159,36 @@ export default function TranscribeViewPage() {
   const activeSegRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!id) return;
-    (async () => {
-      try {
-        setLoading(true);
-        const [info, data] = await Promise.all([
-          getTranscriptInfo(id),
-          getTranscriptData(id),
-        ]);
-        if (!info || !data) throw new Error('Missing');
-        setTranscriptInfo(info);
+  if (!id) return;
+
+  (async () => {
+    try {
+      setLoading(true);
+
+      const info = await getTranscriptInfo(id);
+      if (!info) throw new Error('Missing info');
+
+      setTranscriptInfo(info);
+
+      // Only fetch transcript data when status === 3
+      if (info.status === 3) {
+        const data = await getTranscriptData(id);
+        if (!data) throw new Error('Missing data');
+
         setRawSegments(data.segments);
-      } catch {
-        toast.error('Không thể tải transcript');
-        navigate('/youtube');
-      } finally {
-        setLoading(false);
+      } else {
+        // Optional: clear or keep previous data
+        setRawSegments([]);
       }
-    })();
-  }, [id, navigate]);
+
+    } catch {
+      toast.error('Không thể tải transcript');
+      navigate('/youtube');
+    } finally {
+      setLoading(false);
+    }
+  })();
+}, [id, navigate]);
 
   useEffect(() => {
     if (rawSegments.length === 0) {
