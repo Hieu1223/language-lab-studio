@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://japlearningbackend.onrender.com';
+export const API_BASE_URL = 'https://japlearningbackend.onrender.com';
 
 export class APIError extends Error {
   constructor(

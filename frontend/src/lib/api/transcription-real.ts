@@ -172,3 +172,68 @@ export async function deleteTranscriptionHistory(historyId: string): Promise<voi
     body: { history_id: historyId },
   });
 }
+
+// List public transcripts (paginated)
+export async function listPublicTranscripts(
+  page: number = 1,
+  pageSize: number = 50,
+): Promise<TranscriptInfo[]> {
+  return apiCall<TranscriptInfo[]>('/transcription/transcribe', {
+    method: 'GET',
+    query: { page, page_size: pageSize },
+  });
+}
+
+/**
+ * Attempt to find an existing transcript by its YouTube video id
+ * (stored server-side as `resource_id`). First checks user history
+ * (if authenticated), then scans public transcripts.
+ */
+export async function findTranscriptByVideoId(
+  videoId: string,
+): Promise<TranscriptInfo | null> {
+  const token = getStoredToken();
+
+  // 1. Check user history first
+  if (token) {
+    try {
+      const hist = await getTranscriptionHistory();
+      // History items hold the transcript_id; we need info for resource_id
+      for (const h of hist) {
+        try {
+          const info = await getTranscriptInfo(h.transcript_id);
+          if (info && info.resource_id === videoId) return info;
+        } catch {
+          /* ignore individual failures */
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  // 2. Scan first few pages of public transcripts
+  const MAX_PAGES = 5;
+  const PAGE_SIZE = 50;
+  for (let p = 1; p <= MAX_PAGES; p++) {
+    try {
+      const items = await listPublicTranscripts(p, PAGE_SIZE);
+      const found = items.find((t) => t.resource_id === videoId);
+      if (found) return found;
+      if (items.length < PAGE_SIZE) break;
+    } catch {
+      break;
+    }
+  }
+  return null;
+}
+
+// Batch status check
+export async function getBatchTranscriptStatus(
+  ids: string[],
+): Promise<Record<string, number>> {
+  return apiCall<Record<string, number>>('/transcription/transcribe/status', {
+    method: 'POST',
+    body: ids,
+  });
+}

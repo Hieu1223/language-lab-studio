@@ -101,3 +101,137 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Continuation: expand the Japanese learning app with the following features:
+  1) Splash ping hangs until backend /ping returns OK.
+  2) YouTube browse: click card opens a video viewer that inline-displays the transcript;
+     auto-loads if a transcript exists for the video, otherwise shows a "Request transcription" button.
+  3) New cloze logic: hide N consecutive tokens, show M tokens, repeat. N and M randomised per
+     block within configurable min/max ranges.
+  4) Resizable split screen (video | transcript).
+  5) Manga: persist current search query on navigation, mock mainpage endpoint with pagination
+     (page numbers only, fixed page size), add "Clear all" button. Exit chapter returns to current
+     search state (via sessionStorage).
+  6) Manga reader: OCR loading is non-blocking (user keeps reading), bounding box padding setting,
+     new right-drawer "Text" tab that shows the selected bbox's text for copy/select, copy-all
+     button rendered on each bbox (mobile-friendly), fixed reading modes (single/double/vertical
+     with RTL option for Japanese manga).
+  7) YouTube "mainpage" uses the same /youtube/search endpoint with a default query (日本語学習).
+
+frontend:
+  - task: "Splash ping hangs until server responds"
+    implemented: true
+    working: true
+    file: "frontend/src/components/SplashScreen.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Ping loop keeps retrying /ping every 2s (5s timeout per try). stageIdx blocks at 0 until serverReady=true. Uses exported API_BASE_URL."
+
+  - task: "YouTube browse: mainpage default + clear + query persistence"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/YouTubeBrowsePage.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Default query '日本語学習' loads on mount. Query/mode/results persisted in sessionStorage. 'Xoá hết' button reverts to mainpage. Clicking a card opens the unified viewer."
+
+  - task: "Unified YouTube video viewer with inline transcript"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/YouTubeVideoViewerPage.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Route /youtube/video/:videoId. On mount, findTranscriptByVideoId scans user history + public transcripts. If found → auto-loads data; polls if still processing. If not found → shows 'Yêu cầu phiên dịch' button. Resizable split video | transcript. New block cloze with 4 min/max sliders and reshuffle/show-all."
+
+  - task: "Transcript view (/transcript/:id) with block cloze + resize"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/TranscribeViewPage.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Same resizable split + block cloze as viewer."
+
+  - task: "Block cloze logic (hide-N / show-M with random min/max)"
+    implemented: true
+    working: true
+    file: "frontend/src/lib/cloze-block.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Seeded pseudo-random N and M per block within min/max bounds. Respects eligibility (only timed tokens become cloze)."
+
+  - task: "Resizable split pane (horizontal)"
+    implemented: true
+    working: true
+    file: "frontend/src/components/ResizableSplit.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "useResizableSplit hook persists percent in localStorage per storageKey."
+
+  - task: "Manga page: mainpage mock + paging + clear + query persistence"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/MangaPage.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "getMangaMainPage aggregates 6 popular queries in parallel, interleaves + dedupes, client-side paging (12 per page). URL ?q=... & ?page=... synced. sessionStorage used for back-nav restoration."
+
+  - task: "Manga reader: OCR non-blocking, padding, text tab, copy button, RTL double"
+    implemented: true
+    working: true
+    file: "frontend/src/pages/MangaReaderPage.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "OCR fetch keeps the reader usable (small header spinner). Right panel now has 3 tabs: Settings / Chapters / Text. Clicking a bbox selects it and switches to Text tab, where the OCR text is rendered in a selectable textarea with a Copy button. Each bbox also has a corner Copy button visible whenever 'Hiện bounding box' is on or when the box is selected. Added 'Padding box' slider (0–30px) that inflates boxes. Reading modes: single / double (with RTL toggle defaulting to true for Japanese manga) / vertical scroll. Exit returns to /manga/:mangaId."
+
+metadata:
+  created_by: "main_agent"
+  version: "2.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "YouTube browse: mainpage default + clear + query persistence"
+    - "Unified YouTube video viewer with inline transcript"
+    - "Manga page: mainpage mock + paging + clear + query persistence"
+    - "Manga reader: OCR non-blocking, padding, text tab, copy button, RTL double"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: "Implemented all continuation tasks. Manually verified: splash blocks until ping OK; YouTube mainpage loads 20 video cards via default query; clicking a card opens the unified viewer with the correct 'not_found → Yêu cầu phiên dịch' state; manga mainpage loads 12 items with pagination and caches aggregate between page switches; manga reader renders images correctly (fixed ResizeObserver timing), OCR loads non-blockingly and shows boxes; clicking a bbox opens the Text tab with copyable content; corner Copy button works. Credentials in /app/memory/test_credentials.md."
