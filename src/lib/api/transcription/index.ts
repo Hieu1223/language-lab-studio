@@ -21,36 +21,9 @@ export type {
 export { TranscriptStatus } from './types';
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
-const VIDEOS_PER_PAGE = 6;
 
 let transcripts = [...mockTranscripts];
 let histories = [...mockTranscriptionHistories];
-
-interface YouTubeMainPageResponse {
-  items: YouTubeVideo[];
-  page: number;
-  totalItems: number;
-  totalPages: number;
-  hasMore: boolean;
-}
-
-// ─── YouTube Main Page with Paging ─────────────────────────────────────
-export async function getYouTubeMainPage(page: number = 1): Promise<YouTubeMainPageResponse> {
-  await delay(300);
-  const startIdx = (page - 1) * VIDEOS_PER_PAGE;
-  const endIdx = startIdx + VIDEOS_PER_PAGE;
-  const items = mockYouTubeVideos.slice(startIdx, endIdx);
-  const totalItems = mockYouTubeVideos.length;
-  const totalPages = Math.ceil(totalItems / VIDEOS_PER_PAGE);
-
-  return {
-    items,
-    page,
-    totalItems,
-    totalPages,
-    hasMore: page < totalPages,
-  };
-}
 
 // ─── YouTube Videos ─────────────────────────────────────────────────────
 export async function searchYouTubeVideos(userId: string, query: string): Promise<YouTubeVideo[]> {
