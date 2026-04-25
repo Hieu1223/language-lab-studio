@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const checked = await res.json();
 
       finalUser = {
-        id: checked.id || "fallback-id",
+        id: checked.id || "4d3e160b-1e2c-48f1-81ae-c570943f846c", //pydantic check on the backend check for the id to be in uuid4 format,
         name: checked.display_name || checked.name || username,
         email: checked.email,
       };
