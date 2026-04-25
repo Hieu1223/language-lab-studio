@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-display: 'Nunito', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-body: 'Nunito', sans-serif;
+
+    /* Light Green Theme (Duolingo-inspired) */
+    --background: 120 40% 96%;
+    --foreground: 120 20% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 120 20% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 120 20% 20%;
+
+    /* Bright Green Primary */
+    --primary: 120 60% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Very Light Green Secondary */
+    --secondary: 120 70% 85%;
+    --secondary-foreground: 120 60% 35%;
+
+    --muted: 120 20% 92%;
+    --muted-foreground: 120 15% 50%;
+
+    /* Warm accent color */
+    --accent: 38 92% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 120 60% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 120 20% 20%;
+
+    --border: 120 30% 90%;
+    --border-faint: 120 20% 94%;
+    --input: 120 30% 90%;
+    --ring: 120 60% 45%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 120 40% 96%;
+    --sidebar-foreground: 120 20% 40%;
+    --sidebar-primary: 120 60% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 120 70% 85%;
+    --sidebar-accent-foreground: 120 60% 35%;
+    --sidebar-border: 120 30% 90%;
+    --sidebar-ring: 120 60% 45%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  .font-body {
+    font-family: var(--font-body);
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: hsl(var(--background)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
+
+/* Token styles */
+.token { cursor: pointer; border-radius: 6px; padding: 2px 4px; transition: background 0.1s; display: inline; }
+.token:hover { background: hsl(var(--secondary)); }
+.active-token { background: hsl(var(--primary)) !important; color: hsl(var(--primary-foreground)) !important; border-radius: 6px; }
+.cloze-hidden { background: hsl(var(--muted)); color: transparent; border-radius: 6px; user-select: none; }
+.cloze-hidden:hover { background: hsl(var(--primary) / 0.2); color: hsl(var(--primary)); }
+
+/* Animations */
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes flashIn { 0% { opacity: 0; transform: scale(0.93); } 60% { opacity: 1; transform: scale(1.02); } 100% { transform: scale(1); } }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+@keyframes bounce-subtle { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
