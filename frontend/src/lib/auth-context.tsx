@@ -1,5 +1,11 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { clearToken, getStoredToken, storeToken } from './api-client';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import {
+  AUTH_UNAUTHORIZED_EVENT,
+  apiCall,
+  clearToken,
+  getStoredToken,
+  storeToken,
+} from './api-client';
 
 export interface User {
   id: string;
@@ -29,17 +35,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const storedToken = getStoredToken();
     const storedUser = localStorage.getItem('nihongo-user');
-    if (storedToken) {
-      setToken(storedToken);
-    }
+    if (storedToken) setToken(storedToken);
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        // ignore
+      }
     }
     setIsLoading(false);
   }, []);
 
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    clearToken();
+    localStorage.removeItem('nihongo-user');
+  }, []);
+
+  // Global 401 interceptor: any apiCall returning 401 dispatches `auth:unauthorized`
+  useEffect(() => {
+    let lastForce = 0;
+    const handler = () => {
+      // Debounce repeated 401s in a short window
+      const now = Date.now();
+      if (now - lastForce < 1500) return;
+      lastForce = now;
+      const wasLoggedIn = !!getStoredToken();
+      logout();
+      if (wasLoggedIn && typeof window !== 'undefined') {
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.assign(`/login?expired=1&next=${next}`);
+        }
+      }
+    };
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
+  }, [logout]);
+
   const login = async (username: string, password: string) => {
-    const response = await fetch('https://japlearningbackend.onrender.com/token', {
+    const data = await apiCall<{ access_token: string; token_type: string }>('/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -47,52 +83,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         password,
         grant_type: 'password',
       }).toString(),
+      skipAuthInterceptor: true,
     });
 
-    if (!response.ok) {
-      throw new Error('Login failed');
-    }
-
-    const data = await response.json();
     const newToken = data.access_token;
     setToken(newToken);
     storeToken(newToken);
 
-    // Extract user info (in a real app, you'd fetch the user info separately)
-    const mockUser: User = {
-      id: '8d0d3722-3169-4fe8-aa3b-5d41f06ba1d0',
-      name: username,
-      email: `${username}@example.com`,
-      createdAt: new Date().toISOString(),
-    };
+    // Fetch user info via /check
+    let mockUser: User;
+    try {
+      const checked = await apiCall<{ id?: string; display_name?: string; name?: string }>(
+        '/check',
+        { method: 'GET', token: newToken },
+      );
+      mockUser = {
+        id: checked.id || '8d0d3722-3169-4fe8-aa3b-5d41f06ba1d0',
+        name: checked.display_name || checked.name || username,
+        email: `${username}@example.com`,
+        createdAt: new Date().toISOString(),
+      };
+    } catch {
+      mockUser = {
+        id: '8d0d3722-3169-4fe8-aa3b-5d41f06ba1d0',
+        name: username,
+        email: `${username}@example.com`,
+        createdAt: new Date().toISOString(),
+      };
+    }
     setUser(mockUser);
     localStorage.setItem('nihongo-user', JSON.stringify(mockUser));
   };
 
   const register = async (username: string, password: string, displayName?: string) => {
-    const response = await fetch('https://japlearningbackend.onrender.com/register', {
+    await apiCall('/register', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username,
-        password,
-        display_name: displayName,
-      }),
+      body: { username, password, display_name: displayName },
+      skipAuthInterceptor: true,
     });
-
-    if (!response.ok) {
-      throw new Error('Registration failed');
-    }
-
-    // After successful registration, auto-login
+    // Auto-login after registration
     await login(username, password);
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    clearToken();
-    localStorage.removeItem('nihongo-user');
   };
 
   return (

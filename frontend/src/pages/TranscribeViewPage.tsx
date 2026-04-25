@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import {
@@ -10,6 +10,7 @@ import {
   Settings as SettingsIcon,
   ChevronRight,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 import { VideoPlayer } from '@/components/video/VideoPlayer';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,9 @@ import { ResizableSplit } from '@/components/ResizableSplit';
 import {
   getTranscriptInfo,
   getTranscriptData,
+  isTranscriptError,
+  isTranscriptReady,
+  describeTranscriptStatus,
   type TranscriptInfo,
   type TranscriptSegment,
 } from '@/lib/api/transcription-real';
@@ -25,8 +29,8 @@ import {
   generateBlockCloze,
   type BlockClozeOptions,
   type ClozeSegment,
-  type ClozeToken,
 } from '@/lib/cloze-block';
+import { TranscriptSegmentRow } from '@/components/transcription/TranscriptSegmentRow';
 
 const DEFAULT_CLOZE_OPTS: BlockClozeOptions = {
   minHidden: 1,
@@ -36,57 +40,10 @@ const DEFAULT_CLOZE_OPTS: BlockClozeOptions = {
   requireTimestamp: true,
 };
 
-// ─── Word ─────────────────────────────────────────────────────────────────
+const POLL_INTERVAL_MS = 4000;
+const POLL_MAX_ATTEMPTS = 60;
 
-function ClozeWord({
-  ct,
-  isCurrent,
-  onToggle,
-  showClozeMode,
-}: {
-  ct: ClozeToken;
-  isCurrent: boolean;
-  onToggle: () => void;
-  showClozeMode: boolean;
-}) {
-  const { word, isCloze, revealed } = ct;
-  const base =
-    'inline-block rounded px-1 mx-0.5 transition-all duration-150 select-none whitespace-pre';
-  const active = isCurrent ? 'bg-yellow-400/30 text-yellow-100 ring-1 ring-yellow-400/50' : '';
-
-  if (!showClozeMode || !isCloze) {
-    return <span className={`${base} ${active} hover:bg-white/5`}>{word.token}</span>;
-  }
-
-  if (revealed) {
-    return (
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
-        className={`${base} bg-green-500/20 text-green-300 border border-green-500/40 cursor-pointer ${active}`}
-      >
-        {word.token}
-      </span>
-    );
-  }
-
-  const cleanLen = word.token.trim().replace(/[^\p{L}\p{N}]/gu, '').length;
-  const blanks = '_'.repeat(Math.max(cleanLen, 2));
-
-  return (
-    <span
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggle();
-      }}
-      className={`${base} bg-primary/30 text-transparent border-b-2 border-primary hover:bg-primary/50 font-mono tracking-widest cursor-pointer ${active}`}
-    >
-      {blanks}
-    </span>
-  );
-}
+type ViewStatus = 'checking' | 'processing' | 'ready' | 'error' | 'not_found';
 
 // ─── Cloze sliders ────────────────────────────────────────────────────────
 
@@ -143,10 +100,11 @@ export default function TranscribeViewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<ViewStatus>('checking');
   const [transcriptInfo, setTranscriptInfo] = useState<TranscriptInfo | null>(null);
   const [rawSegments, setRawSegments] = useState<TranscriptSegment[]>([]);
   const [clozeSegments, setClozeSegments] = useState<ClozeSegment[]>([]);
+  const pollAbortRef = useRef(false);
 
   const [currentTime, setCurrentTime] = useState(0);
   const [seed, setSeed] = useState(() => Date.now());
@@ -157,27 +115,65 @@ export default function TranscribeViewPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
+  const seekRef = useRef<((seconds: number) => void) | null>(null);
 
+  // Status-aware load: poll /info first; only fetch /data when status === 3
   useEffect(() => {
     if (!id) return;
-    (async () => {
+    pollAbortRef.current = false;
+
+    const fetchData = async () => {
       try {
-        setLoading(true);
-        const [info, data] = await Promise.all([
-          getTranscriptInfo(id),
-          getTranscriptData(id),
-        ]);
-        if (!info || !data) throw new Error('Missing');
-        setTranscriptInfo(info);
-        setRawSegments(data.segments);
+        const data = await getTranscriptData(id);
+        if (data?.segments?.length) {
+          setRawSegments(data.segments);
+          setStatus('ready');
+          return true;
+        }
       } catch {
-        toast.error('Không thể tải transcript');
-        navigate('/youtube');
-      } finally {
-        setLoading(false);
+        /* fall through */
       }
-    })();
-  }, [id, navigate]);
+      return false;
+    };
+
+    const poll = async () => {
+      let attempts = 0;
+      while (!pollAbortRef.current && attempts < POLL_MAX_ATTEMPTS) {
+        attempts++;
+        try {
+          const info = await getTranscriptInfo(id);
+          if (!info) {
+            setStatus('not_found');
+            return;
+          }
+          setTranscriptInfo(info);
+          if (isTranscriptError(info.status)) {
+            setStatus('error');
+            return;
+          }
+          if (isTranscriptReady(info.status)) {
+            const ok = await fetchData();
+            if (ok) return;
+          } else {
+            setStatus('processing');
+          }
+        } catch {
+          /* keep polling */
+        }
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+      }
+      if (!pollAbortRef.current) {
+        toast.warning('Đang mất nhiều thời gian hơn dự kiến.');
+      }
+    };
+
+    setStatus('checking');
+    poll();
+
+    return () => {
+      pollAbortRef.current = true;
+    };
+  }, [id]);
 
   useEffect(() => {
     if (rawSegments.length === 0) {
@@ -205,21 +201,6 @@ export default function TranscribeViewPage() {
     }
   }, [activeSegIdx, autoScroll]);
 
-  const handleToggle = (segIdx: number, wordIdx: number) => {
-    setClozeSegments((prev) =>
-      prev.map((seg, i) =>
-        i !== segIdx
-          ? seg
-          : {
-              ...seg,
-              tokens: seg.tokens.map((t) =>
-                t.wordIndex === wordIdx ? { ...t, revealed: !t.revealed } : t,
-              ),
-            },
-      ),
-    );
-  };
-
   const handleToggleAll = () => {
     const next = !allRevealed;
     setClozeSegments((prev) =>
@@ -231,10 +212,33 @@ export default function TranscribeViewPage() {
     setAllRevealed(next);
   };
 
-  if (loading) {
+  const handleSeek = useCallback((seconds: number) => {
+    seekRef.current?.(seconds);
+  }, []);
+
+  if (status === 'checking') {
     return (
       <div className="h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (status === 'error' || status === 'not_found') {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-background gap-4 text-center px-6">
+        <AlertTriangle className="w-12 h-12 text-red-500" />
+        <h2 className="text-xl font-bold">
+          {status === 'not_found' ? 'Không tìm thấy bản phiên dịch' : 'Bản phiên dịch lỗi'}
+        </h2>
+        <p className="text-sm text-muted-foreground max-w-md">
+          {status === 'not_found'
+            ? 'Bản phiên dịch này không tồn tại hoặc đã bị xoá.'
+            : `Trạng thái: ${describeTranscriptStatus(transcriptInfo?.status ?? 4)}. Vui lòng thử lại sau.`}
+        </p>
+        <Button onClick={() => navigate('/youtube')} className="gap-1.5">
+          <ArrowLeft className="w-4 h-4" /> Về danh sách video
+        </Button>
       </div>
     );
   }
@@ -245,6 +249,7 @@ export default function TranscribeViewPage() {
         <VideoPlayer
           url={transcriptInfo?.resource_url || ''}
           onTimeUpdate={setCurrentTime}
+          seekRef={seekRef}
         />
       </div>
       <div className="bg-card border rounded-2xl p-4 flex-1 min-h-0 overflow-y-auto">
@@ -255,6 +260,12 @@ export default function TranscribeViewPage() {
           <p><span className="text-foreground font-medium">Source:</span> {transcriptInfo?.original_source}</p>
           <p className="break-all"><span className="text-foreground font-medium">URL:</span> {transcriptInfo?.resource_url}</p>
           <p><span className="text-foreground font-medium">ID:</span> {id}</p>
+          {transcriptInfo && (
+            <p>
+              <span className="text-foreground font-medium">Trạng thái:</span>{' '}
+              {describeTranscriptStatus(transcriptInfo.status)}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -282,6 +293,7 @@ export default function TranscribeViewPage() {
               className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
                 showClozeMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
               }`}
+              data-testid="cloze-mode-study"
             >
               Study
             </button>
@@ -290,6 +302,7 @@ export default function TranscribeViewPage() {
               className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
                 !showClozeMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'
               }`}
+              data-testid="cloze-mode-read"
             >
               Read
             </button>
@@ -306,44 +319,37 @@ export default function TranscribeViewPage() {
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-6">
-        {clozeSegments.length === 0 ? (
+        {status === 'processing' && (
+          <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <p className="text-sm">Đang xử lý transcript...</p>
+            <p className="text-xs">
+              {transcriptInfo
+                ? describeTranscriptStatus(transcriptInfo.status)
+                : 'Vui lòng đợi'}
+            </p>
+          </div>
+        )}
+        {status === 'ready' && clozeSegments.length === 0 ? (
           <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
             Không có segment nào.
           </div>
-        ) : (
+        ) : status === 'ready' ? (
           <div className="space-y-6">
             {clozeSegments.map((cs, si) => (
-              <div
+              <TranscriptSegmentRow
                 key={si}
-                ref={si === activeSegIdx ? activeSegRef : null}
-                className={`transition-all duration-300 p-4 rounded-xl border-l-4 ${
-                  si === activeSegIdx
-                    ? 'bg-primary/5 border-primary shadow-sm'
-                    : 'border-transparent opacity-70'
-                }`}
-              >
-                <p className="flex flex-wrap items-center leading-[2.2] text-base">
-                  {cs.tokens.map((ct, ti) => (
-                    <ClozeWord
-                      key={ti}
-                      ct={ct}
-                      showClozeMode={showClozeMode}
-                      isCurrent={
-                        si === activeSegIdx &&
-                        ct.word.start !== null &&
-                        ct.word.end !== null &&
-                        currentTime >= ct.word.start &&
-                        currentTime <= ct.word.end
-                      }
-                      onToggle={() => handleToggle(si, ct.wordIndex)}
-                    />
-                  ))}
-                </p>
-              </div>
+                cs={cs}
+                isActive={si === activeSegIdx}
+                showClozeMode={showClozeMode}
+                currentTime={currentTime}
+                onSeek={handleSeek}
+                rowRef={si === activeSegIdx ? activeSegRef : undefined}
+              />
             ))}
             <div className="h-32" />
           </div>
-        )}
+        ) : null}
       </div>
 
       {settingsOpen && (
@@ -360,11 +366,7 @@ export default function TranscribeViewPage() {
           <ClozeRangeSliders opts={clozeOpts} setOpts={setClozeOpts} />
 
           <div className="grid grid-cols-1 gap-2 pt-2 border-t">
-            <Button
-              variant="outline"
-              className="w-full justify-start h-9 gap-2"
-              onClick={() => setSeed(Date.now())}
-            >
+            <Button variant="outline" className="w-full justify-start h-9 gap-2" onClick={() => setSeed(Date.now())}>
               <RefreshCw className="w-4 h-4 text-blue-500" />
               <span className="text-xs">Tạo lại khối ẩn</span>
             </Button>
@@ -380,10 +382,10 @@ export default function TranscribeViewPage() {
 
           <div className="mt-auto bg-primary/5 rounded-xl p-3 border border-primary/10">
             <h4 className="text-[10px] font-bold uppercase mb-1 text-primary flex items-center gap-1">
-              <Sparkles className="w-3 h-3" /> Logic mới
+              <Sparkles className="w-3 h-3" /> Tips
             </h4>
             <p className="text-[10px] text-muted-foreground leading-snug">
-              Ẩn N token liên tiếp rồi hiện M token — cả N và M đều ngẫu nhiên trong khoảng min/max.
+              Hover từ ẩn để xem nhanh. Nhấp từ để tua video. Hover một câu để hiện nút phân tích từ.
             </p>
           </div>
         </aside>

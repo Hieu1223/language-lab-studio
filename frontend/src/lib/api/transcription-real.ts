@@ -1,5 +1,42 @@
 import { apiCall, getStoredToken } from '../api-client';
 
+// Status codes from the backend transcription pipeline.
+// 0 = queued, 1 = downloading, 2 = transcribing, 3 = ready, 4 = error
+export const TRANSCRIPT_STATUS = {
+  QUEUED: 0,
+  DOWNLOADING: 1,
+  TRANSCRIBING: 2,
+  READY: 3,
+  ERROR: 4,
+} as const;
+
+export type TranscriptStatusCode = (typeof TRANSCRIPT_STATUS)[keyof typeof TRANSCRIPT_STATUS];
+
+export function isTranscriptReady(status: number): boolean {
+  return status === TRANSCRIPT_STATUS.READY;
+}
+
+export function isTranscriptError(status: number): boolean {
+  return status === TRANSCRIPT_STATUS.ERROR;
+}
+
+export function describeTranscriptStatus(status: number): string {
+  switch (status) {
+    case TRANSCRIPT_STATUS.QUEUED:
+      return 'Đang xếp hàng';
+    case TRANSCRIPT_STATUS.DOWNLOADING:
+      return 'Đang tải nguồn';
+    case TRANSCRIPT_STATUS.TRANSCRIBING:
+      return 'Đang phiên dịch';
+    case TRANSCRIPT_STATUS.READY:
+      return 'Sẵn sàng';
+    case TRANSCRIPT_STATUS.ERROR:
+      return 'Lỗi';
+    default:
+      return `Trạng thái ${status}`;
+  }
+}
+
 export interface VideoPreview {
   id: string;
   title: string;

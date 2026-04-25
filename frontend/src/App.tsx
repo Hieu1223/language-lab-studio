@@ -6,12 +6,18 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { SplashScreen } from "@/components/SplashScreen";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { startBackgroundPing } from "@/lib/api-client";
 import LandingPage from "./pages/LandingPage";
 import YouTubeBrowsePage from "./pages/YouTubeBrowsePage";
 import YouTubeVideoViewerPage from "./pages/YouTubeVideoViewerPage";
 import TranscribeViewPage from "./pages/TranscribeViewPage";
+import TranscriptionHistoryPage from "./pages/TranscriptionHistoryPage";
+import TokenizationPage from "./pages/TokenizationPage";
+import DictionaryPage from "./pages/DictionaryPage";
 import FlashcardsPage from "./pages/FlashcardsPage";
+import DeckDetailPage from "./pages/DeckDetailPage";
+import ReviewPage from "./pages/ReviewPage";
 import MangaPage from "./pages/MangaPage";
 import MangaDetailPage from "./pages/MangaDetailPage";
 import MangaReaderPage from "./pages/MangaReaderPage";
@@ -41,16 +47,35 @@ function AppRoutes() {
 
       <Route path="/youtube" element={<ProtectedRoute><AppLayout><YouTubeBrowsePage /></AppLayout></ProtectedRoute>} />
       <Route path="/youtube/video/:videoId" element={<ProtectedRoute><YouTubeVideoViewerPage /></ProtectedRoute>} />
-      <Route path="/transcript/:id" element={<ProtectedRoute><AppLayout><TranscribeViewPage /></AppLayout></ProtectedRoute>} />
+
+      <Route path="/transcripts/history" element={<ProtectedRoute><AppLayout><TranscriptionHistoryPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/transcript/:id" element={<ProtectedRoute><TranscribeViewPage /></ProtectedRoute>} />
+
+      <Route path="/tokenize" element={<ProtectedRoute><AppLayout><TokenizationPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/dictionary" element={<ProtectedRoute><AppLayout><DictionaryPage /></AppLayout></ProtectedRoute>} />
+
       <Route path="/vocabulary" element={<ProtectedRoute><AppLayout><FlashcardsPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/vocabulary/decks/:deckId" element={<ProtectedRoute><AppLayout><DeckDetailPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/vocabulary/review/:deckId" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
+
       <Route path="/manga" element={<ProtectedRoute><AppLayout><MangaPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId" element={<ProtectedRoute><AppLayout><MangaDetailPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId/read/:chapterUrl" element={<ProtectedRoute><MangaReaderPage /></ProtectedRoute>} />
+
       <Route path="/pricing" element={<ProtectedRoute><AppLayout><PricingPage /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
     </Routes>
   );
+}
+
+function BackgroundPing() {
+  useEffect(() => {
+    // Ping every 3 minutes (within the 2-5 minute spec)
+    const stop = startBackgroundPing(3 * 60 * 1000);
+    return stop;
+  }, []);
+  return null;
 }
 
 const App = () => {
@@ -67,6 +92,7 @@ const App = () => {
             <SplashScreen onComplete={handleSplashComplete} />
           ) : (
             <BrowserRouter>
+              <BackgroundPing />
               <AppRoutes />
             </BrowserRouter>
           )}

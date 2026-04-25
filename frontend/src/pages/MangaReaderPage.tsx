@@ -6,7 +6,6 @@ import {
   Eye,
   EyeOff,
   BookOpen,
-  Columns2,
   AlignJustify,
   ScanText,
   ArrowLeft,
@@ -21,6 +20,8 @@ import {
   Copy,
   Loader2,
   Type,
+  Wand2,
+  BookmarkPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,6 +37,9 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
+import { AddToDeckDialog } from '@/components/dictionary/AddToDeckDialog';
+import { searchWords, type WordResponse } from '@/lib/api/flashcard-real';
 import {
   getChapterImages,
   getOCRData,
@@ -61,7 +65,7 @@ interface OCRPageData {
   blocks: OCRBlock[];
 }
 
-type ReadMode = 'single' | 'double' | 'vertical';
+type ReadMode = 'single' | 'vertical';
 type PanelTab = 'settings' | 'chapters' | 'text';
 
 interface SelectedBlock {
@@ -403,7 +407,6 @@ interface ReaderSettings {
   readMode: ReadMode;
   showOCRBoxes: boolean;
   boxPadding: number;
-  rtlDouble: boolean;
   zoom: number;
 }
 
@@ -411,7 +414,6 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   readMode: 'single',
   showOCRBoxes: true,
   boxPadding: 0,
-  rtlDouble: true, // Japanese manga default
   zoom: 100,
 };
 
@@ -440,12 +442,15 @@ export default function MangaReaderPage() {
   const [currentChapterIdx, setCurrentChapterIdx] = useState(-1);
 
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
-  const { readMode, showOCRBoxes, boxPadding, rtlDouble, zoom } = settings;
+  const { readMode, showOCRBoxes, boxPadding, zoom } = settings;
 
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
   const [selectedBlock, setSelectedBlock] = useState<SelectedBlock | null>(null);
+  const [tokenizeOpen, setTokenizeOpen] = useState(false);
+  const [quickAddText, setQuickAddText] = useState<string | null>(null);
+  const [quickAddWords, setQuickAddWords] = useState<WordResponse[]>([]);
 
   const viewerRef = useRef<HTMLDivElement>(null);
   const [viewerSize, setViewerSize] = useState({ w: 0, h: 0 });
@@ -482,7 +487,6 @@ export default function MangaReaderPage() {
   const setReadMode = (v: ReadMode) => updateSettings({ readMode: v });
   const setShowOCRBoxes = (v: boolean) => updateSettings({ showOCRBoxes: v });
   const setBoxPadding = (v: number) => updateSettings({ boxPadding: v });
-  const setRtlDouble = (v: boolean) => updateSettings({ rtlDouble: v });
   const setZoom = (v: number | ((prev: number) => number)) =>
     setSettings((s) => ({
       ...s,
@@ -575,22 +579,18 @@ export default function MangaReaderPage() {
   // ── Keyboard nav ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (readMode === 'vertical') return;
-    const step = readMode === 'double' ? 2 : 1;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
-        // For RTL double-page, right arrow = previous pages
-        const dir = readMode === 'double' && rtlDouble ? -1 : 1;
-        setCurrentPageIndex((p) => clampIdx(p + step * dir, images.length));
+        setCurrentPageIndex((p) => clampIdx(p + 1, images.length));
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
-        const dir = readMode === 'double' && rtlDouble ? 1 : -1;
-        setCurrentPageIndex((p) => clampIdx(p + step * dir, images.length));
+        setCurrentPageIndex((p) => clampIdx(p - 1, images.length));
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [readMode, rtlDouble, images.length]);
+  }, [readMode, images.length]);
 
   // ── Ctrl+wheel zoom ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -669,7 +669,7 @@ export default function MangaReaderPage() {
     }
   };
 
-  const step = readMode === 'double' ? 2 : 1;
+  const step = 1;
   const prevPage = () => goTo(currentPageIndex - step);
   const nextPage = () => goTo(currentPageIndex + step);
   const clampZoom = (v: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v));
@@ -679,6 +679,30 @@ export default function MangaReaderPage() {
     setPanelOpen(true);
     setPanelTab('text');
   }, []);
+
+  // Look up words when user wants to quick-save selected OCR text
+  useEffect(() => {
+    if (!quickAddText) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const q = quickAddText.split('\n')[0].trim() || quickAddText.trim();
+        const results = await searchWords(q, 10);
+        if (!cancelled) {
+          setQuickAddWords(results);
+          if (results.length === 0) {
+            toast.info('Không tìm được từ trong từ điển. Hãy phân tích câu trước.');
+            setQuickAddText(null);
+          }
+        }
+      } catch {
+        if (!cancelled) toast.error('Không tìm được từ');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [quickAddText]);
 
   // Selected block data for right drawer
   const selectedBlockData = selectedBlock
@@ -691,8 +715,6 @@ export default function MangaReaderPage() {
 
   const singleW = viewerSize.w;
   const singleH = viewerSize.h;
-  const doubleW = Math.floor(viewerSize.w / 2);
-  const doubleH = viewerSize.h;
 
   const renderPages = () => {
     if (readMode === 'vertical') {
@@ -735,65 +757,6 @@ export default function MangaReaderPage() {
                 </div>
               ))}
             </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (readMode === 'double') {
-      // li = left page index, ri = right page index
-      // In RTL (Japanese default): right page is first (lower idx)
-      let li: number, ri: number;
-      if (rtlDouble) {
-        // Current page shown on the RIGHT, next page on the LEFT
-        ri = currentPageIndex;
-        li = currentPageIndex + 1;
-      } else {
-        li = currentPageIndex;
-        ri = currentPageIndex + 1;
-      }
-      return (
-        <div
-          className="flex-1 overflow-auto flex items-center justify-center"
-          style={{ background: BG_COLOR }}
-        >
-          <div
-            style={{
-              transform: `scale(${zoomScale})`,
-              transformOrigin: 'center center',
-              display: 'flex',
-              gap: 2,
-              flexShrink: 0,
-            }}
-          >
-            {images[li] && (
-              <MangaPage
-                src={images[li]}
-                pageIndex={li}
-                ocrData={ocrDataPages[li]}
-                showOCRBoxes={showOCRBoxes}
-                boxPadding={boxPadding}
-                fitMode="contain"
-                containerW={doubleW}
-                containerH={doubleH}
-                selectedBlock={selectedBlock}
-                onSelectBlock={handleSelectBlock}
-              />
-            )}
-            {images[ri] && (
-              <MangaPage
-                src={images[ri]}
-                pageIndex={ri}
-                ocrData={ocrDataPages[ri]}
-                showOCRBoxes={showOCRBoxes}
-                boxPadding={boxPadding}
-                fitMode="contain"
-                containerW={doubleW}
-                containerH={doubleH}
-                selectedBlock={selectedBlock}
-                onSelectBlock={handleSelectBlock}
-              />
-            )}
           </div>
         </div>
       );
@@ -844,21 +807,11 @@ export default function MangaReaderPage() {
   }
 
   const currentChapter = currentChapterIdx >= 0 ? chapters[currentChapterIdx] : null;
-  const pageLabel =
-    readMode === 'double'
-      ? `${currentPageIndex + 1}–${Math.min(currentPageIndex + 2, images.length)} / ${images.length}`
-      : `${currentPageIndex + 1} / ${images.length}`;
+  const pageLabel = `${currentPageIndex + 1} / ${images.length}`;
 
-  // Edge navigation buttons behave physically — left button always goes physically left
-  // For RTL double, the "left" edge button actually moves forward (next pages).
-  const physicalLeft = () => {
-    if (readMode === 'double' && rtlDouble) return nextPage();
-    return prevPage();
-  };
-  const physicalRight = () => {
-    if (readMode === 'double' && rtlDouble) return prevPage();
-    return nextPage();
-  };
+  // Edge navigation buttons
+  const physicalLeft = () => prevPage();
+  const physicalRight = () => nextPage();
 
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
@@ -1029,12 +982,11 @@ export default function MangaReaderPage() {
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                       Reading Mode
                     </Label>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <div className="grid grid-cols-2 gap-1.5">
                       {(
                         [
-                          { value: 'single', label: 'Single', icon: BookOpen },
-                          { value: 'double', label: 'Double', icon: Columns2 },
-                          { value: 'vertical', label: 'Scroll', icon: AlignJustify },
+                          { value: 'single', label: 'Trang đơn', icon: BookOpen },
+                          { value: 'vertical', label: 'Cuộn dọc', icon: AlignJustify },
                         ] as const
                       ).map(({ value, label, icon: Icon }) => (
                         <button
@@ -1045,25 +997,13 @@ export default function MangaReaderPage() {
                               ? 'border-primary bg-primary/10 text-primary'
                               : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
                           }`}
+                          data-testid={`read-mode-${value}`}
                         >
                           <Icon className="w-4 h-4" />
                           {label}
                         </button>
                       ))}
                     </div>
-
-                    {readMode === 'double' && (
-                      <div className="flex items-center justify-between pt-2">
-                        <Label htmlFor="rtl" className="text-xs cursor-pointer">
-                          Đọc từ phải sang trái
-                        </Label>
-                        <Switch
-                          id="rtl"
-                          checked={rtlDouble}
-                          onCheckedChange={setRtlDouble}
-                        />
-                      </div>
-                    )}
                   </div>
 
                   <Separator />
@@ -1294,7 +1234,7 @@ export default function MangaReaderPage() {
                       </Button>
                     </div>
                     <ScrollArea className="flex-1">
-                      <div className="p-4 space-y-2">
+                      <div className="p-4 space-y-3">
                         <textarea
                           readOnly
                           value={selectedText}
@@ -1304,6 +1244,25 @@ export default function MangaReaderPage() {
                               '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif',
                           }}
                         />
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            size="sm"
+                            className="w-full gap-1.5"
+                            onClick={() => setTokenizeOpen(true)}
+                            data-testid="manga-tokenize-text-btn"
+                          >
+                            <Wand2 className="w-3.5 h-3.5" /> Phân tích từ
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full gap-1.5"
+                            onClick={() => setQuickAddText(selectedText)}
+                            data-testid="manga-add-to-deck-btn"
+                          >
+                            <BookmarkPlus className="w-3.5 h-3.5" /> Lưu vào bộ
+                          </Button>
+                        </div>
                         <p className="text-[11px] text-muted-foreground leading-snug">
                           Bạn có thể chọn một phần hoặc toàn bộ text phía trên rồi
                           sao chép.
@@ -1329,6 +1288,23 @@ export default function MangaReaderPage() {
           </div>
         )}
       </div>
+
+      <SentenceTokenizeDialog
+        open={tokenizeOpen}
+        onOpenChange={setTokenizeOpen}
+        text={selectedText}
+      />
+      <AddToDeckDialog
+        open={!!quickAddText && quickAddWords.length > 0}
+        onOpenChange={(o) => {
+          if (!o) {
+            setQuickAddText(null);
+            setQuickAddWords([]);
+          }
+        }}
+        words={quickAddWords}
+        title={`Lưu từ tìm được (${quickAddWords.length})`}
+      />
     </div>
   );
 }

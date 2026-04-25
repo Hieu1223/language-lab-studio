@@ -15,6 +15,8 @@ interface VideoPlayerProps {
   onTimeUpdate?: (time: number) => void;
   onPlay?: () => void;
   onPause?: () => void;
+  /** Receives a seek function; useful for clicking transcript tokens. */
+  seekRef?: React.MutableRefObject<((seconds: number) => void) | null>;
 }
 
 export function VideoPlayer({
@@ -22,6 +24,7 @@ export function VideoPlayer({
   onTimeUpdate,
   onPlay,
   onPause,
+  seekRef,
 }: VideoPlayerProps) {
   const playerRef = useRef<any>(null);
   const timerRef = useRef<number | null>(null);
@@ -138,6 +141,25 @@ export function VideoPlayer({
     setCurrentTime(time);
     playerRef.current?.seekTo(time, true);
   };
+
+  // Expose imperative seek() to parent
+  useEffect(() => {
+    if (!seekRef) return;
+    seekRef.current = (seconds: number) => {
+      if (!playerRef.current?.seekTo) return;
+      playerRef.current.seekTo(seconds, true);
+      setCurrentTime(seconds);
+      // Auto-play after seek so user immediately hears the spot
+      try {
+        playerRef.current.playVideo?.();
+      } catch {
+        /* ignore */
+      }
+    };
+    return () => {
+      if (seekRef) seekRef.current = null;
+    };
+  }, [seekRef]);
 
   const handleSkip = (amount: number) => {
     const newTime = Math.max(0, Math.min(duration, currentTime + amount));

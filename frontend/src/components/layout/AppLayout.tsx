@@ -1,10 +1,24 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Video, BookMarked, Menu, X, LogOut, Settings } from 'lucide-react';
+import {
+  BookOpen,
+  Video,
+  BookMarked,
+  Menu,
+  X,
+  LogOut,
+  Settings,
+  Wand2,
+  History,
+  ScrollText,
+} from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 
 const navItems = [
   { path: '/youtube', label: 'Phiên dịch', icon: Video },
+  { path: '/transcripts/history', label: 'Lịch sử', icon: History },
+  { path: '/tokenize', label: 'Phân tích câu', icon: Wand2 },
+  { path: '/dictionary', label: 'Từ điển', icon: ScrollText },
   { path: '/vocabulary', label: 'Từ vựng', icon: BookOpen },
   { path: '/manga', label: 'Manga', icon: BookMarked },
   { path: '/settings', label: 'Cài đặt', icon: Settings },

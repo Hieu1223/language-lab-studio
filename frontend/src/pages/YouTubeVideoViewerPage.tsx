@@ -22,6 +22,8 @@ import {
   getTranscriptData,
   requestTranscription,
   findTranscriptByVideoId,
+  isTranscriptError,
+  isTranscriptReady,
   type TranscriptInfo,
   type TranscriptSegment,
   type VideoPreview,
@@ -31,8 +33,8 @@ import {
   generateBlockCloze,
   type BlockClozeOptions,
   type ClozeSegment,
-  type ClozeToken,
 } from '@/lib/cloze-block';
+import { TranscriptSegmentRow } from '@/components/transcription/TranscriptSegmentRow';
 
 // ─── Config ───────────────────────────────────────────────────────────────
 
@@ -53,61 +55,6 @@ type TranscriptStatus =
   | 'processing'
   | 'ready'
   | 'error';
-
-// ─── Word component ───────────────────────────────────────────────────────
-
-function ClozeWord({
-  ct,
-  isCurrent,
-  onToggle,
-  showClozeMode,
-}: {
-  ct: ClozeToken;
-  isCurrent: boolean;
-  onToggle: () => void;
-  showClozeMode: boolean;
-}) {
-  const { word, isCloze, revealed } = ct;
-
-  const base =
-    'inline-block rounded px-1 mx-0.5 transition-all duration-150 select-none whitespace-pre';
-  const active = isCurrent ? 'bg-yellow-400/30 text-yellow-100 ring-1 ring-yellow-400/50' : '';
-
-  if (!showClozeMode || !isCloze) {
-    return (
-      <span className={`${base} ${active} hover:bg-white/5`}>{word.token}</span>
-    );
-  }
-
-  if (revealed) {
-    return (
-      <span
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
-        }}
-        className={`${base} bg-green-500/20 text-green-300 border border-green-500/40 cursor-pointer ${active}`}
-      >
-        {word.token}
-      </span>
-    );
-  }
-
-  const cleanLen = word.token.trim().replace(/[^\p{L}\p{N}]/gu, '').length;
-  const blanks = '_'.repeat(Math.max(cleanLen, 2));
-
-  return (
-    <span
-      onClick={(e) => {
-        e.stopPropagation();
-        onToggle();
-      }}
-      className={`${base} bg-primary/30 text-transparent border-b-2 border-primary hover:bg-primary/50 font-mono tracking-widest cursor-pointer ${active}`}
-    >
-      {blanks}
-    </span>
-  );
-}
 
 // ─── Main ────────────────────────────────────────────────────────────────
 
@@ -146,6 +93,7 @@ export default function YouTubeVideoViewerPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
+  const seekRef = useRef<((seconds: number) => void) | null>(null);
 
   // ── Find transcript on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -161,7 +109,7 @@ export default function YouTubeVideoViewerPage() {
           return;
         }
         setTranscriptInfo(info);
-        await loadTranscriptData(info.id);
+        await loadTranscriptData(info.id, info.status);
       } catch (err) {
         console.error(err);
         setStatus('error');
@@ -175,14 +123,23 @@ export default function YouTubeVideoViewerPage() {
   }, [videoId]);
 
   const loadTranscriptData = useCallback(
-    async (transcriptId: string) => {
+    async (transcriptId: string, currentStatus?: number) => {
+      // Per spec: only request /data when status === 3 (READY)
+      if (currentStatus != null && isTranscriptError(currentStatus)) {
+        setStatus('error');
+        return;
+      }
+      if (currentStatus == null || !isTranscriptReady(currentStatus)) {
+        setStatus('processing');
+        startPolling(transcriptId);
+        return;
+      }
       try {
         const data = await getTranscriptData(transcriptId);
-        if (data && data.segments && data.segments.length > 0) {
+        if (data?.segments?.length) {
           setRawSegments(data.segments);
           setStatus('ready');
         } else {
-          // Data not yet present — poll
           setStatus('processing');
           startPolling(transcriptId);
         }
@@ -202,12 +159,20 @@ export default function YouTubeVideoViewerPage() {
       attempts++;
       try {
         const info = await getTranscriptInfo(transcriptId);
-        if (info) setTranscriptInfo(info);
-        const data = await getTranscriptData(transcriptId);
-        if (data && data.segments && data.segments.length > 0) {
-          setRawSegments(data.segments);
-          setStatus('ready');
-          return;
+        if (info) {
+          setTranscriptInfo(info);
+          if (isTranscriptError(info.status)) {
+            setStatus('error');
+            return;
+          }
+          if (isTranscriptReady(info.status)) {
+            const data = await getTranscriptData(transcriptId);
+            if (data?.segments?.length) {
+              setRawSegments(data.segments);
+              setStatus('ready');
+              return;
+            }
+          }
         }
       } catch {
         /* keep polling */
@@ -284,20 +249,9 @@ export default function YouTubeVideoViewerPage() {
     }
   };
 
-  const handleToggle = (segIdx: number, wordIdx: number) => {
-    setClozeSegments((prev) =>
-      prev.map((seg, i) =>
-        i !== segIdx
-          ? seg
-          : {
-              ...seg,
-              tokens: seg.tokens.map((t) =>
-                t.wordIndex === wordIdx ? { ...t, revealed: !t.revealed } : t,
-              ),
-            },
-      ),
-    );
-  };
+  const handleSeek = useCallback((seconds: number) => {
+    seekRef.current?.(seconds);
+  }, []);
 
   const handleToggleAll = () => {
     const next = !allRevealed;
@@ -319,6 +273,7 @@ export default function YouTubeVideoViewerPage() {
         <VideoPlayer
           url={`https://www.youtube.com/watch?v=${videoId}`}
           onTimeUpdate={setCurrentTime}
+          seekRef={seekRef}
         />
       </div>
       <div className="bg-card border rounded-2xl p-4 text-sm flex-1 min-h-0 overflow-y-auto">
@@ -438,33 +393,15 @@ export default function YouTubeVideoViewerPage() {
         {status === 'ready' && clozeSegments.length > 0 && (
           <div className="space-y-6">
             {clozeSegments.map((cs, si) => (
-              <div
+              <TranscriptSegmentRow
                 key={si}
-                ref={si === activeSegIdx ? activeSegRef : null}
-                className={`transition-all duration-300 p-4 rounded-xl border-l-4 ${
-                  si === activeSegIdx
-                    ? 'bg-primary/5 border-primary shadow-sm'
-                    : 'border-transparent opacity-70'
-                }`}
-              >
-                <p className="flex flex-wrap items-center leading-[2.2] text-base">
-                  {cs.tokens.map((ct, ti) => (
-                    <ClozeWord
-                      key={ti}
-                      ct={ct}
-                      showClozeMode={showClozeMode}
-                      isCurrent={
-                        si === activeSegIdx &&
-                        ct.word.start !== null &&
-                        ct.word.end !== null &&
-                        currentTime >= ct.word.start &&
-                        currentTime <= ct.word.end
-                      }
-                      onToggle={() => handleToggle(si, ct.wordIndex)}
-                    />
-                  ))}
-                </p>
-              </div>
+                cs={cs}
+                isActive={si === activeSegIdx}
+                showClozeMode={showClozeMode}
+                currentTime={currentTime}
+                onSeek={handleSeek}
+                rowRef={si === activeSegIdx ? activeSegRef : undefined}
+              />
             ))}
             <div className="h-32" />
           </div>
