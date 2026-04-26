@@ -26,8 +26,9 @@ export function TranscriptClozeWord({
 
   const base =
     'inline-block rounded px-1 mx-0.5 transition-all duration-150 select-none whitespace-pre cursor-pointer';
+
   const active = isCurrent
-    ? 'bg-yellow-400/30 text-yellow-100 ring-1 ring-yellow-400/50'
+    ? 'bg-yellow-400/25 text-yellow-100 ring-1 ring-yellow-400/40'
     : '';
 
   const handleClick = (e: React.MouseEvent) => {
@@ -35,12 +36,12 @@ export function TranscriptClozeWord({
     if (word.start != null) onSeek?.(word.start);
   };
 
-  // If we are in Read mode OR this token is not a cloze → just show normally
+  // Read mode or non-cloze token → plain rendering with stronger hover
   if (!showClozeMode || !isCloze) {
     return (
       <span
         onClick={handleClick}
-        className={`${base} ${active} hover:bg-white/10`}
+        className={`${base} ${active} hover:bg-white/20 text-foreground`}
         title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
       >
         {word.token}
@@ -48,7 +49,7 @@ export function TranscriptClozeWord({
     );
   }
 
-  // Cloze + revealed (toggled or hovered) → show actual word
+  // Cloze + revealed (toggled or hovered) → show actual word with strong colour
   const showWord = revealed || hovered;
   if (showWord) {
     return (
@@ -58,8 +59,10 @@ export function TranscriptClozeWord({
         onMouseLeave={() => setHovered(false)}
         className={`${base} ${
           revealed
-            ? 'bg-green-500/20 text-green-300 border border-green-500/40'
-            : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+            ? // Permanently revealed: muted green, easy on the eyes
+              'bg-green-900/40 text-green-300/90 border border-green-700/50'
+            : // Hovered-only reveal: muted amber
+              'bg-amber-900/40 text-amber-300/90 border border-amber-700/50'
         } ${active}`}
         title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
       >
@@ -68,16 +71,23 @@ export function TranscriptClozeWord({
     );
   }
 
-  // Hidden cloze (mouse not over) → blanks
-  const cleanLen = word.token.trim().replace(/[^\p{L}\p{N}]/gu, '').length;
-  const blanks = '_'.repeat(Math.max(cleanLen, 2));
+  // Hidden cloze (mouse not over) → blank sized to match the token's visual width.
+  // CJK / full-width characters (U+1100–U+FFEE ranges) are double-width, so we
+  // count each one as 2 units so the blank doesn't look comically narrow.
+  const isCJK = (ch: string) =>
+    /[\u1100-\u115F\u2E80-\u303F\u3040-\u33FF\u3400-\u9FFF\uA000-\uA4CF\uAC00-\uD7AF\uF900-\uFAFF\uFE10-\uFE1F\uFE30-\uFE6F\uFF00-\uFFEF]/.test(ch);
+
+  const clean = word.token.trim().replace(/[^\p{L}\p{N}]/gu, '');
+  const displayWidth = [...clean].reduce((sum, ch) => sum + (isCJK(ch) ? 2 : 1), 0);
+  const blanks = '＿'.repeat(Math.max(Math.ceil(displayWidth / 2), 1));
 
   return (
     <span
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`${base} bg-primary/30 text-transparent border-b-2 border-primary hover:bg-primary/50 font-mono tracking-widest ${active}`}
+      className={`${base} bg-primary/20 text-transparent border-b border-primary/50
+        hover:bg-primary/30 hover:border-primary/70 font-mono ${active}`}
       title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
     >
       {blanks}
@@ -107,7 +117,6 @@ export function TranscriptSegmentRow({
 }) {
   const [tokenizeOpen, setTokenizeOpen] = useState(false);
 
-  // Reconstruct the plain-text sentence from tokens (preserves spacing)
   const sentence = cs.tokens.map((t) => t.word.token).join('');
 
   return (
@@ -115,8 +124,8 @@ export function TranscriptSegmentRow({
       ref={rowRef}
       className={`group transition-all duration-300 p-4 rounded-xl border-l-4 relative ${
         isActive
-          ? 'bg-primary/5 border-primary shadow-sm'
-          : 'border-transparent opacity-70 hover:opacity-100'
+          ? 'bg-primary/8 border-primary/60 shadow-sm'
+          : 'border-transparent hover:bg-white/3 hover:border-white/8'
       }`}
     >
       <p className="flex flex-wrap items-center leading-[2.2] text-base">
