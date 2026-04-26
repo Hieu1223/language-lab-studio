@@ -88,24 +88,12 @@ export default function MangaHistoryPage() {
   };
 
   return (
-    <div
-      className="p-4 md:p-6 max-w-5xl mx-auto animate-fade-in"
-      data-testid="manga-history-page"
-    >
-      <header className="mb-6 flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="font-display font-bold text-2xl md:text-3xl text-foreground flex items-center gap-2">
-            <History className="w-6 h-6 text-primary" />
-            Lịch sử đọc Manga
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Tiếp tục đọc từ nơi bạn đã dừng lại.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" onClick={load} data-testid="reload-manga-history-btn">
+    <div className="animate-fade-in" data-testid="manga-history-page">
+      <div className="flex items-start justify-between gap-3 flex-wrap mb-6">
+        <Button variant="outline" size="sm" onClick={load} data-testid="reload-manga-history-btn" className="ml-auto">
           Làm mới
         </Button>
-      </header>
+      </div>
 
       {loading ? (
         <div className="py-16 flex justify-center">

@@ -19,9 +19,7 @@ import { Button } from '@/components/ui/button';
 
 const navItems = [
   { path: '/youtube', label: 'Phiên dịch', icon: Video },
-  { path: '/transcripts/history', label: 'Video', icon: History, subLabel: 'Lịch sử' },
   { path: '/manga', label: 'Manga', icon: BookMarked },
-  { path: '/manga/history', label: 'Manga', icon: History, subLabel: 'Lịch sử' },
   { path: '/tokenize', label: 'Phân tích câu', icon: Wand2 },
   { path: '/dictionary', label: 'Từ điển', icon: ScrollText },
   { path: '/vocabulary', label: 'Từ vựng', icon: BookOpen },
@@ -72,11 +70,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   title={sidebarCollapsed ? item.label : ''}
                 >
                   <item.icon className="w-4 h-4 flex-shrink-0" />
-                  {!sidebarCollapsed && (
-                    <span className="truncate">
-                      {item.subLabel ? `${item.subLabel} ${item.label}` : item.label}
-                    </span>
-                  )}
+                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
                 </Link>
               );
             })}
