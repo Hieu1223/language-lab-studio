@@ -104,15 +104,18 @@ export async function upsertMangaHistory(
   });
 }
 
-// Get user's manga reading history
 export async function getMangaHistory(userId: string): Promise<ReadHistoryResponse[]> {
   const token = getStoredToken();
   if (!token) throw new Error('Not authenticated');
 
-  const response = await apiCall<{ items: ReadHistoryResponse[] }>(`/manga/history/${userId}`, {
-    method: 'GET',
-    token,
-  });
+  const response = await apiCall<ReadHistoryResponse[]>(
+    `/manga/history/${userId}`,
+    {
+      method: 'GET',
+      token,
+    }
+  );
 
-  return response.items;
+  console.log(response);
+  return response;
 }

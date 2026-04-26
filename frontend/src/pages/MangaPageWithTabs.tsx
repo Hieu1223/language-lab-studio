@@ -9,13 +9,6 @@ export default function MangaPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto animate-fade-in">
-      <div className="mb-6">
-        <h2 className="font-display font-bold text-2xl text-foreground mb-2">Manga</h2>
-        <p className="text-sm text-muted-foreground">
-          Tìm và đọc manga để ôn tập tiếng Nhật với OCR
-        </p>
-      </div>
-
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'browse' | 'history')} className="w-full">
         <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
           <TabsTrigger value="browse" className="gap-2">

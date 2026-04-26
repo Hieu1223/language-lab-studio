@@ -36,6 +36,7 @@ export default function MangaHistoryPage() {
     try {
       setLoading(true);
       const history = await getMangaHistory(user.id);
+      console.log(history)
       
       // Sort by most recent first
       const sorted = [...history].sort(

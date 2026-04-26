@@ -540,7 +540,8 @@ export default function MangaReaderPage() {
     const load = async () => {
       try {
         setLoadingChapters(true);
-        const list = await getChapterList(`/manga/${mangaId}`);
+        const list = await getChapterList(mangaId);
+        console.log(list)
         setChapters(list);
         const decoded = decodeURIComponent(chapterUrl ?? '');
         const idx = list.findIndex(
@@ -669,7 +670,7 @@ export default function MangaReaderPage() {
   // ── Chapter navigation ────────────────────────────────────────────────────
   const goToChapter = useCallback(
     (chapter: ChapterInfo) => {
-      navigate(`/manga/${mangaId}/read/${encodeURIComponent(chapter.url)}`);
+      navigate(`/manga/${encodeURIComponent(mangaId)}/read/${encodeURIComponent(chapter.url)}`);
     },
     [mangaId, navigate],
   );
@@ -843,7 +844,7 @@ export default function MangaReaderPage() {
             variant="ghost"
             size="icon"
             className="h-8 w-8 flex-shrink-0"
-            onClick={() => navigate(`/manga/${mangaId}`)}
+            onClick={() => navigate(`/manga/${encodeURIComponent(mangaId)}`)}
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>

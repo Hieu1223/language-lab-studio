@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { getChapterList, type ChapterInfo } from '@/lib/api/manga-real';
 
 export default function MangaDetailPage() {
-  const { mangaId } = useParams<{ mangaId: string }>();
+  const { mangaId } = useParams() as { mangaId?: string };
   const navigate = useNavigate();
 
   const [chapters, setChapters] = useState<ChapterInfo[]>([]);
@@ -22,8 +22,12 @@ export default function MangaDetailPage() {
     const loadChapters = async () => {
       try {
         setLoading(true);
-        console.log(mangaId)
-        const mangaUrl = mangaId;
+
+        // ✅ decode before sending to API
+        const mangaUrl = decodeURIComponent(mangaId);
+
+        console.log('Fetching:', mangaUrl);
+
         const chapterList = await getChapterList(mangaUrl);
         setChapters(chapterList);
       } catch (error) {
@@ -32,12 +36,16 @@ export default function MangaDetailPage() {
         navigate('/manga');
       } finally {
         setLoading(false);
-        
       }
     };
 
     loadChapters();
   }, [mangaId, navigate]);
+
+  // ✅ safe reverse (no mutation)
+  const reversedChapters = useMemo(() => {
+    return [...chapters].reverse();
+  }, [chapters]);
 
   if (loading) {
     return (
@@ -56,28 +64,25 @@ export default function MangaDetailPage() {
       </div>
 
       <div className="mb-8">
-        <h2 className="font-display font-bold text-2xl text-foreground mb-2">
-          {decodeURIComponent(mangaId || '')}
-        </h2>
         <p className="text-sm text-muted-foreground">
           {chapters.length} chương có sẵn
         </p>
       </div>
 
-      {chapters.length === 0 ? (
+      {reversedChapters.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <p>No chapters found</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {chapters.reverse().map((chapter, idx) => (
+          {reversedChapters.map((chapter) => (
             <Card
-              key={idx}
+              key={chapter.url} // ✅ better key
               className="hover:shadow-md transition-shadow cursor-pointer"
               onClick={() =>
                 navigate(
                   `/manga/${encodeURIComponent(mangaId || '')}/read/${encodeURIComponent(
-                    chapter.url
+                    chapter.url // ✅ this becomes chapterId
                   )}`
                 )
               }
@@ -88,7 +93,9 @@ export default function MangaDetailPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground">Chapter {chapter.num}</p>
+                <p className="text-xs text-muted-foreground">
+                  Chapter {chapter.num}
+                </p>
               </CardContent>
             </Card>
           ))}
