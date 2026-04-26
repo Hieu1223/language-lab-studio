@@ -416,17 +416,13 @@ export default function YouTubeVideoViewerPage() {
                   )}
                 </Button>
               </div>
-              {selectorExpanded && activeSegIdx >= 0 && rawSegments[activeSegIdx] && (
+              {selectorExpanded && (
                 <SentenceSelector
-                  words={rawSegments[activeSegIdx].words}
+                  segments={rawSegments}
                   currentTime={currentTime}
                   onSeek={handleSeek}
+                  activeSegmentIndex={activeSegIdx}
                 />
-              )}
-              {selectorExpanded && activeSegIdx < 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  Phát video để chọn câu
-                </p>
               )}
             </div>
 

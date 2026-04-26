@@ -1,45 +1,46 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, X, Repeat, MousePointer } from 'lucide-react';
+import type { TranscriptSegment } from '@/lib/api/transcription-real';
 
 interface SentenceSelectorProps {
-  /** Array of word timestamps from the transcript */
-  words: Array<{ token: string; start: number | null; end: number | null }>;
+  /** All transcript segments */
+  segments: TranscriptSegment[];
   /** Current playback time */
   currentTime: number;
   /** Function to seek to a specific time */
   onSeek: (time: number) => void;
-  /** Whether the player is currently playing */
-  isPlaying?: boolean;
+  /** Currently active segment index */
+  activeSegmentIndex: number;
 }
 
 export function SentenceSelector({
-  words,
+  segments,
   currentTime,
   onSeek,
-  isPlaying = false,
+  activeSegmentIndex,
 }: SentenceSelectorProps) {
   const [selectorActive, setSelectorActive] = useState(false);
-  const [beginIndex, setBeginIndex] = useState<number | null>(null);
-  const [endIndex, setEndIndex] = useState<number | null>(null);
+  const [selectedSegmentIndex, setSelectedSegmentIndex] = useState<number | null>(null);
+  const [beginWordIndex, setBeginWordIndex] = useState<number | null>(null);
+  const [endWordIndex, setEndWordIndex] = useState<number | null>(null);
   const [looping, setLooping] = useState(false);
   const [clickToPlace, setClickToPlace] = useState<'begin' | 'end' | null>(null);
   const loopTimeoutRef = useRef<number | null>(null);
 
-  // Words with valid timestamps
-  const timedWords = words
-    .map((w, i) => ({ ...w, index: i }))
-    .filter((w) => w.start !== null && w.end !== null);
+  // Get selected segment
+  const selectedSegment = selectedSegmentIndex !== null ? segments[selectedSegmentIndex] : null;
 
   // Loop effect
   useEffect(() => {
-    if (!looping || beginIndex === null || endIndex === null) {
+    if (!looping || !selectedSegment || beginWordIndex === null || endWordIndex === null) {
       if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
       return;
     }
 
-    const beginWord = timedWords.find((w) => w.index === beginIndex);
-    const endWord = timedWords.find((w) => w.index === endIndex);
+    const words = selectedSegment.words;
+    const beginWord = words[beginWordIndex];
+    const endWord = words[endWordIndex];
 
     if (!beginWord || !endWord || beginWord.start === null || endWord.end === null) {
       return;
@@ -48,80 +49,96 @@ export function SentenceSelector({
     const loopStart = beginWord.start;
     const loopEnd = endWord.end;
 
-    // Check if we've passed the end
+    // Check if we've passed the end - seek back to start
     if (currentTime >= loopEnd) {
-      // Seek back to start
       onSeek(loopStart);
     }
 
     return () => {
       if (loopTimeoutRef.current) clearTimeout(loopTimeoutRef.current);
     };
-  }, [currentTime, looping, beginIndex, endIndex, timedWords, onSeek]);
-
-  const handleWordClick = (wordIndex: number) => {
-    if (!selectorActive) return;
-
-    if (clickToPlace === 'begin') {
-      setBeginIndex(wordIndex);
-      setClickToPlace(null);
-      // Auto-start looping
-      if (endIndex !== null && wordIndex <= endIndex) {
-        setLooping(true);
-        const word = timedWords.find((w) => w.index === wordIndex);
-        if (word?.start !== null) onSeek(word.start);
-      }
-    } else if (clickToPlace === 'end') {
-      setEndIndex(wordIndex);
-      setClickToPlace(null);
-      // Auto-start looping
-      if (beginIndex !== null && wordIndex >= beginIndex) {
-        setLooping(true);
-        const word = timedWords.find((w) => w.index === beginIndex);
-        if (word?.start !== null) onSeek(word.start);
-      }
-    }
-  };
+  }, [currentTime, looping, beginWordIndex, endWordIndex, selectedSegment, onSeek]);
 
   const handleActivateSelector = () => {
     setSelectorActive(true);
-    setClickToPlace('begin');
+    // Auto-select current active segment if available
+    if (activeSegmentIndex >= 0) {
+      setSelectedSegmentIndex(activeSegmentIndex);
+    }
   };
 
   const handleDeactivateSelector = () => {
     setSelectorActive(false);
-    setBeginIndex(null);
-    setEndIndex(null);
+    setSelectedSegmentIndex(null);
+    setBeginWordIndex(null);
+    setEndWordIndex(null);
     setLooping(false);
     setClickToPlace(null);
+  };
+
+  const handleSelectSegment = (index: number) => {
+    setSelectedSegmentIndex(index);
+    setBeginWordIndex(null);
+    setEndWordIndex(null);
+    setLooping(false);
+    setClickToPlace('begin');
+  };
+
+  const handleWordClick = (wordIndex: number) => {
+    if (!selectorActive || selectedSegment === null) return;
+
+    if (clickToPlace === 'begin') {
+      setBeginWordIndex(wordIndex);
+      setClickToPlace('end');
+    } else if (clickToPlace === 'end') {
+      // Ensure end is after begin
+      if (beginWordIndex !== null && wordIndex < beginWordIndex) {
+        setEndWordIndex(beginWordIndex);
+        setBeginWordIndex(wordIndex);
+      } else {
+        setEndWordIndex(wordIndex);
+      }
+      setClickToPlace(null);
+      // Auto-start looping
+      const words = selectedSegment.words;
+      const startWord = words[beginWordIndex!];
+      if (startWord?.start !== null) {
+        setLooping(true);
+        onSeek(startWord.start);
+      }
+    }
   };
 
   const toggleLoop = () => {
     if (looping) {
       setLooping(false);
-    } else if (beginIndex !== null && endIndex !== null) {
+    } else if (beginWordIndex !== null && endWordIndex !== null && selectedSegment) {
       setLooping(true);
-      const word = timedWords.find((w) => w.index === beginIndex);
+      const word = selectedSegment.words[beginWordIndex];
       if (word?.start !== null) onSeek(word.start);
     }
   };
 
   const getWordStyle = (wordIndex: number) => {
-    if (beginIndex === wordIndex) {
+    if (beginWordIndex === wordIndex) {
       return 'bg-green-500/30 border-2 border-green-500 font-bold';
     }
-    if (endIndex === wordIndex) {
+    if (endWordIndex === wordIndex) {
       return 'bg-red-500/30 border-2 border-red-500 font-bold';
     }
     if (
-      beginIndex !== null &&
-      endIndex !== null &&
-      wordIndex > beginIndex &&
-      wordIndex < endIndex
+      beginWordIndex !== null &&
+      endWordIndex !== null &&
+      wordIndex > beginWordIndex &&
+      wordIndex < endWordIndex
     ) {
       return 'bg-blue-500/20';
     }
     return '';
+  };
+
+  const getSegmentText = (segment: TranscriptSegment) => {
+    return segment.text || segment.words.map(w => w.token).join('');
   };
 
   return (
@@ -136,7 +153,7 @@ export function SentenceSelector({
             className="gap-2"
           >
             <MousePointer className="w-4 h-4" />
-            Bật chọn câu
+            Bật chọn câu để lặp
           </Button>
         ) : (
           <>
@@ -150,24 +167,32 @@ export function SentenceSelector({
               Tắt
             </Button>
 
-            {clickToPlace === 'begin' && (
+            {selectedSegmentIndex === null && (
+              <span className="text-xs bg-blue-500/20 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-md font-medium">
+                Chọn một câu bên dưới
+              </span>
+            )}
+
+            {selectedSegmentIndex !== null && clickToPlace === 'begin' && (
               <span className="text-xs bg-green-500/20 text-green-700 dark:text-green-400 px-2 py-1 rounded-md font-medium">
-                Click vào từ để đặt điểm BẮT ĐẦU
+                Click từ để đặt điểm BẮT ĐẦU
               </span>
             )}
 
-            {clickToPlace === 'end' && (
+            {selectedSegmentIndex !== null && clickToPlace === 'end' && (
               <span className="text-xs bg-red-500/20 text-red-700 dark:text-red-400 px-2 py-1 rounded-md font-medium">
-                Click vào từ để đặt điểm KẾT THÚC
+                Click từ để đặt điểm KẾT THÚC
               </span>
             )}
 
-            {beginIndex !== null && (
+            {selectedSegmentIndex !== null && beginWordIndex !== null && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
                   setClickToPlace('begin');
+                  setBeginWordIndex(null);
+                  setEndWordIndex(null);
                   setLooping(false);
                 }}
                 className="gap-1 border-green-500 text-green-700 dark:text-green-400"
@@ -176,12 +201,13 @@ export function SentenceSelector({
               </Button>
             )}
 
-            {endIndex !== null && (
+            {selectedSegmentIndex !== null && endWordIndex !== null && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => {
                   setClickToPlace('end');
+                  setEndWordIndex(null);
                   setLooping(false);
                 }}
                 className="gap-1 border-red-500 text-red-700 dark:text-red-400"
@@ -190,7 +216,7 @@ export function SentenceSelector({
               </Button>
             )}
 
-            {beginIndex !== null && endIndex !== null && (
+            {beginWordIndex !== null && endWordIndex !== null && (
               <Button
                 size="sm"
                 variant={looping ? 'default' : 'outline'}
@@ -205,7 +231,7 @@ export function SentenceSelector({
                 ) : (
                   <>
                     <Repeat className="w-4 h-4" />
-                    Lặp lại
+                    Bắt đầu lặp
                   </>
                 )}
               </Button>
@@ -214,35 +240,87 @@ export function SentenceSelector({
         )}
       </div>
 
-      {/* Word display */}
-      {selectorActive && (
-        <div className="flex flex-wrap gap-1 p-3 bg-muted/30 rounded-lg border">
-          {words.map((word, i) => {
-            const hasTimestamp = word.start !== null && word.end !== null;
+      {/* Segment selection list */}
+      {selectorActive && selectedSegmentIndex === null && (
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          <p className="text-xs text-muted-foreground font-semibold uppercase">Chọn câu:</p>
+          {segments.map((segment, i) => {
+            const text = getSegmentText(segment);
+            const isActive = i === activeSegmentIndex;
             return (
               <button
                 key={i}
-                onClick={() => hasTimestamp && handleWordClick(i)}
-                disabled={!hasTimestamp}
-                className={`px-2 py-1 rounded text-sm transition-colors ${
-                  hasTimestamp
-                    ? `cursor-pointer hover:bg-primary/10 ${getWordStyle(i)}`
-                    : 'opacity-40 cursor-not-allowed'
+                onClick={() => handleSelectSegment(i)}
+                className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                  isActive
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-primary/50 bg-card'
                 }`}
               >
-                {word.token}
+                <div className="flex items-start gap-2">
+                  <span className="text-xs font-mono text-muted-foreground mt-0.5">
+                    #{i + 1}
+                  </span>
+                  <p className="text-sm flex-1 line-clamp-2">{text}</p>
+                </div>
               </button>
             );
           })}
         </div>
       )}
 
-      {looping && beginIndex !== null && endIndex !== null && (
+      {/* Word selection for chosen segment */}
+      {selectorActive && selectedSegmentIndex !== null && selectedSegment && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground font-semibold uppercase">
+              Câu #{selectedSegmentIndex + 1}
+            </p>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setSelectedSegmentIndex(null);
+                setBeginWordIndex(null);
+                setEndWordIndex(null);
+                setLooping(false);
+                setClickToPlace(null);
+              }}
+              className="h-6 text-xs"
+            >
+              Chọn câu khác
+            </Button>
+          </div>
+          <div className="flex flex-wrap gap-1 p-3 bg-muted/30 rounded-lg border">
+            {selectedSegment.words.map((word, i) => {
+              const hasTimestamp = word.start !== null && word.end !== null;
+              return (
+                <button
+                  key={i}
+                  onClick={() => hasTimestamp && handleWordClick(i)}
+                  disabled={!hasTimestamp}
+                  className={`px-2 py-1 rounded text-sm transition-colors ${
+                    hasTimestamp
+                      ? `cursor-pointer hover:bg-primary/10 ${getWordStyle(i)}`
+                      : 'opacity-40 cursor-not-allowed'
+                  }`}
+                >
+                  {word.token}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Loop status */}
+      {looping && selectedSegment && beginWordIndex !== null && endWordIndex !== null && (
         <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 text-xs">
           <div className="flex items-center gap-2">
             <Repeat className="w-4 h-4 text-blue-500 animate-spin" style={{ animationDuration: '2s' }} />
             <span className="text-blue-700 dark:text-blue-400 font-medium">
-              Đang lặp từ "{words[beginIndex]?.token}" đến "{words[endIndex]?.token}"
+              Đang lặp câu #{selectedSegmentIndex! + 1} từ "{selectedSegment.words[beginWordIndex]?.token}" 
+              đến "{selectedSegment.words[endWordIndex]?.token}"
             </span>
           </div>
         </div>

@@ -46,15 +46,20 @@ export interface ReadHistoryResponse {
   updated_at: string;
 }
 
-// Search for manga with pagination and sort
+// Search for manga (backend may not support pagination yet, so we'll pass it anyway)
 export async function searchManga(
   query: string | null,
   page: number = 1,
   sort: string = 'recently_updated'
 ): Promise<MangaInfo[]> {
+  // Try with pagination params first, backend will ignore if not supported
   return apiCall<MangaInfo[]>('/manga/search', {
     method: 'GET',
-    query: { query: query || '', page, sort },
+    query: { 
+      query: query || '',
+      ...(page > 1 ? { page } : {}),
+      ...(sort !== 'recently_updated' ? { sort } : {})
+    },
   });
 }
 
