@@ -56,7 +56,7 @@ export async function searchManga(
   return apiCall<MangaInfo[]>('/manga/search', {
     method: 'GET',
     query: { 
-      query: query || '',
+      query: query || '%20',
       ...(page > 1 ? { page } : {}),
       ...(sort !== 'recently_updated' ? { sort } : {})
     },
@@ -65,6 +65,7 @@ export async function searchManga(
 
 // Get chapter list for a manga
 export async function getChapterList(mangaUrl: string): Promise<ChapterInfo[]> {
+  console.log(mangaUrl)
   return apiCall<ChapterInfo[]>('/manga/chapter_list', {
     method: 'GET',
     query: { manga_url: mangaUrl },

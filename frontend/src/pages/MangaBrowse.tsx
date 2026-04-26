@@ -22,7 +22,7 @@ const PAGE_STORAGE_KEY = 'manga-page';
 const SORT_STORAGE_KEY = 'manga-sort';
 const RESULTS_STORAGE_KEY = 'manga-results';
 
-const DEFAULT_QUERY = '日本語';
+const DEFAULT_QUERY = '%20';
 
 export default function MangaBrowse() {
   const navigate = useNavigate();

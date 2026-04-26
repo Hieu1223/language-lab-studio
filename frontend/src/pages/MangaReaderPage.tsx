@@ -45,8 +45,10 @@ import {
   getOCRData,
   getChapterList,
   type ChapterInfo,
+  upsertMangaHistory,
 } from '@/lib/api/manga-real';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/auth-context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

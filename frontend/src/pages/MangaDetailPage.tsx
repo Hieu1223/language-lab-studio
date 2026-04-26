@@ -23,7 +23,7 @@ export default function MangaDetailPage() {
       try {
         setLoading(true);
         console.log(mangaId)
-        const mangaUrl = `/manga/${decodeURIComponent(mangaId)}`;
+        const mangaUrl = mangaId;
         const chapterList = await getChapterList(mangaUrl);
         setChapters(chapterList);
       } catch (error) {
