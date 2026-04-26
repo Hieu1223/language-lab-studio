@@ -1,4 +1,4 @@
-import { apiCall } from '../api-client';
+import { apiCall, getStoredToken } from '../api-client';
 
 export interface MangaInfo {
   name: string;
@@ -31,11 +31,30 @@ export interface OCRResponse {
   pages: OCRPage[];
 }
 
-// Search for manga
-export async function searchManga(query: string | null): Promise<MangaInfo[]> {
+export interface ReadHistoryUpdate {
+  manga_url: string;
+  current_chapter_url: string;
+  current_chapter_name?: string;
+}
+
+export interface ReadHistoryResponse {
+  id: string;
+  user_id: string;
+  manga_url: string;
+  current_chapter_url: string;
+  current_chapter_name?: string;
+  updated_at: string;
+}
+
+// Search for manga with pagination and sort
+export async function searchManga(
+  query: string | null,
+  page: number = 1,
+  sort: string = 'recently_updated'
+): Promise<MangaInfo[]> {
   return apiCall<MangaInfo[]>('/manga/search', {
     method: 'GET',
-    query: { query: query || '' },
+    query: { query: query || '', page, sort },
   });
 }
 
@@ -63,86 +82,31 @@ export async function getOCRData(chapterUrl: string): Promise<OCRResponse> {
   });
 }
 
-// ─── Mainpage mock (client-side) ──────────────────────────────────────────
-// Backend has no mainpage endpoint, so we generate a deterministic mock
-// list of popular manga with client-side paging. Only page number is
-// exposed — page size is fixed.
+// ─── Manga History ────────────────────────────────────────────────────────
 
-const MAINPAGE_POPULAR_QUERIES = [
-  'one piece',
-  'naruto',
-  'attack on titan',
-  'demon slayer',
-  'jujutsu kaisen',
-  'chainsaw man',
-];
+// Update or insert manga reading history
+export async function upsertMangaHistory(
+  data: ReadHistoryUpdate
+): Promise<ReadHistoryResponse> {
+  const token = getStoredToken();
+  if (!token) throw new Error('Not authenticated');
 
-export const MAINPAGE_PAGE_SIZE = 12;
-
-// Aggregated results cache — fetched once, then paged client-side
-let aggregateCache: MangaInfo[] | null = null;
-let aggregatePromise: Promise<MangaInfo[]> | null = null;
-
-async function fetchAggregate(): Promise<MangaInfo[]> {
-  if (aggregateCache) return aggregateCache;
-  if (aggregatePromise) return aggregatePromise;
-
-  aggregatePromise = (async () => {
-    // Fire all queries in parallel; swallow individual failures.
-    const results = await Promise.all(
-      MAINPAGE_POPULAR_QUERIES.map((q) =>
-        searchManga(q).catch(() => [] as MangaInfo[]),
-      ),
-    );
-
-    const seen = new Set<string>();
-    const out: MangaInfo[] = [];
-    // Interleave first-of-each so the first page feels diverse
-    const maxLen = Math.max(...results.map((r) => r.length), 0);
-    for (let i = 0; i < maxLen; i++) {
-      for (const group of results) {
-        const m = group[i];
-        if (m && !seen.has(m.manga_url)) {
-          seen.add(m.manga_url);
-          out.push(m);
-        }
-      }
-    }
-    aggregateCache = out;
-    return out;
-  })();
-
-  try {
-    return await aggregatePromise;
-  } finally {
-    aggregatePromise = null;
-  }
+  return apiCall<ReadHistoryResponse>('/manga/history/upsert', {
+    method: 'POST',
+    token,
+    body: data,
+  });
 }
 
-/**
- * Load mainpage manga list for the given page.
- * Only page number is exposed — page size is fixed.
- */
-export async function getMangaMainPage(page: number = 1): Promise<{
-  items: MangaInfo[];
-  hasMore: boolean;
-  page: number;
-  totalPages: number;
-}> {
-  if (page < 1) page = 1;
-  const all = await fetchAggregate();
-  const totalPages = Math.max(1, Math.ceil(all.length / MAINPAGE_PAGE_SIZE));
-  const start = (page - 1) * MAINPAGE_PAGE_SIZE;
-  const items = all.slice(start, start + MAINPAGE_PAGE_SIZE);
-  return {
-    items,
-    hasMore: start + items.length < all.length,
-    page,
-    totalPages,
-  };
-}
+// Get user's manga reading history
+export async function getMangaHistory(userId: string): Promise<ReadHistoryResponse[]> {
+  const token = getStoredToken();
+  if (!token) throw new Error('Not authenticated');
 
-export function clearMangaMainPageCache() {
-  aggregateCache = null;
-  aggregatePromise = null;
+  const response = await apiCall<{ items: ReadHistoryResponse[] }>(`/manga/history/${userId}`, {
+    method: 'GET',
+    token,
+  });
+
+  return response.items;
 }

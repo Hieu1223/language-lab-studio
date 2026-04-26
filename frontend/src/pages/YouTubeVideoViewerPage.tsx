@@ -11,12 +11,15 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { ResizableSplit } from '@/components/ResizableSplit';
+import { SentenceSelector } from '@/components/transcription/SentenceSelector';
 import {
   getTranscriptInfo,
   getTranscriptData,
@@ -91,6 +94,7 @@ export default function YouTubeVideoViewerPage() {
   const [clozeSegments, setClozeSegments] = useState<ClozeSegment[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectorExpanded, setSelectorExpanded] = useState(false);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
@@ -390,8 +394,43 @@ export default function YouTubeVideoViewerPage() {
           </div>
         )}
 
-        {status === 'ready' && clozeSegments.length > 0 && (
+        {status === 'ready' && rawSegments.length > 0 && (
           <div className="space-y-6">
+            {/* Sentence Selector */}
+            <div className="bg-card border rounded-xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-primary uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Lặp lại câu
+                </h3>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectorExpanded(!selectorExpanded)}
+                  className="h-6 w-6 p-0"
+                >
+                  {selectorExpanded ? (
+                    <ChevronUp className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              {selectorExpanded && activeSegIdx >= 0 && rawSegments[activeSegIdx] && (
+                <SentenceSelector
+                  words={rawSegments[activeSegIdx].words}
+                  currentTime={currentTime}
+                  onSeek={handleSeek}
+                />
+              )}
+              {selectorExpanded && activeSegIdx < 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  Phát video để chọn câu
+                </p>
+              )}
+            </div>
+
+            {/* Transcript segments */}
             {clozeSegments.map((cs, si) => (
               <TranscriptSegmentRow
                 key={si}

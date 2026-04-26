@@ -7,36 +7,39 @@ import { toast } from 'sonner';
 import { Search, Loader2, X, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   searchManga,
-  getMangaMainPage,
-  clearMangaMainPageCache,
   type MangaInfo,
 } from '@/lib/api/manga-real';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const QUERY_STORAGE_KEY = 'manga-query';
-const MODE_STORAGE_KEY = 'manga-mode';
 const PAGE_STORAGE_KEY = 'manga-page';
+const SORT_STORAGE_KEY = 'manga-sort';
 const RESULTS_STORAGE_KEY = 'manga-results';
 
-type Mode = 'mainpage' | 'search';
+const DEFAULT_QUERY = '日本語';
 
 export default function MangaPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Hydrate from URL ?q= first, else sessionStorage
+  // Hydrate from URL or sessionStorage
   const initialQuery =
-    searchParams.get('q') ?? sessionStorage.getItem(QUERY_STORAGE_KEY) ?? '';
+    searchParams.get('q') ?? sessionStorage.getItem(QUERY_STORAGE_KEY) ?? DEFAULT_QUERY;
   const initialPage = Number(
     searchParams.get('page') ?? sessionStorage.getItem(PAGE_STORAGE_KEY) ?? '1',
   );
-  const initialMode: Mode =
-    (searchParams.get('mode') as Mode) ??
-    ((sessionStorage.getItem(MODE_STORAGE_KEY) as Mode) ||
-      (initialQuery ? 'search' : 'mainpage'));
+  const initialSort =
+    searchParams.get('sort') ?? sessionStorage.getItem(SORT_STORAGE_KEY) ?? 'recently_updated';
 
   const [query, setQuery] = useState(initialQuery);
-  const [mode, setMode] = useState<Mode>(initialMode);
   const [page, setPage] = useState<number>(initialPage || 1);
+  const [sort, setSort] = useState<string>(initialSort);
   const [results, setResults] = useState<MangaInfo[]>(() => {
     try {
       const cached = sessionStorage.getItem(RESULTS_STORAGE_KEY);
@@ -45,8 +48,6 @@ export default function MangaPage() {
       return [];
     }
   });
-  const [hasMore, setHasMore] = useState(false);
-  const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(false);
 
   // Persist state
@@ -54,11 +55,11 @@ export default function MangaPage() {
     sessionStorage.setItem(QUERY_STORAGE_KEY, query);
   }, [query]);
   useEffect(() => {
-    sessionStorage.setItem(MODE_STORAGE_KEY, mode);
-  }, [mode]);
-  useEffect(() => {
     sessionStorage.setItem(PAGE_STORAGE_KEY, String(page));
   }, [page]);
+  useEffect(() => {
+    sessionStorage.setItem(SORT_STORAGE_KEY, sort);
+  }, [sort]);
   useEffect(() => {
     try {
       sessionStorage.setItem(RESULTS_STORAGE_KEY, JSON.stringify(results));
@@ -67,31 +68,13 @@ export default function MangaPage() {
     }
   }, [results]);
 
-  const runMainPage = useCallback(async (p: number = 1) => {
+  const runSearch = useCallback(async (q: string, p: number = 1, s: string = 'recently_updated') => {
     setLoading(true);
     try {
-      const res = await getMangaMainPage(p);
-      setResults(res.items);
-      setHasMore(res.hasMore);
-      setTotalPages(res.totalPages);
-      setMode('mainpage');
-      setPage(res.page);
-    } catch {
-      toast.error('Không thể tải trang chính manga.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const runSearch = useCallback(async (q: string) => {
-    setLoading(true);
-    try {
-      const items = await searchManga(q);
+      const items = await searchManga(q, p, s);
       setResults(items);
-      setHasMore(false);
-      setTotalPages(1);
-      setMode('search');
-      setPage(1);
+      setPage(p);
+      setSort(s);
       if (items.length === 0) toast.info('Không tìm thấy manga nào.');
     } catch {
       toast.error('Không thể tìm kiếm manga.');
@@ -103,36 +86,32 @@ export default function MangaPage() {
   // Initial load
   useEffect(() => {
     if (results.length > 0) return; // keep cached on mount
-    if (mode === 'search' && query.trim()) {
-      runSearch(query.trim());
-    } else {
-      runMainPage(page || 1);
-    }
+    runSearch(query || DEFAULT_QUERY, page, sort);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
-    setSearchParams({ q: query.trim(), mode: 'search' }, { replace: true });
-    runSearch(query.trim());
+    const q = query.trim() || DEFAULT_QUERY;
+    setSearchParams({ q, page: '1', sort }, { replace: true });
+    runSearch(q, 1, sort);
   };
 
   const handleClear = () => {
-    setQuery('');
-    setSearchParams({}, { replace: true });
-    runMainPage(1);
+    setQuery(DEFAULT_QUERY);
+    setSearchParams({ q: DEFAULT_QUERY, page: '1', sort }, { replace: true });
+    runSearch(DEFAULT_QUERY, 1, sort);
   };
 
-  const handleReloadMainpage = () => {
-    clearMangaMainPageCache();
-    runMainPage(1);
+  const handleSortChange = (newSort: string) => {
+    setSort(newSort);
+    setSearchParams({ q: query, page: '1', sort: newSort }, { replace: true });
+    runSearch(query, 1, newSort);
   };
 
   const goToPage = (p: number) => {
-    const next = Math.max(1, Math.min(totalPages, p));
-    setSearchParams({ mode: 'mainpage', page: String(next) }, { replace: true });
-    runMainPage(next);
+    setSearchParams({ q: query, page: String(p), sort }, { replace: true });
+    runSearch(query, p, sort);
   };
 
   return (
@@ -248,7 +227,8 @@ export default function MangaPage() {
             ))}
           </div>
 
-          {mode === 'mainpage' && totalPages > 1 && (
+          {/* Pagination */}
+          {results.length > 0 && (
             <div className="flex items-center justify-center gap-2 mt-8">
               <Button
                 variant="outline"
@@ -256,27 +236,18 @@ export default function MangaPage() {
                 disabled={page <= 1 || loading}
                 onClick={() => goToPage(page - 1)}
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4" /> Trước
               </Button>
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-                <Button
-                  key={p}
-                  size="sm"
-                  variant={p === page ? 'default' : 'outline'}
-                  className="h-8 min-w-[32px]"
-                  onClick={() => goToPage(p)}
-                  disabled={loading}
-                >
-                  {p}
-                </Button>
-              ))}
+              <span className="text-sm text-muted-foreground px-3">
+                Trang {page}
+              </span>
               <Button
                 variant="outline"
                 size="sm"
-                disabled={!hasMore || loading}
+                disabled={loading || results.length < 20}
                 onClick={() => goToPage(page + 1)}
               >
-                <ChevronRight className="w-4 h-4" />
+                Sau <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
           )}

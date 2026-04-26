@@ -191,11 +191,11 @@ export function VideoPlayer({
   return (
     <div className="relative w-full max-w-4xl mx-auto bg-black rounded-xl overflow-hidden group shadow-2xl">
       
-      {/* ✅ FIX: removed pointer-events-none ONLY */}
+      {/* YouTube iframe container - removed scale-110 zoom */}
       <div className="aspect-video relative overflow-hidden">
         <div 
           id={`yt-player-${videoId}`} 
-          className="absolute top-[-10%] left-0 w-full h-[120%] scale-110" 
+          className="absolute top-0 left-0 w-full h-full" 
         />
       </div>
 

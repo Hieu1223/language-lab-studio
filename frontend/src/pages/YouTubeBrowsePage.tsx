@@ -56,7 +56,7 @@ export default function YouTubeBrowsePage() {
     async (q: string, targetMode: BrowseMode) => {
       try {
         setSearching(true);
-        const items = await searchYouTube(q, 20);
+        const items = await searchYouTube(q, 50); // Increased from 20 to 50
         setResults(items);
         setMode(targetMode);
         if (items.length === 0) toast.info('Không có kết quả.');

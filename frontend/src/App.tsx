@@ -21,6 +21,7 @@ import ReviewPage from "./pages/ReviewPage";
 import MangaPage from "./pages/MangaPage";
 import MangaDetailPage from "./pages/MangaDetailPage";
 import MangaReaderPage from "./pages/MangaReaderPage";
+import MangaHistoryPage from "./pages/MangaHistoryPage";
 import PricingPage from "./pages/PricingPage";
 import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
@@ -59,6 +60,7 @@ function AppRoutes() {
       <Route path="/vocabulary/review/:deckId" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
 
       <Route path="/manga" element={<ProtectedRoute><AppLayout><MangaPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/manga/history" element={<ProtectedRoute><AppLayout><MangaHistoryPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId" element={<ProtectedRoute><AppLayout><MangaDetailPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId/read/:chapterUrl" element={<ProtectedRoute><MangaReaderPage /></ProtectedRoute>} />
 

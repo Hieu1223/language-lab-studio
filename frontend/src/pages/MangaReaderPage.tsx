@@ -430,6 +430,7 @@ function loadSettings(): ReaderSettings {
 export default function MangaReaderPage() {
   const { mangaId, chapterUrl } = useParams<{ mangaId: string; chapterUrl: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [images, setImages] = useState<string[]>([]);
   const [ocrDataPages, setOcrDataPages] = useState<(OCRPageData | null)[]>([]);
@@ -562,10 +563,27 @@ export default function MangaReaderPage() {
         setOcrDataPages([]);
         setSelectedBlock(null);
         setCurrentPageIndex(0);
-        const urls = await getChapterImages(decodeURIComponent(chapterUrl ?? ''));
+        const decodedChapterUrl = decodeURIComponent(chapterUrl ?? '');
+        const urls = await getChapterImages(decodedChapterUrl);
         setImages(urls);
         setOcrDataPages(new Array(urls.length).fill(null));
         pageRefs.current = new Array(urls.length).fill(null);
+
+        // Save reading history
+        if (user?.id && mangaId) {
+          try {
+            const currentChapter = chapters.find((c) => 
+              c.url === decodedChapterUrl || encodeURIComponent(c.url) === chapterUrl
+            );
+            await upsertMangaHistory({
+              manga_url: `/manga/${mangaId}`,
+              current_chapter_url: decodedChapterUrl,
+              current_chapter_name: currentChapter?.title || currentChapter?.num || 'Chapter',
+            });
+          } catch (err) {
+            console.warn('Failed to save manga history:', err);
+          }
+        }
       } catch {
         toast.error('Failed to load chapter images');
         navigate(`/manga/${mangaId}`);
@@ -574,7 +592,7 @@ export default function MangaReaderPage() {
       }
     };
     load();
-  }, [mangaId, chapterUrl, navigate]);
+  }, [mangaId, chapterUrl, navigate, user?.id, chapters]);
 
   // ── Keyboard nav ─────────────────────────────────────────────────────────
   useEffect(() => {
