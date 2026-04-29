@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { getChapterList, type ChapterInfo } from '@/lib/api/manga-real';
+import { getChapterList, type ChapterInfo } from '@/lib/api/manga';
 
 export default function MangaDetailPage() {
   const { mangaId } = useParams() as { mangaId?: string };

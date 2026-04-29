@@ -30,7 +30,7 @@ import {
   type TranscriptInfo,
   type TranscriptSegment,
   type VideoPreview,
-} from '@/lib/api/transcription-real';
+} from '@/lib/api/transcription';
 import { useAuth } from '@/lib/auth-context';
 import {
   generateBlockCloze,

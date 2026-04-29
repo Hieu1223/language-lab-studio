@@ -69,7 +69,7 @@ import {
   type OverviewStats,
   type PublicDeck,
   type WordResponse,
-} from '@/lib/api/flashcard-real';
+} from '@/lib/api/flashcard';
 import { AddToDeckDialog } from '@/components/dictionary/AddToDeckDialog';
 import { TokenizeSentencePanel } from '@/components/dictionary/TokenizedSentence';
 

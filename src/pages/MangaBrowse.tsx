@@ -8,7 +8,7 @@ import { Search, Loader2, X, Sparkles, ChevronLeft, ChevronRight } from 'lucide-
 import {
   searchManga,
   type MangaInfo,
-} from '@/lib/api/manga-real';
+} from '@/lib/api/manga';
 import {
   Select,
   SelectContent,

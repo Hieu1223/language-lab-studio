@@ -10,7 +10,7 @@ import {
   Sparkles,
   Type,
 } from 'lucide-react';
-import { searchWords, type WordResponse } from '@/lib/api/flashcard-real';
+import { searchWords, type WordResponse } from '@/lib/api/flashcard';
 import { searchKanji, getKanji, type KanjiResponse } from '@/lib/api/tokenization';
 import { AddToDeckDialog } from '@/components/dictionary/AddToDeckDialog';
 import { toast } from 'sonner';

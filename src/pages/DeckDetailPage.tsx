@@ -34,7 +34,7 @@ import {
   type CardState,
   type DeckProgress,
   type DeckWithStats,
-} from '@/lib/api/flashcard-real';
+} from '@/lib/api/flashcard';
 
 const STATE_COLORS: Record<CardState, string> = {
   new: 'bg-blue-500/10 text-blue-600',

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, X, Repeat, MousePointer } from 'lucide-react';
-import type { TranscriptSegment } from '@/lib/api/transcription-real';
+import type { TranscriptSegment } from '@/lib/api/transcription';
 
 interface SentenceSelectorProps {
   /** All transcript segments */

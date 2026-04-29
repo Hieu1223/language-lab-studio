@@ -33,39 +33,50 @@ export interface OCRResponse {
 
 export interface ReadHistoryUpdate {
   manga_url: string;
-  current_chapter_url: string;
-  current_chapter_name?: string;
+  manga_name?: string;
+  manga_cover_url?: string;
+  chapter_url: string;
+  chapter_title?: string;
+  chapter_num?: string;
+  current_page?: number;
 }
 
 export interface ReadHistoryResponse {
   id: string;
   user_id: string;
-  manga_url: string;
-  current_chapter_url: string;
-  current_chapter_name?: string;
+  current_page: number;
   updated_at: string;
+  // Manga
+  manga_id: string;
+  manga_url: string;
+  manga_name: string;
+  manga_cover_url: string;
+  // Chapter
+  chapter_id: string;
+  chapter_url: string;
+  chapter_title: string;
+  chapter_num: string;
 }
 
-// Search for manga (backend may not support pagination yet, so we'll pass it anyway)
+// Search for manga
 export async function searchManga(
   query: string | null,
   page: number = 1,
   sort: string = 'recently_updated'
 ): Promise<MangaInfo[]> {
-  // Try with pagination params first, backend will ignore if not supported
   return apiCall<MangaInfo[]>('/manga/search', {
     method: 'GET',
-    query: { 
+    query: {
       query: query || '%20',
       ...(page > 1 ? { page } : {}),
-      ...(sort !== 'recently_updated' ? { sort } : {})
+      ...(sort !== 'recently_updated' ? { sort } : {}),
     },
   });
 }
 
 // Get chapter list for a manga
 export async function getChapterList(mangaUrl: string): Promise<ChapterInfo[]> {
-  console.log(mangaUrl)
+  console.log(mangaUrl);
   return apiCall<ChapterInfo[]>('/manga/chapter_list', {
     method: 'GET',
     query: { manga_url: mangaUrl },
@@ -90,7 +101,6 @@ export async function getOCRData(chapterUrl: string): Promise<OCRResponse> {
 
 // ─── Manga History ────────────────────────────────────────────────────────
 
-// Update or insert manga reading history
 export async function upsertMangaHistory(
   data: ReadHistoryUpdate
 ): Promise<ReadHistoryResponse> {

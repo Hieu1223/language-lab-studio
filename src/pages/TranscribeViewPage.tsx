@@ -24,7 +24,7 @@ import {
   describeTranscriptStatus,
   type TranscriptInfo,
   type TranscriptSegment,
-} from '@/lib/api/transcription-real';
+} from '@/lib/api/transcription';
 import {
   generateBlockCloze,
   type BlockClozeOptions,

@@ -17,7 +17,7 @@ import {
   reviewCard,
   type CardResponse,
   type ReviewRating,
-} from '@/lib/api/flashcard-real';
+} from '@/lib/api/flashcard';
 
 const RATING_BUTTONS: {
   rating: ReviewRating;

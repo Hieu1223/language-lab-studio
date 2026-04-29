@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -39,14 +39,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
 import { AddToDeckDialog } from '@/components/dictionary/AddToDeckDialog';
-import { searchWords, type WordResponse } from '@/lib/api/flashcard-real';
+import { searchWords, type WordResponse } from '@/lib/api/flashcard';
 import {
   getChapterImages,
   getOCRData,
   getChapterList,
   type ChapterInfo,
   upsertMangaHistory,
-} from '@/lib/api/manga-real';
+} from '@/lib/api/manga';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 
@@ -172,7 +172,6 @@ function OCROverlay({
               onSelectBlock(pageIdx, idx);
             }}
           >
-            {/* Copy-all button (always accessible on touch too) */}
             <button
               type="button"
               onClick={(e) => {
@@ -189,7 +188,6 @@ function OCROverlay({
               <Copy className="w-3 h-3" />
             </button>
 
-            {/* Transparent text for native selection */}
             {block.vertical ? (
               <div
                 style={{
@@ -433,6 +431,10 @@ export default function MangaReaderPage() {
   const { mangaId, chapterUrl } = useParams<{ mangaId: string; chapterUrl: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { search } = useLocation();
+  const queryParams = new URLSearchParams(search);
+  const mangaName = queryParams.get('manga_name') || '';
+  const mangaCoverUrl = queryParams.get('manga_cover_url') || '';
 
   const [images, setImages] = useState<string[]>([]);
   const [ocrDataPages, setOcrDataPages] = useState<(OCRPageData | null)[]>([]);
@@ -458,7 +460,6 @@ export default function MangaReaderPage() {
   const viewerRef = useRef<HTMLDivElement>(null);
   const [viewerSize, setViewerSize] = useState({ w: 0, h: 0 });
 
-  // Ref callback measures as soon as the element is attached.
   const setViewerNode = useCallback((node: HTMLDivElement | null) => {
     viewerRef.current = node;
     if (!node) return;
@@ -468,13 +469,10 @@ export default function MangaReaderPage() {
         prev.w === r.width && prev.h === r.height ? prev : { w: r.width, h: r.height },
       );
     };
-    // Measure now and also after first paint
     measure();
     requestAnimationFrame(measure);
     const ro = new ResizeObserver(measure);
     ro.observe(node);
-    // Stash cleanup on the node for later disconnection
-    // (useEffect below will re-bind for subsequent renders)
     (node as unknown as { __ro?: ResizeObserver }).__ro?.disconnect?.();
     (node as unknown as { __ro?: ResizeObserver }).__ro = ro;
   }, []);
@@ -484,7 +482,6 @@ export default function MangaReaderPage() {
 
   const storageKey = `${STORAGE_KEY_PREFIX}${mangaId}-${chapterUrl}`;
 
-  // Helpers
   const updateSettings = (patch: Partial<ReaderSettings>) =>
     setSettings((s) => ({ ...s, ...patch }));
   const setReadMode = (v: ReadMode) => updateSettings({ readMode: v });
@@ -496,7 +493,6 @@ export default function MangaReaderPage() {
       zoom: typeof v === 'function' ? (v as (prev: number) => number)(s.zoom) : v,
     }));
 
-  // Persist settings
   useEffect(() => {
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -505,7 +501,6 @@ export default function MangaReaderPage() {
     }
   }, [settings]);
 
-  // ── Measure viewer (also handled by ref callback) ─────────────────────────
   useEffect(() => {
     const el = viewerRef.current;
     if (!el) return;
@@ -521,7 +516,6 @@ export default function MangaReaderPage() {
     return () => ro.disconnect();
   }, []);
 
-  // ── Restore / save page position ──────────────────────────────────────────
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
     if (saved) {
@@ -541,7 +535,7 @@ export default function MangaReaderPage() {
       try {
         setLoadingChapters(true);
         const list = await getChapterList(mangaId);
-        console.log(list)
+        console.log(list);
         setChapters(list);
         const decoded = decodeURIComponent(chapterUrl ?? '');
         const idx = list.findIndex(
@@ -557,7 +551,7 @@ export default function MangaReaderPage() {
     load();
   }, [mangaId, chapterUrl]);
 
-  // ── Load images ───────────────────────────────────────────────────────────
+  // ── Load images + save history ────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
       try {
@@ -566,6 +560,7 @@ export default function MangaReaderPage() {
         setOcrDataPages([]);
         setSelectedBlock(null);
         setCurrentPageIndex(0);
+
         const decodedChapterUrl = decodeURIComponent(chapterUrl ?? '');
         const urls = await getChapterImages(decodedChapterUrl);
         setImages(urls);
@@ -575,13 +570,17 @@ export default function MangaReaderPage() {
         // Save reading history
         if (user?.id && mangaId) {
           try {
-            const currentChapter = chapters.find((c) => 
-              c.url === decodedChapterUrl || encodeURIComponent(c.url) === chapterUrl
+            const currentChapter = chapters.find(
+              (c) => c.url === decodedChapterUrl || encodeURIComponent(c.url) === chapterUrl,
             );
             await upsertMangaHistory({
               manga_url: `/manga/${mangaId}`,
-              current_chapter_url: decodedChapterUrl,
-              current_chapter_name: currentChapter?.title || currentChapter?.num || 'Chapter',
+              manga_name: mangaName,
+              manga_cover_url: mangaCoverUrl,
+              chapter_url: decodedChapterUrl,
+              chapter_title: currentChapter?.title || '',
+              chapter_num: currentChapter?.num || '',
+              current_page: 0,
             });
           } catch (err) {
             console.warn('Failed to save manga history:', err);
@@ -597,7 +596,34 @@ export default function MangaReaderPage() {
     load();
   }, [mangaId, chapterUrl, navigate, user?.id, chapters]);
 
-  // ── Keyboard nav ─────────────────────────────────────────────────────────
+  // ── Persist current page every 30 seconds ────────────────────────────────
+  useEffect(() => {
+    if (!user?.id || !mangaId || images.length === 0) return;
+
+    const interval = setInterval(async () => {
+      const decodedChapterUrl = decodeURIComponent(chapterUrl ?? '');
+      const currentChapter = chapters.find(
+        (c) => c.url === decodedChapterUrl || encodeURIComponent(c.url) === chapterUrl,
+      );
+      try {
+        await upsertMangaHistory({
+          manga_url: `/manga/${mangaId}`,
+          manga_name: mangaName,
+          manga_cover_url: mangaCoverUrl,
+          chapter_url: decodedChapterUrl,
+          chapter_title: currentChapter?.title || '',
+          chapter_num: currentChapter?.num || '',
+          current_page: currentPageIndex,
+        });
+      } catch (err) {
+        console.warn('Failed to auto-save reading progress:', err);
+      }
+    }, 30_000);
+
+    return () => clearInterval(interval);
+  }, [user?.id, mangaId, chapterUrl, chapters, currentPageIndex, images.length]);
+
+  // ── Keyboard nav ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (readMode === 'vertical') return;
     const handler = (e: KeyboardEvent) => {
@@ -628,7 +654,7 @@ export default function MangaReaderPage() {
     return () => el.removeEventListener('wheel', handler);
   }, []);
 
-  // ── Vertical scroll page tracking ────────────────────────────────────────
+  // ── Vertical scroll page tracking ─────────────────────────────────────────
   useEffect(() => {
     if (readMode !== 'vertical') return;
     const container = verticalContainerRef.current;
@@ -652,7 +678,7 @@ export default function MangaReaderPage() {
     return () => container.removeEventListener('scroll', handler);
   }, [readMode, images.length]);
 
-  // ── Load OCR (non-blocking) ──────────────────────────────────────────────
+  // ── Load OCR ──────────────────────────────────────────────────────────────
   const loadOCR = async () => {
     try {
       setLoadingOCR(true);
@@ -690,9 +716,8 @@ export default function MangaReaderPage() {
     }
   };
 
-  const step = 1;
-  const prevPage = () => goTo(currentPageIndex - step);
-  const nextPage = () => goTo(currentPageIndex + step);
+  const prevPage = () => goTo(currentPageIndex - 1);
+  const nextPage = () => goTo(currentPageIndex + 1);
   const clampZoom = (v: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v));
 
   const handleSelectBlock = useCallback((pageIdx: number, blockIdx: number) => {
@@ -701,7 +726,6 @@ export default function MangaReaderPage() {
     setPanelTab('text');
   }, []);
 
-  // Look up words when user wants to quick-save selected OCR text
   useEffect(() => {
     if (!quickAddText) return;
     let cancelled = false;
@@ -725,18 +749,16 @@ export default function MangaReaderPage() {
     };
   }, [quickAddText]);
 
-  // Selected block data for right drawer
   const selectedBlockData = selectedBlock
     ? ocrDataPages[selectedBlock.pageIdx]?.blocks[selectedBlock.blockIdx] ?? null
     : null;
   const selectedText = selectedBlockData ? selectedBlockData.lines.join('\n') : '';
 
-  // ── Render pages ──────────────────────────────────────────────────────────
   const zoomScale = zoom / 100;
-
   const singleW = viewerSize.w;
   const singleH = viewerSize.h;
 
+  // ── Render pages ──────────────────────────────────────────────────────────
   const renderPages = () => {
     if (readMode === 'vertical') {
       return (
@@ -760,9 +782,7 @@ export default function MangaReaderPage() {
               {images.map((src, i) => (
                 <div
                   key={i}
-                  ref={(el) => {
-                    pageRefs.current[i] = el;
-                  }}
+                  ref={(el) => { pageRefs.current[i] = el; }}
                   style={{ width: '100%', maxWidth: 900 }}
                 >
                   <MangaPage
@@ -783,7 +803,6 @@ export default function MangaReaderPage() {
       );
     }
 
-    // Single mode
     return (
       <div
         className="flex-1 overflow-auto flex items-center justify-center"
@@ -815,7 +834,6 @@ export default function MangaReaderPage() {
     );
   };
 
-  // ── Guards ────────────────────────────────────────────────────────────────
   if (loadingImages) return <LoadingScreen isOpen message="Loading chapter..." />;
 
   if (images.length === 0) {
@@ -829,10 +847,6 @@ export default function MangaReaderPage() {
 
   const currentChapter = currentChapterIdx >= 0 ? chapters[currentChapterIdx] : null;
   const pageLabel = `${currentPageIndex + 1} / ${images.length}`;
-
-  // Edge navigation buttons
-  const physicalLeft = () => prevPage();
-  const physicalRight = () => nextPage();
 
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
@@ -884,11 +898,7 @@ export default function MangaReaderPage() {
               className="h-8 gap-1.5 text-xs"
               onClick={() => setShowOCRBoxes(!showOCRBoxes)}
             >
-              {showOCRBoxes ? (
-                <Eye className="w-3.5 h-3.5" />
-              ) : (
-                <EyeOff className="w-3.5 h-3.5" />
-              )}
+              {showOCRBoxes ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
               OCR
             </Button>
           )}
@@ -949,14 +959,14 @@ export default function MangaReaderPage() {
           {readMode !== 'vertical' && (
             <>
               <button
-                onClick={physicalLeft}
+                onClick={prevPage}
                 className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-20 w-10 flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors rounded-r-lg"
                 aria-label="Previous"
               >
                 <ChevronLeft className="w-5 h-5 text-white" />
               </button>
               <button
-                onClick={physicalRight}
+                onClick={nextPage}
                 className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-20 w-10 flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors rounded-l-lg"
                 aria-label="Next"
               >
@@ -998,7 +1008,6 @@ export default function MangaReaderPage() {
             {panelTab === 'settings' ? (
               <ScrollArea className="flex-1">
                 <div className="p-4 space-y-5">
-                  {/* Reading mode */}
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                       Reading Mode
@@ -1029,15 +1038,12 @@ export default function MangaReaderPage() {
 
                   <Separator />
 
-                  {/* Zoom */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                         Zoom
                       </Label>
-                      <span className="text-xs font-mono text-muted-foreground">
-                        {zoom}%
-                      </span>
+                      <span className="text-xs font-mono text-muted-foreground">{zoom}%</span>
                     </div>
                     <Slider
                       min={MIN_ZOOM}
@@ -1080,7 +1086,6 @@ export default function MangaReaderPage() {
 
                   <Separator />
 
-                  {/* OCR */}
                   <div className="space-y-3">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                       OCR / Text
@@ -1099,9 +1104,7 @@ export default function MangaReaderPage() {
 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs cursor-pointer">
-                          Padding box
-                        </Label>
+                        <Label className="text-xs cursor-pointer">Padding box</Label>
                         <span className="text-xs font-mono text-muted-foreground">
                           {boxPadding}px
                         </span>
@@ -1143,7 +1146,6 @@ export default function MangaReaderPage() {
 
                   <Separator />
 
-                  {/* Jump to page */}
                   {readMode !== 'vertical' && (
                     <div className="space-y-2">
                       <Label className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -1169,7 +1171,6 @@ export default function MangaReaderPage() {
 
                   <Separator />
 
-                  {/* Chapter nav shortcuts */}
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                       Chapter
@@ -1230,15 +1231,13 @@ export default function MangaReaderPage() {
                 )}
               </ScrollArea>
             ) : (
-              // ── Text tab ──
               <div className="flex-1 flex flex-col min-h-0">
                 {selectedBlockData ? (
                   <>
                     <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold">
-                          Page {selectedBlock!.pageIdx + 1} · Block{' '}
-                          {selectedBlock!.blockIdx + 1}
+                          Page {selectedBlock!.pageIdx + 1} · Block {selectedBlock!.blockIdx + 1}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
                           {selectedBlockData.vertical ? 'Dọc' : 'Ngang'} ·{' '}
@@ -1261,8 +1260,7 @@ export default function MangaReaderPage() {
                           value={selectedText}
                           className="w-full min-h-[180px] p-3 text-sm leading-relaxed bg-background border rounded-md font-japanese resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 select-text"
                           style={{
-                            fontFamily:
-                              '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif',
+                            fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif',
                           }}
                         />
                         <div className="flex flex-col gap-2">
@@ -1285,8 +1283,7 @@ export default function MangaReaderPage() {
                           </Button>
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-snug">
-                          Bạn có thể chọn một phần hoặc toàn bộ text phía trên rồi
-                          sao chép.
+                          Bạn có thể chọn một phần hoặc toàn bộ text phía trên rồi sao chép.
                         </p>
                       </div>
                     </ScrollArea>

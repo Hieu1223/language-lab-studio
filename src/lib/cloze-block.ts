@@ -6,7 +6,7 @@
  * This module works on the transcript segment shape used in the app.
  */
 
-import type { TranscriptSegment } from './api/transcription-real';
+import type { TranscriptSegment } from './api/transcription';
 
 type SegmentWord = TranscriptSegment['words'][number];
 

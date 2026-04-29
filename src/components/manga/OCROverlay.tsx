@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { OCRPage } from '@/lib/api/manga-real';
+import type { OCRPage } from '@/lib/api/manga';
 
 interface OCROverlayProps {
   ocrData: OCRPage | null;

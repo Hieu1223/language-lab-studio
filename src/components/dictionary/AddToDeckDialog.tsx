@@ -18,7 +18,7 @@ import {
   createDeck,
   getDecks,
   type DeckWithStats,
-} from '@/lib/api/flashcard-real';
+} from '@/lib/api/flashcard';
 import type { WordEntry } from '@/lib/api/tokenization';
 
 interface AddToDeckDialogProps {

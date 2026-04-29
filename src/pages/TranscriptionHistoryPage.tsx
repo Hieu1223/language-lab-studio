@@ -29,7 +29,7 @@ import {
   isTranscriptError,
   isTranscriptReady,
   type UserHistoryItem,
-} from '@/lib/api/transcription-real';
+} from '@/lib/api/transcription';
 
 function StatusBadge({ status }: { status: number }) {
   if (isTranscriptReady(status)) {

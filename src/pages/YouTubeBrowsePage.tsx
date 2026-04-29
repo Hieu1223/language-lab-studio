@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Search, Loader2, Play, X, Sparkles } from 'lucide-react';
-import { searchYouTube, type VideoPreview } from '@/lib/api/transcription-real';
+import { searchYouTube, type VideoPreview } from '@/lib/api/transcription';
 
 // Default query used for the YouTube "mainpage" list.
 // Per spec: mainpage reuses the /youtube/search endpoint with a default query.

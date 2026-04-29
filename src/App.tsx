@@ -20,8 +20,6 @@ import ReviewPage from "./pages/ReviewPage";
 import MangaPageWithTabs from "./pages/MangaPageWithTabs";
 import MangaDetailPage from "./pages/MangaDetailPage";
 import MangaReaderPage from "./pages/MangaReaderPage";
-import PricingPage from "./pages/PricingPage";
-import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -59,9 +57,6 @@ function AppRoutes() {
       <Route path="/manga" element={<ProtectedRoute><AppLayout><MangaPageWithTabs /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId" element={<ProtectedRoute><AppLayout><MangaDetailPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId/read/:chapterUrl" element={<ProtectedRoute><MangaReaderPage /></ProtectedRoute>} />
-
-      <Route path="/pricing" element={<ProtectedRoute><AppLayout><PricingPage /></AppLayout></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
       <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
     </Routes>
   );

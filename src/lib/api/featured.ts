@@ -1,6 +1,6 @@
 import { apiCall } from '../api-client';
-import type { VideoPreview } from './transcription-real';
-import type { MangaInfo } from './manga-real';
+import type { VideoPreview } from './transcription';
+import type { MangaInfo } from './manga';
 
 // Get featured/main page videos
 export async function getFeaturedVideos(page: number = 1): Promise<{
@@ -10,7 +10,7 @@ export async function getFeaturedVideos(page: number = 1): Promise<{
 }> {
   return apiCall('/youtube/search', {
     method: 'GET',
-    query: { q: 'popular', limit: 12, page },
+    query: { q: 'popular', limit: 50, page },
   });
 }
 
