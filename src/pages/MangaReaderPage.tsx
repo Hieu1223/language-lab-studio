@@ -46,6 +46,7 @@ import {
   getChapterList,
   type ChapterInfo,
   upsertMangaHistory,
+  getOCRDataStream,
 } from '@/lib/api/manga';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
@@ -152,8 +153,8 @@ function OCROverlay({
         const borderCls = isSelected
           ? 'border-2 border-amber-400 bg-amber-400/20 rounded-sm shadow-lg'
           : showBoxes
-          ? 'border-2 border-blue-400/70 bg-blue-400/10 rounded-sm hover:border-blue-400 hover:bg-blue-400/20'
-          : 'border-2 border-transparent';
+            ? 'border-2 border-blue-400/70 bg-blue-400/10 rounded-sm hover:border-blue-400 hover:bg-blue-400/20'
+            : 'border-2 border-transparent';
 
         return (
           <div
@@ -179,9 +180,8 @@ function OCROverlay({
                 e.preventDefault();
                 copyToClipboard(text);
               }}
-              className={`absolute -top-2 -right-2 z-10 rounded-full p-1 bg-black/70 text-white hover:bg-primary hover:text-primary-foreground transition-opacity ${
-                showBoxes || isSelected ? 'opacity-100' : 'opacity-0 pointer-events-none'
-              }`}
+              className={`absolute -top-2 -right-2 z-10 rounded-full p-1 bg-black/70 text-white hover:bg-primary hover:text-primary-foreground transition-opacity ${showBoxes || isSelected ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
               aria-label="Copy OCR text"
               title="Copy toàn bộ text"
             >
@@ -682,13 +682,32 @@ export default function MangaReaderPage() {
   const loadOCR = async () => {
     try {
       setLoadingOCR(true);
-      const data = await getOCRData(decodeURIComponent(chapterUrl ?? ''));
-      setOcrDataPages(data.pages as OCRPageData[]);
-      setOcrLoaded(true);
-      toast.success('OCR đã tải xong');
+      const decodedChapterUrl = decodeURIComponent(chapterUrl ?? '');
+
+      await getOCRDataStream(
+        decodedChapterUrl,
+        (page) => {
+          // Update the specific page slot as each page arrives
+          setOcrDataPages((prev) => {
+            const next = [...prev];
+            const idx = next.findIndex((p) => p === null); // fill first empty slot
+            if (idx !== -1) next[idx] = page as OCRPageData;
+            return next;
+          });
+        },
+        () => {
+          setOcrLoaded(true);
+          setLoadingOCR(false);
+          toast.success('OCR đã tải xong');
+        },
+        (err) => {
+          console.error(err);
+          toast.error('Không thể tải OCR');
+          setLoadingOCR(false);
+        },
+      );
     } catch {
       toast.error('Không thể tải OCR');
-    } finally {
       setLoadingOCR(false);
     }
   };
@@ -984,11 +1003,10 @@ export default function MangaReaderPage() {
                 <button
                   key={tab}
                   onClick={() => setPanelTab(tab)}
-                  className={`flex-1 py-2 text-xs font-medium capitalize transition-colors ${
-                    panelTab === tab
+                  className={`flex-1 py-2 text-xs font-medium capitalize transition-colors ${panelTab === tab
                       ? 'border-b-2 border-primary text-foreground'
                       : 'text-muted-foreground hover:text-foreground'
-                  }`}
+                    }`}
                 >
                   {tab === 'chapters' ? (
                     <span className="flex items-center justify-center gap-1">
@@ -1022,11 +1040,10 @@ export default function MangaReaderPage() {
                         <button
                           key={value}
                           onClick={() => setReadMode(value)}
-                          className={`flex flex-col items-center gap-1 p-2 rounded-md border text-xs font-medium transition-colors ${
-                            readMode === value
+                          className={`flex flex-col items-center gap-1 p-2 rounded-md border text-xs font-medium transition-colors ${readMode === value
                               ? 'border-primary bg-primary/10 text-primary'
                               : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
-                          }`}
+                            }`}
                           data-testid={`read-mode-${value}`}
                         >
                           <Icon className="w-4 h-4" />
@@ -1133,8 +1150,8 @@ export default function MangaReaderPage() {
                       {ocrLoaded
                         ? 'OCR đã tải'
                         : loadingOCR
-                        ? 'Đang tải OCR (bạn có thể đọc tiếp)…'
-                        : 'Tải OCR'}
+                          ? 'Đang tải OCR (bạn có thể đọc tiếp)…'
+                          : 'Tải OCR'}
                     </Button>
 
                     {ocrLoaded && (
@@ -1212,11 +1229,10 @@ export default function MangaReaderPage() {
                         <button
                           key={ch.url}
                           onClick={() => goToChapter(ch)}
-                          className={`w-full text-left px-4 py-2.5 transition-colors ${
-                            isActive
+                          className={`w-full text-left px-4 py-2.5 transition-colors ${isActive
                               ? 'bg-primary/10 text-primary font-medium'
                               : 'text-foreground hover:bg-muted/50'
-                          }`}
+                            }`}
                         >
                           <p className="text-xs font-semibold">Ch. {ch.num}</p>
                           {ch.title && (

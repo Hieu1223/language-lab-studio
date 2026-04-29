@@ -99,6 +99,65 @@ export async function getOCRData(chapterUrl: string): Promise<OCRResponse> {
   });
 }
 
+
+
+export async function getOCRDataStream(
+  chapterUrl: string,
+  onPage: (page: OCRPage) => void,
+  onDone?: () => void,
+  onError?: (error: Error) => void
+): Promise<void> {
+  const params = new URLSearchParams({ chapter_url: chapterUrl });
+  const url = `/manga/ocr_data/stream?${params}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+    if (!response.body) throw new Error('No response body');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // SSE messages are separated by \n\n
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() ?? ''; // keep incomplete last chunk
+
+      for (const part of parts) {
+        const line = part.trim();
+        if (!line.startsWith('data: ')) continue;
+
+        const raw = line.slice(6); // strip "data: "
+        if (raw === '[DONE]') {
+          onDone?.();
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed.error) {
+            onError?.(new Error(parsed.error));
+            return;
+          }
+          onPage(parsed as OCRPage);
+        } catch {
+          console.warn('Failed to parse SSE message:', raw);
+        }
+      }
+    }
+  } catch (e) {
+    onError?.(e instanceof Error ? e : new Error(String(e)));
+  }
+}
+
+
+
 // ─── Manga History ────────────────────────────────────────────────────────
 
 export async function upsertMangaHistory(
@@ -129,3 +188,5 @@ export async function getMangaHistory(userId: string): Promise<ReadHistoryRespon
   console.log(response);
   return response;
 }
+
+
