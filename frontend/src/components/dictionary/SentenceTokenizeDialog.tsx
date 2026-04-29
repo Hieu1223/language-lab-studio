@@ -48,6 +48,7 @@ export function SentenceTokenizeDialog({
         <TokenizeSentencePanel
           key={opened}
           initialText={text}
+          readOnly
           onClose={() => onOpenChange(false)}
         />
       </DialogContent>

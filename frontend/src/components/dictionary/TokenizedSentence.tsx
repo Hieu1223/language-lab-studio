@@ -236,13 +236,24 @@ export function TokenizedSentence({
 export function TokenizeSentencePanel({
   initialText,
   onClose,
+  readOnly = false,
 }: {
   initialText: string;
   onClose?: () => void;
+  /** When true, the textarea cannot be edited (e.g. opened from manga / transcription). */
+  readOnly?: boolean;
 }) {
   const [text, setText] = useState(initialText);
   const [activeText, setActiveText] = useState(initialText);
   const [retokenizing, setRetokenizing] = useState(false);
+
+  // When the parent updates `initialText` (e.g. user selected a different
+  // OCR block in the manga reader) we must reflect that in the read-only
+  // textarea immediately.
+  useEffect(() => {
+    setText(initialText);
+    setActiveText(initialText);
+  }, [initialText]);
 
   const handleRetokenize = () => {
     setRetokenizing(true);
@@ -256,15 +267,42 @@ export function TokenizeSentencePanel({
       <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
         <textarea
           value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Nhập câu tiếng Nhật..."
+          onChange={(e) => {
+            if (readOnly) return;
+            setText(e.target.value);
+          }}
+          placeholder={readOnly ? '' : 'Nhập câu tiếng Nhật...'}
           rows={3}
-          className="w-full bg-transparent resize-none focus:outline-none font-japanese text-base"
+          readOnly={readOnly}
+          aria-readonly={readOnly}
+          onKeyDown={(e) => {
+            if (!readOnly) return;
+            // Allow only navigation / copy shortcuts when read-only.
+            const k = e.key;
+            const isCopy =
+              (e.ctrlKey || e.metaKey) && (k === 'c' || k === 'C' || k === 'a' || k === 'A');
+            const isNav = [
+              'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+              'Home', 'End', 'PageUp', 'PageDown', 'Tab', 'Shift', 'Control', 'Meta', 'Alt',
+            ].includes(k);
+            if (!isCopy && !isNav) e.preventDefault();
+          }}
+          onPaste={(e) => {
+            if (readOnly) e.preventDefault();
+          }}
+          onDrop={(e) => {
+            if (readOnly) e.preventDefault();
+          }}
+          className={`w-full bg-transparent resize-none focus:outline-none font-japanese text-base select-text ${
+            readOnly ? 'cursor-default text-foreground/90' : ''
+          }`}
           data-testid="sentence-input-textarea"
         />
         <div className="flex justify-between items-center">
           <p className="text-[10px] text-muted-foreground">
-            {text.length} ký tự
+            {readOnly
+              ? `${text.length} ký tự · Chỉ đọc — chọn để sao chép`
+              : `${text.length} ký tự`}
           </p>
           <div className="flex gap-2">
             {onClose && (
