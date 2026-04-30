@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  API_BASE_URL,
   AUTH_UNAUTHORIZED_EVENT,
   clearToken,
   getStoredToken,
@@ -38,7 +39,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const USER_KEY = "nihongo-user";
-const BASE_URL = "https://japlearningbackend.onrender.com";
+// NOTE: use the single, unified API_BASE_URL. All `BASE_URL` references below
+// are kept for readability but point to the same value.
+const BASE_URL = API_BASE_URL;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -49,11 +49,11 @@ import {
   type KanjiResponse,
 } from '@/lib/api/tokenization';
 import {
-  getChapterImages,
-  getChapterList,
-  type ChapterInfo,
+  getChapterRead,
   upsertMangaHistory,
   getOCRDataStream,
+  type ChapterPreview,
+  type MangaPreview,
   type OCRStreamHandle,
 } from '@/lib/api/manga';
 import { toast } from 'sonner';
@@ -743,14 +743,13 @@ function loadSettings(): ReaderSettings {
 }
 
 export default function MangaReaderPage() {
-  const { mangaId, chapterUrl } = useParams<{ mangaId: string; chapterUrl: string }>();
+  const { mangaId, chapterId } = useParams<{ mangaId: string; chapterId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { search } = useLocation();
-  const queryParams = new URLSearchParams(search);
-  const mangaName = queryParams.get('manga_name') || '';
-  const mangaCoverUrl = queryParams.get('manga_cover_url') || '';
 
+  // Manga + chapter metadata arrive from `getChapterRead(chapterId)` (the
+  // backend's "/manga/read/{chapter_id}" endpoint) — no more URL-param hacks.
+  const [mangaInfo, setMangaInfo] = useState<MangaPreview | null>(null);
   const [images, setImages] = useState<string[]>([]);
   const [ocrDataPages, setOcrDataPages] = useState<(OCRPageData | null)[]>([]);
   const [ocrLoaded, setOcrLoaded] = useState(false);
@@ -760,8 +759,7 @@ export default function MangaReaderPage() {
   const ocrStreamRef = useRef<OCRStreamHandle | null>(null);
   const ocrPageCounterRef = useRef(0);
 
-  const [chapters, setChapters] = useState<ChapterInfo[]>([]);
-  const [loadingChapters, setLoadingChapters] = useState(false);
+  const [chapters, setChapters] = useState<ChapterPreview[]>([]);
   const [currentChapterIdx, setCurrentChapterIdx] = useState(-1);
 
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
@@ -798,7 +796,7 @@ export default function MangaReaderPage() {
   const verticalContainerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const storageKey = `${STORAGE_KEY_PREFIX}${mangaId}-${chapterUrl}`;
+  const storageKey = `${STORAGE_KEY_PREFIX}${mangaId}-${chapterId}`;
 
   const updateSettings = (patch: Partial<ReaderSettings>) =>
     setSettings((s) => ({ ...s, ...patch }));

@@ -56,7 +56,7 @@ function AppRoutes() {
 
       <Route path="/manga" element={<ProtectedRoute><AppLayout><MangaPageWithTabs /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId" element={<ProtectedRoute><AppLayout><MangaDetailPage /></AppLayout></ProtectedRoute>} />
-      <Route path="/manga/:mangaId/read/:chapterUrl" element={<ProtectedRoute><MangaReaderPage /></ProtectedRoute>} />
+      <Route path="/manga/:mangaId/read/:chapterId" element={<ProtectedRoute><MangaReaderPage /></ProtectedRoute>} />
       <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />
     </Routes>
   );

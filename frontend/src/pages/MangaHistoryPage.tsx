@@ -17,8 +17,9 @@ export default function MangaHistoryPage() {
     if (!user?.id) return;
     try {
       setLoading(true);
-      // Backend already returns sorted by updated_at desc
-      const history = await getMangaHistory(user.id);
+      // Backend already returns sorted by updated_at desc.
+      // The new endpoint is token-based, no user_id needed.
+      const history = await getMangaHistory();
       setItems(history);
     } catch {
       toast.error('Không tải được lịch sử đọc manga');
@@ -33,21 +34,14 @@ export default function MangaHistoryPage() {
   }, [user?.id]);
 
   const handleContinueReading = (item: ReadHistoryResponse) => {
-    const mangaId = item.manga_url.replace(/^\/manga\//, '');
-    const chapterUrl = item.chapter_url.replace(/^\/manga\/[^/]+\//, '');
-    const params = new URLSearchParams();
-    if (item.manga_name) params.set('manga_name', item.manga_name);
-    if (item.manga_cover_url) params.set('manga_cover_url', item.manga_cover_url);
     navigate(
-      `/manga/${encodeURIComponent(mangaId)}/read/${encodeURIComponent(chapterUrl)}?${params.toString()}`
+      `/manga/${encodeURIComponent(item.manga_id)}/read/${encodeURIComponent(item.chapter_id)}`,
     );
   };
 
   const handleViewManga = (item: ReadHistoryResponse) => {
-    const mangaId = item.manga_url.replace(/^\/manga\//, '');
-    navigate(`/manga/${encodeURIComponent(mangaId)}`);
+    navigate(`/manga/${encodeURIComponent(item.manga_id)}`);
   };
-  console.log(items)
 
   return (
     <div className="animate-fade-in" data-testid="manga-history-page">
@@ -84,10 +78,10 @@ export default function MangaHistoryPage() {
             >
               <div className="flex gap-3 p-4">
                 {/* Cover image */}
-                {item.manga_cover_url ? (
+                {item.manga_cover ? (
                   <img
-                    src={item.manga_cover_url}
-                    alt={item.manga_name}
+                    src={item.manga_cover}
+                    alt={item.manga_title}
                     className="w-16 h-24 object-cover rounded shrink-0"
                   />
                 ) : (
@@ -100,12 +94,15 @@ export default function MangaHistoryPage() {
                 <div className="flex flex-col justify-between min-w-0 flex-1 py-0.5">
                   <div className="space-y-1">
                     <h3 className="font-bold text-sm line-clamp-2 capitalize">
-                      {item.manga_name || item.manga_url.split('/').pop()?.replace(/-/g, ' ')}
+                      {item.manga_title || 'Unknown manga'}
                     </h3>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <BookOpen className="w-3 h-3 shrink-0" />
                       <span className="truncate">
-                        {item.chapter_title || `Chapter ${item.chapter_num}`}
+                        {item.chapter_index != null
+                          ? `Chapter ${item.chapter_index}`
+                          : 'Chapter'}
+                        {item.current_page > 0 && ` · Trang ${item.current_page + 1}`}
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">

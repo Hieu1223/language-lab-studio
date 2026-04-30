@@ -3,26 +3,24 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Loader2, X, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  searchManga,
-  type MangaInfo,
-} from '@/lib/api/manga';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Search, Loader2, X, Sparkles, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { searchManga, type MangaPreview } from '@/lib/api/manga';
 
+// ─── Storage keys ─────────────────────────────────────────────────────────
 const QUERY_STORAGE_KEY = 'manga-query';
 const PAGE_STORAGE_KEY = 'manga-page';
-const SORT_STORAGE_KEY = 'manga-sort';
 const RESULTS_STORAGE_KEY = 'manga-results';
 
-const DEFAULT_QUERY = '%20';
+// ─── Constants ────────────────────────────────────────────────────────────
+/**
+ * Default query for the `/manga/manga` endpoint. Per backend contract, the
+ * default query is the **empty string** (`''`) — not `null`, not a sentinel
+ * like `%20`. The server treats it as "show everything".
+ */
+const DEFAULT_QUERY = '';
+const PAGE_SIZE = 20;
 
 export default function MangaBrowse() {
   const navigate = useNavigate();
@@ -31,19 +29,17 @@ export default function MangaBrowse() {
   // Hydrate from URL or sessionStorage
   const initialQuery =
     searchParams.get('q') ?? sessionStorage.getItem(QUERY_STORAGE_KEY) ?? DEFAULT_QUERY;
-  const initialPage = Number(
-    searchParams.get('page') ?? sessionStorage.getItem(PAGE_STORAGE_KEY) ?? '1',
+  const initialPage = Math.max(
+    1,
+    Number(searchParams.get('page') ?? sessionStorage.getItem(PAGE_STORAGE_KEY) ?? '1') || 1,
   );
-  const initialSort =
-    searchParams.get('sort') ?? sessionStorage.getItem(SORT_STORAGE_KEY) ?? 'recently_updated';
 
   const [query, setQuery] = useState(initialQuery);
-  const [page, setPage] = useState<number>(initialPage || 1);
-  const [sort, setSort] = useState<string>(initialSort);
-  const [results, setResults] = useState<MangaInfo[]>(() => {
+  const [page, setPage] = useState<number>(initialPage);
+  const [results, setResults] = useState<MangaPreview[]>(() => {
     try {
       const cached = sessionStorage.getItem(RESULTS_STORAGE_KEY);
-      return cached ? JSON.parse(cached) : [];
+      return cached ? (JSON.parse(cached) as MangaPreview[]) : [];
     } catch {
       return [];
     }
@@ -58,9 +54,6 @@ export default function MangaBrowse() {
     sessionStorage.setItem(PAGE_STORAGE_KEY, String(page));
   }, [page]);
   useEffect(() => {
-    sessionStorage.setItem(SORT_STORAGE_KEY, sort);
-  }, [sort]);
-  useEffect(() => {
     try {
       sessionStorage.setItem(RESULTS_STORAGE_KEY, JSON.stringify(results));
     } catch {
@@ -68,13 +61,20 @@ export default function MangaBrowse() {
     }
   }, [results]);
 
-  const runSearch = useCallback(async (q: string, p: number = 1, s: string = 'recently_updated') => {
+  /**
+   * Run a server-side search. We always send `q` as a string (possibly empty)
+   * together with `limit` + `offset` — this matches the backend spec.
+   */
+  const runSearch = useCallback(async (q: string, p: number = 1) => {
     setLoading(true);
     try {
-      const items = await searchManga(q, p, s);
+      const items = await searchManga({
+        q,
+        limit: PAGE_SIZE,
+        offset: Math.max(0, (p - 1) * PAGE_SIZE),
+      });
       setResults(items);
       setPage(p);
-      setSort(s);
       if (items.length === 0) toast.info('Không tìm thấy manga nào.');
     } catch {
       toast.error('Không thể tìm kiếm manga.');
@@ -86,32 +86,27 @@ export default function MangaBrowse() {
   // Initial load
   useEffect(() => {
     if (results.length > 0) return; // keep cached on mount
-    runSearch(query || DEFAULT_QUERY, page, sort);
+    runSearch(query, page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const q = query.trim() || DEFAULT_QUERY;
-    setSearchParams({ q, page: '1', sort }, { replace: true });
-    runSearch(q, 1, sort);
+    const q = query.trim();
+    setQuery(q); // reflect trimmed value back to input
+    setSearchParams({ q, page: '1' }, { replace: true });
+    runSearch(q, 1);
   };
 
   const handleClear = () => {
     setQuery(DEFAULT_QUERY);
-    setSearchParams({ q: DEFAULT_QUERY, page: '1', sort }, { replace: true });
-    runSearch(DEFAULT_QUERY, 1, sort);
-  };
-
-  const handleSortChange = (newSort: string) => {
-    setSort(newSort);
-    setSearchParams({ q: query, page: '1', sort: newSort }, { replace: true });
-    runSearch(query, 1, newSort);
+    setSearchParams({ q: DEFAULT_QUERY, page: '1' }, { replace: true });
+    runSearch(DEFAULT_QUERY, 1);
   };
 
   const goToPage = (p: number) => {
-    setSearchParams({ q: query, page: String(p), sort }, { replace: true });
-    runSearch(query, p, sort);
+    setSearchParams({ q: query, page: String(p) }, { replace: true });
+    runSearch(query, p);
   };
 
   return (
@@ -128,8 +123,9 @@ export default function MangaBrowse() {
               onChange={(e) => setQuery(e.target.value)}
               className="pl-10 pr-10"
               disabled={loading}
+              data-testid="manga-search-input"
             />
-            {query && query !== DEFAULT_QUERY && (
+            {query && (
               <button
                 type="button"
                 onClick={handleClear}
@@ -140,17 +136,6 @@ export default function MangaBrowse() {
               </button>
             )}
           </div>
-          <Select value={sort} onValueChange={handleSortChange} disabled={loading}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sắp xếp" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="recently_updated">Mới cập nhật</SelectItem>
-              <SelectItem value="most_viewed">Xem nhiều</SelectItem>
-              <SelectItem value="scores">Điểm cao</SelectItem>
-              <SelectItem value="title_az">Tên A-Z</SelectItem>
-            </SelectContent>
-          </Select>
           <Button type="submit" disabled={loading}>
             {loading ? (
               <>
@@ -175,6 +160,9 @@ export default function MangaBrowse() {
             {query === DEFAULT_QUERY ? 'Đề xuất cho bạn' : `"${query}"`} ({results.length})
           </h3>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Trang {page} · {PAGE_SIZE}/trang
+        </p>
       </div>
 
       {/* Results Grid */}
@@ -186,53 +174,64 @@ export default function MangaBrowse() {
       ) : results.length > 0 ? (
         <>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {results.map((manga, idx) => (
+            {results.map((manga) => (
               <Card
-                key={`${manga.manga_url}-${idx}`}
-                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                onClick={() =>
-                  navigate(`/manga/${encodeURIComponent(manga.manga_url.replace(/^\/manga\//, ''))}`)
-                }
+                key={manga.id}
+                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+                onClick={() => navigate(`/manga/${encodeURIComponent(manga.id)}`)}
+                data-testid={`manga-card-${manga.id}`}
               >
-                <div className="aspect-[3/4] bg-muted overflow-hidden">
-                  <img
-                    src={manga.cover_url}
-                    alt={manga.name}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform"
-                    loading="lazy"
-                  />
+                <div className="aspect-[3/4] bg-muted overflow-hidden relative">
+                  {manga.cover ? (
+                    <img
+                      src={manga.cover}
+                      alt={manga.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <BookOpen className="w-10 h-10 opacity-30" />
+                    </div>
+                  )}
+                  {manga.status && (
+                    <Badge
+                      variant="secondary"
+                      className="absolute top-2 right-2 text-[10px] h-5 px-1.5 capitalize"
+                    >
+                      {manga.status}
+                    </Badge>
+                  )}
                 </div>
                 <CardHeader className="p-3">
-                  <CardTitle className="text-sm line-clamp-2">{manga.name}</CardTitle>
+                  <CardTitle className="text-sm line-clamp-2">{manga.title}</CardTitle>
                 </CardHeader>
               </Card>
             ))}
           </div>
 
           {/* Pagination */}
-          {results.length > 0 && (
-            <div className="flex items-center justify-center gap-2 mt-8">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page <= 1 || loading}
-                onClick={() => goToPage(page - 1)}
-              >
-                <ChevronLeft className="w-4 h-4" /> Trước
-              </Button>
-              <span className="text-sm text-muted-foreground px-3">
-                Trang {page}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={loading || results.length < 20}
-                onClick={() => goToPage(page + 1)}
-              >
-                Sau <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
+          <div className="flex items-center justify-center gap-2 mt-8">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1 || loading}
+              onClick={() => goToPage(page - 1)}
+              data-testid="manga-prev-page"
+            >
+              <ChevronLeft className="w-4 h-4" /> Trước
+            </Button>
+            <span className="text-sm text-muted-foreground px-3">Trang {page}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={loading || results.length < PAGE_SIZE}
+              onClick={() => goToPage(page + 1)}
+              data-testid="manga-next-page"
+            >
+              Sau <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
         </>
       ) : (
         <div className="text-center py-12 text-muted-foreground">

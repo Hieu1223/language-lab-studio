@@ -1,4 +1,15 @@
-export const API_BASE_URL = 'https://japlearningbackend.onrender.com';
+// ─── Single, unified backend base URL ────────────────────────────────────────
+// Used by every network call in the app (api-client, auth-context, streams).
+// When `VITE_API_BASE_URL` / `REACT_APP_BACKEND_URL` is provided via env, it
+// takes priority; otherwise we fall back to the production backend.
+const ENV_BASE_URL =
+  (typeof import.meta !== 'undefined' &&
+    (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL) ||
+  (typeof import.meta !== 'undefined' &&
+    (import.meta as unknown as { env?: Record<string, string> }).env?.REACT_APP_BACKEND_URL) ||
+  '';
+
+export const API_BASE_URL = (ENV_BASE_URL || 'https://japlearningbackend.onrender.com').replace(/\/+$/, '');
 
 export class APIError extends Error {
   constructor(

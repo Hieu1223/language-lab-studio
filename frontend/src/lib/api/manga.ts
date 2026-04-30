@@ -1,15 +1,29 @@
-import { apiCall, getStoredToken, API_BASE_URL } from '../api-client';
+import { apiCall, API_BASE_URL } from '../api-client';
 
-export interface MangaInfo {
-  name: string;
-  cover_url: string;
-  manga_url: string;
+// ────────────────────────────────────────────────────────────────────────────
+// Schemas mirror the backend `openapi.json` (paths under `/manga/*`).
+// The manga service is id-based: every manga / chapter is identified by a
+// UUID (`manga_id`, `chapter_id`). There is no `manga_url` hack anymore.
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface MangaPreview {
+  id: string;               // UUID
+  title: string;
+  cover: string | null;
+  status: string | null;
 }
 
-export interface ChapterInfo {
-  num: string;
+export interface ChapterPreview {
+  id: string;               // UUID
   title: string;
-  url: string;
+  chapter_index: number | null;
+  date: string | null;
+}
+
+export interface MangaDetail extends MangaPreview {
+  description: string | null;
+  genres: string | null;
+  chapters: ChapterPreview[];
 }
 
 export interface OCRBlock {
@@ -31,98 +45,133 @@ export interface OCRResponse {
   pages: OCRPage[];
 }
 
+export interface OCRUserInfo {
+  id: string;
+  display_name: string | null;
+}
+
+export interface OCRResultResponse {
+  chapter_id: string;
+  ocr_date: string;
+  ocr_by: OCRUserInfo | null;
+  manga: MangaPreview;
+  ocr_data: OCRResponse;
+}
+
+/** Response of `GET /manga/read/{chapter_id}` — gives everything the reader
+ * needs in one call: manga preview, the current chapter, the whole chapter
+ * list and the page image URLs. */
+export interface ReadResponse {
+  manga: MangaPreview;
+  chapter: ChapterPreview;
+  chapters: ChapterPreview[];
+  pages: string[];
+}
+
+/** Body for `POST /manga/history`. */
 export interface ReadHistoryUpdate {
-  manga_url: string;
-  manga_name?: string;
-  manga_cover_url?: string;
-  chapter_url: string;
-  chapter_title?: string;
-  chapter_num?: string;
+  manga_id: string;
+  chapter_id: string;
   current_page?: number;
 }
 
+/** Schema of each item returned by `GET /manga/history`. */
 export interface ReadHistoryResponse {
   id: string;
-  user_id: string;
   current_page: number;
   updated_at: string;
-  // Manga
   manga_id: string;
-  manga_url: string;
-  manga_name: string;
-  manga_cover_url: string;
-  // Chapter
+  manga_title: string;
+  manga_cover: string | null;
   chapter_id: string;
-  chapter_url: string;
-  chapter_title: string;
-  chapter_num: string;
+  chapter_index: number | null;
 }
 
-// Search for manga
+// ────────────────────────────────────────────────────────────────────────────
+// Search / browse
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface SearchMangaParams {
+  /** Free-text query. Empty string (default) returns a curated / all list. */
+  q?: string;
+  /** Page size, 1-100. */
+  limit?: number;
+  /** Result offset, for pagination. */
+  offset?: number;
+}
+
+/**
+ * GET /manga/manga?q=&limit=&offset=
+ * NOTE: the query string defaults to `''` (empty) — never `null` —
+ * matching the "default query is the empty query but not null" rule.
+ */
 export async function searchManga(
-  query: string | null,
-  page: number = 1,
-  sort: string = 'recently_updated'
-): Promise<MangaInfo[]> {
-  return apiCall<MangaInfo[]>('/manga/search', {
+  params: SearchMangaParams = {},
+): Promise<MangaPreview[]> {
+  const { q = '', limit = 20, offset = 0 } = params;
+  return apiCall<MangaPreview[]>('/manga/manga', {
     method: 'GET',
-    query: {
-      query: query || '%20',
-      ...(page > 1 ? { page } : {}),
-      ...(sort !== 'recently_updated' ? { sort } : {}),
-    },
+    query: { q, limit, offset },
   });
 }
 
-// Get chapter list for a manga
-export async function getChapterList(mangaUrl: string): Promise<ChapterInfo[]> {
-  console.log(mangaUrl);
-  return apiCall<ChapterInfo[]>('/manga/chapter_list', {
+// ────────────────────────────────────────────────────────────────────────────
+// Manga detail + reader data
+// ────────────────────────────────────────────────────────────────────────────
+
+/** GET /manga/manga/{manga_id}. */
+export async function getMangaDetail(mangaId: string): Promise<MangaDetail> {
+  return apiCall<MangaDetail>(`/manga/manga/${encodeURIComponent(mangaId)}`, {
     method: 'GET',
-    query: { manga_url: mangaUrl },
   });
 }
 
-// Get images for a chapter
-export async function getChapterImages(chapterUrl: string): Promise<string[]> {
-  return apiCall<string[]>('/manga/read', {
+/** GET /manga/read/{chapter_id} — returns manga + chapter + chapters + pages. */
+export async function getChapterRead(chapterId: string): Promise<ReadResponse> {
+  return apiCall<ReadResponse>(`/manga/read/${encodeURIComponent(chapterId)}`, {
     method: 'GET',
-    query: { chapter_url: chapterUrl },
   });
 }
 
-// Get OCR data for a chapter
-export async function getOCRData(chapterUrl: string): Promise<OCRResponse> {
-  return apiCall<OCRResponse>('/manga/ocr_data', {
+/** GET /manga/ocr_data/{chapter_id} — non-streaming fallback. */
+export async function getOCRData(chapterId: string): Promise<OCRResponse> {
+  return apiCall<OCRResponse>(`/manga/ocr_data/${encodeURIComponent(chapterId)}`, {
     method: 'GET',
-    query: { chapter_url: chapterUrl },
   });
 }
 
+/** GET /manga/ocr/{chapter_id} — full OCR metadata (who OCR'd etc). */
+export async function getOCRResult(chapterId: string): Promise<OCRResultResponse> {
+  return apiCall<OCRResultResponse>(`/manga/ocr/${encodeURIComponent(chapterId)}`, {
+    method: 'GET',
+  });
+}
 
+// ────────────────────────────────────────────────────────────────────────────
+// Streaming OCR
+// ────────────────────────────────────────────────────────────────────────────
 
 export interface OCRStreamHandle {
-  /** Aborts the in-flight stream (closes connection). */
+  /** Aborts the in-flight SSE stream (closes connection). */
   abort: () => void;
 }
 
 /**
- * Streams OCR pages from the backend one-by-one via SSE.
- * Each `data: { ...OCRPage }` line triggers `onPage`.
- * A `data: [DONE]` line triggers `onDone` and ends the stream.
+ * GET /manga/ocr_data/stream/{chapter_id}
+ * SSE endpoint that yields one `OCRPage` per `data:` event. A trailing
+ * `data: [DONE]` event signals completion.
  *
- * Returns a handle that can be used to cancel the stream (e.g. on unmount
- * or when navigating to a new chapter).
+ * Each received page triggers `onPage` immediately so UIs can render them
+ * progressively. Callers receive a handle with an `abort()` method so that
+ * navigating away cancels the stream cleanly.
  */
 export function getOCRDataStream(
-  chapterUrl: string,
+  chapterId: string,
   onPage: (page: OCRPage) => void,
   onDone?: () => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
 ): OCRStreamHandle {
-  const params = new URLSearchParams({ chapter_url: chapterUrl });
-  const url = `${API_BASE_URL}/manga/ocr_data/stream?${params}`;
-
+  const url = `${API_BASE_URL}/manga/ocr_data/stream/${encodeURIComponent(chapterId)}`;
   const controller = new AbortController();
 
   (async () => {
@@ -139,64 +188,56 @@ export function getOCRDataStream(
       let buffer = '';
       let finished = false;
 
+      const flushEvent = (part: string): 'done' | 'ok' | 'skip' => {
+        const dataLines: string[] = [];
+        for (const rawLine of part.split(/\r?\n/)) {
+          const line = rawLine.trimStart();
+          if (!line || line.startsWith(':')) continue;
+          if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).trimStart());
+          }
+        }
+        if (dataLines.length === 0) return 'skip';
+        const raw = dataLines.join('\n');
+        if (raw === '[DONE]') return 'done';
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object' && 'error' in parsed && parsed.error) {
+            onError?.(new Error(String(parsed.error)));
+            return 'done';
+          }
+          onPage(parsed as OCRPage);
+          return 'ok';
+        } catch {
+          console.warn('Failed to parse SSE message:', raw);
+          return 'skip';
+        }
+      };
+
       while (!finished) {
         const { done, value } = await reader.read();
         if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
 
-        // SSE events are separated by a blank line. Be tolerant to \r\n.
         const parts = buffer.split(/\r?\n\r?\n/);
         buffer = parts.pop() ?? '';
 
         for (const part of parts) {
-          // An SSE event may have multiple `data:` lines. Concatenate them.
-          const dataLines: string[] = [];
-          for (const rawLine of part.split(/\r?\n/)) {
-            const line = rawLine.trimStart();
-            if (!line || line.startsWith(':')) continue; // comment / heartbeat
-            if (line.startsWith('data:')) {
-              dataLines.push(line.slice(5).trimStart());
-            }
-          }
-          if (dataLines.length === 0) continue;
-          const raw = dataLines.join('\n');
-
-          if (raw === '[DONE]') {
+          if (flushEvent(part) === 'done') {
             finished = true;
             onDone?.();
             break;
           }
-
-          try {
-            const parsed = JSON.parse(raw);
-            if (parsed && typeof parsed === 'object' && 'error' in parsed && parsed.error) {
-              onError?.(new Error(String(parsed.error)));
-              finished = true;
-              break;
-            }
-            onPage(parsed as OCRPage);
-          } catch {
-            console.warn('Failed to parse SSE message:', raw);
-          }
         }
       }
 
-      // Drain whatever is left in `buffer` if server closed without trailing \n\n.
-      if (buffer.trim().length > 0) {
-        const dataLines: string[] = [];
-        for (const rawLine of buffer.split(/\r?\n/)) {
-          const line = rawLine.trimStart();
-          if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
-        }
-        const raw = dataLines.join('\n');
-        if (raw && raw !== '[DONE]') {
-          try {
-            const parsed = JSON.parse(raw);
-            if (!parsed.error) onPage(parsed as OCRPage);
-          } catch {
-            /* ignore */
-          }
+      // Drain whatever is left if the server didn't terminate with \n\n.
+      if (!finished && buffer.trim().length > 0) {
+        const res = flushEvent(buffer);
+        if (res === 'done') {
+          finished = true;
+          onDone?.();
         }
       }
 
@@ -212,37 +253,25 @@ export function getOCRDataStream(
   };
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// Reading history
+// ────────────────────────────────────────────────────────────────────────────
 
+/** GET /manga/history — returns the authenticated user's reading history. */
+export async function getMangaHistory(): Promise<ReadHistoryResponse[]> {
+  return apiCall<ReadHistoryResponse[]>('/manga/history', { method: 'GET' });
+}
 
-// ─── Manga History ────────────────────────────────────────────────────────
-
+/** POST /manga/history — upsert progress by `(manga_id, chapter_id)`. */
 export async function upsertMangaHistory(
-  data: ReadHistoryUpdate
+  data: ReadHistoryUpdate,
 ): Promise<ReadHistoryResponse> {
-  const token = getStoredToken();
-  if (!token) throw new Error('Not authenticated');
-
-  return apiCall<ReadHistoryResponse>('/manga/history/upsert', {
+  return apiCall<ReadHistoryResponse>('/manga/history', {
     method: 'POST',
-    token,
-    body: data,
+    body: {
+      manga_id: data.manga_id,
+      chapter_id: data.chapter_id,
+      current_page: data.current_page ?? 0,
+    },
   });
 }
-
-export async function getMangaHistory(userId: string): Promise<ReadHistoryResponse[]> {
-  const token = getStoredToken();
-  if (!token) throw new Error('Not authenticated');
-
-  const response = await apiCall<ReadHistoryResponse[]>(
-    `/manga/history/${userId}`,
-    {
-      method: 'GET',
-      token,
-    }
-  );
-
-  console.log(response);
-  return response;
-}
-
-
