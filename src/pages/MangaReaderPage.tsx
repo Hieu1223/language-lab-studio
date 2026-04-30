@@ -43,38 +43,21 @@ import { LoadingScreen } from '@/components/LoadingScreen';
 import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
 import { AddToDeckDialog } from '@/components/dictionary/AddToDeckDialog';
 import { searchWords, type WordResponse } from '@/lib/api/flashcard';
-import {
-  searchKanji,
-  getKanji,
-  type KanjiResponse,
-} from '@/lib/api/tokenization';
+import { searchKanji, getKanji, type KanjiResponse } from '@/lib/api/tokenization';
 import {
   getChapterRead,
-  upsertMangaHistory,
+  getOCRResult,
   getOCRDataStream,
+  upsertMangaHistory,
   type ChapterPreview,
-  type MangaPreview,
+  type OCRPage,
   type OCRStreamHandle,
 } from '@/lib/api/manga';
+import { APIError } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface OCRBlock {
-  box: [number, number, number, number];
-  vertical: boolean;
-  font_size: number;
-  lines_coords: number[][][];
-  lines: string[];
-}
-
-interface OCRPageData {
-  version: string;
-  img_width: number;
-  img_height: number;
-  blocks: OCRBlock[];
-}
 
 type ReadMode = 'single' | 'vertical';
 type PanelTab = 'settings' | 'chapters' | 'text' | 'dictionary';
@@ -84,7 +67,6 @@ interface SelectedBlock {
   blockIdx: number;
 }
 
-const STORAGE_KEY_PREFIX = 'manga-reader-';
 const SETTINGS_KEY = 'manga-reader-settings-v2';
 const MIN_ZOOM = 50;
 const MAX_ZOOM = 300;
@@ -93,7 +75,7 @@ const MIN_PADDING = 0;
 const MAX_PADDING = 30;
 const BG_COLOR = '#1a1b26';
 
-// ─── Copy helper ────────────────────────────────────────────────────────────
+// ─── Copy helper ──────────────────────────────────────────────────────────────
 
 async function copyToClipboard(text: string) {
   try {
@@ -119,7 +101,7 @@ async function copyToClipboard(text: string) {
 // ─── OCR Overlay ──────────────────────────────────────────────────────────────
 
 interface OCROverlayProps {
-  ocrData: OCRPageData;
+  ocrData: OCRPage;
   imgW: number;
   imgH: number;
   showBoxes: boolean;
@@ -168,14 +150,7 @@ function OCROverlay({
           <div
             key={idx}
             className={`absolute group transition-colors ${borderCls}`}
-            style={{
-              left,
-              top,
-              width,
-              height,
-              pointerEvents: 'auto',
-              cursor: 'pointer',
-            }}
+            style={{ left, top, width, height, pointerEvents: 'auto', cursor: 'pointer' }}
             onClick={(e) => {
               e.stopPropagation();
               onSelectBlock(pageIdx, idx);
@@ -188,8 +163,9 @@ function OCROverlay({
                 e.preventDefault();
                 copyToClipboard(text);
               }}
-              className={`absolute -top-2 -right-2 z-10 rounded-full p-1 bg-black/70 text-white hover:bg-primary hover:text-primary-foreground transition-opacity ${showBoxes || isSelected ? 'opacity-100' : 'opacity-0 pointer-events-none'
-                }`}
+              className={`absolute -top-2 -right-2 z-10 rounded-full p-1 bg-black/70 text-white hover:bg-primary hover:text-primary-foreground transition-opacity ${
+                showBoxes || isSelected ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
               aria-label="Copy OCR text"
               title="Copy toàn bộ text"
             >
@@ -273,7 +249,7 @@ function OCROverlay({
 interface MangaPageProps {
   src: string;
   pageIndex: number;
-  ocrData: OCRPageData | null;
+  ocrData: OCRPage | null;
   showOCRBoxes: boolean;
   boxPadding: number;
   fitMode: 'contain' | 'width';
@@ -342,12 +318,7 @@ function MangaPage({
     return (
       <div
         ref={wrapRef}
-        style={{
-          width: containerW,
-          height: containerH,
-          position: 'relative',
-          flexShrink: 0,
-        }}
+        style={{ width: containerW, height: containerH, position: 'relative', flexShrink: 0 }}
       >
         <img
           ref={imgRef}
@@ -409,21 +380,17 @@ function MangaPage({
   );
 }
 
-// ─── Dictionary Right Panel ───────────────────────────────────────────────
-// A compact word + kanji lookup panel embedded in the manga reader's right
-// sidebar, so users can search the dictionary without leaving the page.
+// ─── Dictionary Panel ─────────────────────────────────────────────────────────
 
 function DictionaryRightPanel() {
   const [mode, setMode] = useState<'words' | 'kanji'>('words');
 
-  // Words
   const [wordQ, setWordQ] = useState('');
   const [wordResults, setWordResults] = useState<WordResponse[]>([]);
   const [wordLoading, setWordLoading] = useState(false);
   const [wordAddOpen, setWordAddOpen] = useState(false);
   const [pickedWord, setPickedWord] = useState<WordResponse | null>(null);
 
-  // Kanji
   const [kanjiReading, setKanjiReading] = useState('');
   const [kanjiSingle, setKanjiSingle] = useState('');
   const [kanjiResults, setKanjiResults] = useState<KanjiResponse[]>([]);
@@ -478,14 +445,11 @@ function DictionaryRightPanel() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {/* Mode tabs */}
       <div className="px-3 py-2 border-b border-border flex gap-1 flex-shrink-0">
         <button
           onClick={() => setMode('words')}
           className={`flex-1 text-xs h-7 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 ${
-            mode === 'words'
-              ? 'bg-primary/15 text-primary'
-              : 'text-muted-foreground hover:bg-muted/50'
+            mode === 'words' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-muted/50'
           }`}
         >
           <BookOpen className="w-3 h-3" /> Từ vựng
@@ -493,9 +457,7 @@ function DictionaryRightPanel() {
         <button
           onClick={() => setMode('kanji')}
           className={`flex-1 text-xs h-7 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 ${
-            mode === 'kanji'
-              ? 'bg-primary/15 text-primary'
-              : 'text-muted-foreground hover:bg-muted/50'
+            mode === 'kanji' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-muted/50'
           }`}
         >
           <Type className="w-3 h-3" /> Kanji
@@ -510,7 +472,6 @@ function DictionaryRightPanel() {
               onChange={(e) => setWordQ(e.target.value)}
               placeholder="Từ, kana hoặc nghĩa..."
               className="h-8 text-xs"
-              data-testid="manga-dict-word-input"
             />
             <Button type="submit" size="icon" className="h-8 w-8" disabled={wordLoading}>
               {wordLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
@@ -525,28 +486,18 @@ function DictionaryRightPanel() {
                 </div>
               )}
               {wordResults.map((w) => (
-                <div
-                  key={w.id}
-                  className="rounded-md border bg-card p-2.5 hover:border-primary/40 transition-colors group"
-                >
+                <div key={w.id} className="rounded-md border bg-card p-2.5 hover:border-primary/40 transition-colors group">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-base font-bold font-japanese leading-tight truncate">
-                        {w.word}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground font-japanese truncate">
-                        {w.reading}
-                      </p>
+                      <p className="text-base font-bold font-japanese leading-tight truncate">{w.word}</p>
+                      <p className="text-[11px] text-muted-foreground font-japanese truncate">{w.reading}</p>
                     </div>
                     <Button
                       size="icon"
                       variant="ghost"
                       className="h-6 w-6 flex-shrink-0 opacity-60 group-hover:opacity-100"
                       title="Lưu vào bộ"
-                      onClick={() => {
-                        setPickedWord(w);
-                        setWordAddOpen(true);
-                      }}
+                      onClick={() => { setPickedWord(w); setWordAddOpen(true); }}
                     >
                       <BookmarkPlus className="w-3.5 h-3.5 text-primary" />
                     </Button>
@@ -558,10 +509,7 @@ function DictionaryRightPanel() {
           </ScrollArea>
           <AddToDeckDialog
             open={wordAddOpen}
-            onOpenChange={(o) => {
-              setWordAddOpen(o);
-              if (!o) setPickedWord(null);
-            }}
+            onOpenChange={(o) => { setWordAddOpen(o); if (!o) setPickedWord(null); }}
             words={pickedWord ? [pickedWord] : []}
           />
         </>
@@ -574,7 +522,6 @@ function DictionaryRightPanel() {
                 onChange={(e) => setKanjiReading(e.target.value)}
                 placeholder="Hán-Việt (vd: nhật)..."
                 className="h-8 text-xs"
-                data-testid="manga-dict-kanji-reading"
               />
               <Button type="submit" size="icon" className="h-8 w-8" disabled={kanjiLoading}>
                 <Search className="w-3.5 h-3.5" />
@@ -587,7 +534,6 @@ function DictionaryRightPanel() {
                 placeholder="Một kanji (vd: 日)"
                 maxLength={1}
                 className="h-8 text-base font-japanese"
-                data-testid="manga-dict-kanji-single"
               />
               <Button
                 size="icon"
@@ -606,56 +552,33 @@ function DictionaryRightPanel() {
                   <Loader2 className="w-5 h-5 animate-spin text-primary" />
                 </div>
               )}
-
               {!kanjiLoading && activeKanji && (
                 <div className="rounded-md border bg-card p-3 space-y-2.5">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-4xl font-bold font-japanese leading-none">
-                        {activeKanji.kanji}
-                      </p>
+                      <p className="text-4xl font-bold font-japanese leading-none">{activeKanji.kanji}</p>
                       {activeKanji.reading && (
-                        <p className="text-[11px] text-muted-foreground font-japanese mt-1">
-                          {activeKanji.reading}
-                        </p>
+                        <p className="text-[11px] text-muted-foreground font-japanese mt-1">{activeKanji.reading}</p>
                       )}
                     </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 text-[11px] px-2"
-                      onClick={() => setActiveKanji(null)}
-                    >
+                    <Button size="sm" variant="ghost" className="h-6 text-[11px] px-2" onClick={() => setActiveKanji(null)}>
                       Đóng
                     </Button>
                   </div>
-                  {activeKanji.meanings && (
-                    <p className="text-xs leading-snug">{activeKanji.meanings}</p>
-                  )}
+                  {activeKanji.meanings && <p className="text-xs leading-snug">{activeKanji.meanings}</p>}
                   <div className="flex flex-wrap gap-1 text-[10px]">
                     {activeKanji.strokes != null && (
-                      <span className="font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-                        {activeKanji.strokes} nét
-                      </span>
+                      <span className="font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{activeKanji.strokes} nét</span>
                     )}
                     {activeKanji.radical && (
-                      <span className="font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-japanese">
-                        Bộ {activeKanji.radical}
-                      </span>
+                      <span className="font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-japanese">Bộ {activeKanji.radical}</span>
                     )}
                   </div>
                   {activeKanji.words && activeKanji.words.length > 0 && (
                     <div className="pt-2 border-t">
                       <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          {activeKanji.words.length} từ liên quan
-                        </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-6 text-[10px] px-1.5 gap-1"
-                          onClick={() => setKanjiAddOpen(true)}
-                        >
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{activeKanji.words.length} từ liên quan</p>
+                        <Button size="sm" variant="outline" className="h-6 text-[10px] px-1.5 gap-1" onClick={() => setKanjiAddOpen(true)}>
                           <BookmarkPlus className="w-3 h-3" /> Thêm tất cả
                         </Button>
                       </div>
@@ -680,7 +603,6 @@ function DictionaryRightPanel() {
                   )}
                 </div>
               )}
-
               {!kanjiLoading && !activeKanji && kanjiResults.length > 0 && (
                 <div className="grid grid-cols-3 gap-1.5">
                   {kanjiResults.map((k) => (
@@ -691,21 +613,16 @@ function DictionaryRightPanel() {
                     >
                       <p className="text-2xl font-bold font-japanese leading-tight">{k.kanji}</p>
                       {k.reading && (
-                        <p className="text-[9px] text-muted-foreground font-japanese truncate mt-0.5">
-                          {k.reading}
-                        </p>
+                        <p className="text-[9px] text-muted-foreground font-japanese truncate mt-0.5">{k.reading}</p>
                       )}
                     </button>
                   ))}
                 </div>
               )}
-
               {!kanjiLoading && !activeKanji && kanjiResults.length === 0 && (
                 <div className="py-8 flex flex-col items-center text-muted-foreground gap-2 text-center">
                   <Sparkles className="w-6 h-6 opacity-40" />
-                  <p className="text-xs leading-snug">
-                    Tra cứu kanji theo Hán-Việt hoặc nhập trực tiếp một kanji.
-                  </p>
+                  <p className="text-xs leading-snug">Tra cứu kanji theo Hán-Việt hoặc nhập trực tiếp một kanji.</p>
                 </div>
               )}
             </div>
@@ -716,7 +633,7 @@ function DictionaryRightPanel() {
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// ─── Settings ─────────────────────────────────────────────────────────────────
 
 interface ReaderSettings {
   readMode: ReadMode;
@@ -736,35 +653,60 @@ function loadSettings(): ReaderSettings {
   try {
     const s = localStorage.getItem(SETTINGS_KEY);
     if (s) return { ...DEFAULT_SETTINGS, ...JSON.parse(s) };
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
   return DEFAULT_SETTINGS;
 }
 
+function clampIdx(i: number, len: number) {
+  if (len === 0) return 0;
+  return Math.max(0, Math.min(i, len - 1));
+}
+
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
 export default function MangaReaderPage() {
+  // Route: /manga/:mangaId/read/:chapterId  (both are UUIDs)
   const { mangaId, chapterId } = useParams<{ mangaId: string; chapterId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Manga + chapter metadata arrive from `getChapterRead(chapterId)` (the
-  // backend's "/manga/read/{chapter_id}" endpoint) — no more URL-param hacks.
-  const [mangaInfo, setMangaInfo] = useState<MangaPreview | null>(null);
+  // ── Chapter / page data ─────────────────────────────────────────────────
+  const [mangaTitle, setMangaTitle] = useState('');
+  const [mangaCover, setMangaCover] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
-  const [ocrDataPages, setOcrDataPages] = useState<(OCRPageData | null)[]>([]);
+  const [chapters, setChapters] = useState<ChapterPreview[]>([]);
+  const [currentChapterIdx, setCurrentChapterIdx] = useState(-1);
+  const [currentChapter, setCurrentChapter] = useState<ChapterPreview | null>(null);
+  const [loadingChapter, setLoadingChapter] = useState(true);
+
+  // ── OCR ──────────────────────────────────────────────────────────────────
+  const [ocrDataPages, setOcrDataPages] = useState<(OCRPage | null)[]>([]);
   const [ocrLoaded, setOcrLoaded] = useState(false);
-  const [loadingImages, setLoadingImages] = useState(true);
   const [loadingOCR, setLoadingOCR] = useState(false);
   const [ocrPagesReceived, setOcrPagesReceived] = useState(0);
   const ocrStreamRef = useRef<OCRStreamHandle | null>(null);
   const ocrPageCounterRef = useRef(0);
 
-  const [chapters, setChapters] = useState<ChapterPreview[]>([]);
-  const [currentChapterIdx, setCurrentChapterIdx] = useState(-1);
-
+  // ── Settings ─────────────────────────────────────────────────────────────
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
   const { readMode, showOCRBoxes, boxPadding, zoom } = settings;
 
+  const updateSettings = (patch: Partial<ReaderSettings>) =>
+    setSettings((s) => ({ ...s, ...patch }));
+  const setReadMode = (v: ReadMode) => updateSettings({ readMode: v });
+  const setShowOCRBoxes = (v: boolean) => updateSettings({ showOCRBoxes: v });
+  const setBoxPadding = (v: number) => updateSettings({ boxPadding: v });
+  const setZoom = (v: number | ((prev: number) => number)) =>
+    setSettings((s) => ({
+      ...s,
+      zoom: typeof v === 'function' ? (v as (prev: number) => number)(s.zoom) : v,
+    }));
+
+  useEffect(() => {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* ignore */ }
+  }, [settings]);
+
+  // ── UI state ──────────────────────────────────────────────────────────────
   const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
@@ -773,6 +715,7 @@ export default function MangaReaderPage() {
   const [quickAddText, setQuickAddText] = useState<string | null>(null);
   const [quickAddWords, setQuickAddWords] = useState<WordResponse[]>([]);
 
+  // ── Viewer size ───────────────────────────────────────────────────────────
   const viewerRef = useRef<HTMLDivElement>(null);
   const [viewerSize, setViewerSize] = useState({ w: 0, h: 0 });
 
@@ -796,41 +739,8 @@ export default function MangaReaderPage() {
   const verticalContainerRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const storageKey = `${STORAGE_KEY_PREFIX}${mangaId}-${chapterId}`;
-
-  const updateSettings = (patch: Partial<ReaderSettings>) =>
-    setSettings((s) => ({ ...s, ...patch }));
-  const setReadMode = (v: ReadMode) => updateSettings({ readMode: v });
-  const setShowOCRBoxes = (v: boolean) => updateSettings({ showOCRBoxes: v });
-  const setBoxPadding = (v: number) => updateSettings({ boxPadding: v });
-  const setZoom = (v: number | ((prev: number) => number)) =>
-    setSettings((s) => ({
-      ...s,
-      zoom: typeof v === 'function' ? (v as (prev: number) => number)(s.zoom) : v,
-    }));
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch {
-      // ignore
-    }
-  }, [settings]);
-
-  useEffect(() => {
-    const el = viewerRef.current;
-    if (!el) return;
-    const update = () =>
-      setViewerSize((prev) => {
-        const w = el.clientWidth;
-        const h = el.clientHeight;
-        return prev.w === w && prev.h === h ? prev : { w, h };
-      });
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
+  // ── Persist page position per chapter ────────────────────────────────────
+  const storageKey = `manga-reader-${mangaId}-${chapterId}`;
 
   useEffect(() => {
     const saved = localStorage.getItem(storageKey);
@@ -844,35 +754,14 @@ export default function MangaReaderPage() {
     localStorage.setItem(storageKey, String(currentPageIndex));
   }, [currentPageIndex, storageKey]);
 
-  // ── Load chapter list ─────────────────────────────────────────────────────
+  // ── Load chapter data from single API call ────────────────────────────────
   useEffect(() => {
-    if (!mangaId) return;
-    const load = async () => {
-      try {
-        setLoadingChapters(true);
-        const list = await getChapterList(mangaId);
-        console.log(list);
-        setChapters(list);
-        const decoded = decodeURIComponent(chapterUrl ?? '');
-        const idx = list.findIndex(
-          (c) => c.url === decoded || encodeURIComponent(c.url) === chapterUrl,
-        );
-        setCurrentChapterIdx(idx);
-      } catch {
-        console.warn('Could not load chapter list');
-      } finally {
-        setLoadingChapters(false);
-      }
-    };
-    load();
-  }, [mangaId, chapterUrl]);
+    if (!chapterId) return;
 
-  // ── Load images + save history ────────────────────────────────────────────
-  useEffect(() => {
     const load = async () => {
       try {
-        setLoadingImages(true);
-        // Cancel any in-flight OCR stream from a previous chapter
+        setLoadingChapter(true);
+        // Abort any in-flight OCR stream
         ocrStreamRef.current?.abort();
         ocrStreamRef.current = null;
         ocrPageCounterRef.current = 0;
@@ -883,80 +772,81 @@ export default function MangaReaderPage() {
         setSelectedBlock(null);
         setCurrentPageIndex(0);
 
-        const decodedChapterUrl = decodeURIComponent(chapterUrl ?? '');
-        const urls = await getChapterImages(decodedChapterUrl);
-        setImages(urls);
-        setOcrDataPages(new Array(urls.length).fill(null));
-        pageRefs.current = new Array(urls.length).fill(null);
+        const data = await getChapterRead(chapterId);
 
-        // Save reading history
+        setMangaTitle(data.manga.title);
+        setMangaCover(data.manga.cover);
+        setImages(data.pages);
+        setChapters(data.chapters);
+        setCurrentChapter(data.chapter);
+        setOcrDataPages(new Array(data.pages.length).fill(null));
+        pageRefs.current = new Array(data.pages.length).fill(null);
+
+        // Find current chapter index in the list
+        const idx = data.chapters.findIndex((c) => c.id === data.chapter.id);
+        setCurrentChapterIdx(idx);
+
+        // Save history (fire-and-forget)
         if (user?.id && mangaId) {
-          try {
-            const currentChapter = chapters.find(
-              (c) => c.url === decodedChapterUrl || encodeURIComponent(c.url) === chapterUrl,
-            );
-            await upsertMangaHistory({
-              manga_url: `/manga/${mangaId}`,
-              manga_name: mangaName,
-              manga_cover_url: mangaCoverUrl,
-              chapter_url: decodedChapterUrl,
-              chapter_title: currentChapter?.title || '',
-              chapter_num: currentChapter?.num || '',
-              current_page: 0,
-            });
-          } catch (err) {
-            console.warn('Failed to save manga history:', err);
-          }
+          upsertMangaHistory({
+            manga_id: mangaId,
+            chapter_id: chapterId,
+            current_page: 0,
+          }).catch((err) => console.warn('Failed to save manga history:', err));
         }
-      } catch {
-        toast.error('Failed to load chapter images');
+
+        // Auto-load OCR if already cached — silent, no toast on miss
+        try {
+          const existing = await getOCRResult(chapterId);
+          const pages = existing.ocr_data.pages;
+          setOcrDataPages(
+            pages.length === data.pages.length
+              ? pages
+              : [...pages, ...new Array(Math.max(0, data.pages.length - pages.length)).fill(null)],
+          );
+          setOcrPagesReceived(pages.length);
+          setOcrLoaded(true);
+        } catch {
+          // 404 = not yet OCR'd, that's fine — user can trigger manually
+        }
+      } catch (err) {
+        toast.error('Không thể tải chapter');
+        console.error(err);
         navigate(`/manga/${mangaId}`);
       } finally {
-        setLoadingImages(false);
+        setLoadingChapter(false);
       }
     };
+
     load();
+
     return () => {
-      // Abort streaming when chapter changes / component unmounts
       ocrStreamRef.current?.abort();
       ocrStreamRef.current = null;
     };
-  }, [mangaId, chapterUrl, navigate, user?.id, chapters]);
+  }, [chapterId, mangaId, navigate, user?.id]);
 
-  // ── Persist current page every 30 seconds ────────────────────────────────
+  // ── Auto-save progress every 30s ─────────────────────────────────────────
   useEffect(() => {
-    if (!user?.id || !mangaId || images.length === 0) return;
-
-    const interval = setInterval(async () => {
-      const decodedChapterUrl = decodeURIComponent(chapterUrl ?? '');
-      const currentChapter = chapters.find(
-        (c) => c.url === decodedChapterUrl || encodeURIComponent(c.url) === chapterUrl,
-      );
-      try {
-        await upsertMangaHistory({
-          manga_url: `/manga/${mangaId}`,
-          manga_name: mangaName,
-          manga_cover_url: mangaCoverUrl,
-          chapter_url: decodedChapterUrl,
-          chapter_title: currentChapter?.title || '',
-          chapter_num: currentChapter?.num || '',
-          current_page: currentPageIndex,
-        });
-      } catch (err) {
-        console.warn('Failed to auto-save reading progress:', err);
-      }
+    if (!user?.id || !mangaId || !chapterId || images.length === 0) return;
+    const interval = setInterval(() => {
+      upsertMangaHistory({
+        manga_id: mangaId,
+        chapter_id: chapterId,
+        current_page: currentPageIndex,
+      }).catch((err) => console.warn('Failed to auto-save reading progress:', err));
     }, 30_000);
-
     return () => clearInterval(interval);
-  }, [user?.id, mangaId, chapterUrl, chapters, currentPageIndex, images.length]);
+  }, [user?.id, mangaId, chapterId, currentPageIndex, images.length]);
 
-  // ── Keyboard nav ──────────────────────────────────────────────────────────
+  // ── Keyboard navigation ───────────────────────────────────────────────────
   useEffect(() => {
     if (readMode === 'vertical') return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         e.preventDefault();
-        setCurrentPageIndex((p) => clampIdx(p + 1, images.length));
+        // Allow going one past the last image → end-of-chapter card
+        setCurrentPageIndex((p) => Math.min(p + 1, images.length));
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
         e.preventDefault();
         setCurrentPageIndex((p) => clampIdx(p - 1, images.length));
@@ -973,9 +863,7 @@ export default function MangaReaderPage() {
     const handler = (e: WheelEvent) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      setZoom((z) =>
-        Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP))),
-      );
+      setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z + (e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP))));
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
@@ -988,15 +876,11 @@ export default function MangaReaderPage() {
     if (!container) return;
     const handler = () => {
       const scrollY = container.scrollTop;
-      let closest = 0,
-        minDist = Infinity;
+      let closest = 0, minDist = Infinity;
       pageRefs.current.forEach((ref, i) => {
         if (ref) {
           const dist = Math.abs(ref.offsetTop - scrollY);
-          if (dist < minDist) {
-            minDist = dist;
-            closest = i;
-          }
+          if (dist < minDist) { minDist = dist; closest = i; }
         }
       });
       setCurrentPageIndex(closest);
@@ -1006,35 +890,43 @@ export default function MangaReaderPage() {
   }, [readMode, images.length]);
 
   // ── Load OCR ──────────────────────────────────────────────────────────────
-  const loadOCR = () => {
-    // Don't allow double-starts
-    if (loadingOCR || ocrLoaded) return;
-    if (!images.length) {
-      toast.error('Chưa có ảnh để OCR');
+  const loadOCR = async () => {
+    if (loadingOCR || ocrLoaded || !chapterId) return;
+    if (!images.length) { toast.error('Chưa có ảnh để OCR'); return; }
+
+    // First check if OCR already exists (backend 409 if we stream twice)
+    try {
+      const existing = await getOCRResult(chapterId);
+      // Already OCR'd — populate pages from cached data
+      const pages = existing.ocr_data.pages;
+      setOcrDataPages(pages.length === images.length ? pages : [...pages, ...new Array(Math.max(0, images.length - pages.length)).fill(null)]);
+      setOcrPagesReceived(pages.length);
+      setOcrLoaded(true);
+      toast.success('OCR đã được tải từ cache');
       return;
+    } catch (err) {
+      // 404 = not yet OCR'd, proceed to stream
+      if (err instanceof APIError && err.status !== 404) {
+        toast.error('Không thể kiểm tra OCR');
+        return;
+      }
     }
 
+    // Start streaming OCR
     setLoadingOCR(true);
     setOcrLoaded(false);
     setOcrPagesReceived(0);
     ocrPageCounterRef.current = 0;
-    // Make sure slot array matches the image count (in case images changed)
-    setOcrDataPages((prev) =>
-      prev.length === images.length ? prev.slice() : new Array(images.length).fill(null),
-    );
-
-    const decodedChapterUrl = decodeURIComponent(chapterUrl ?? '');
+    setOcrDataPages(new Array(images.length).fill(null));
 
     ocrStreamRef.current = getOCRDataStream(
-      decodedChapterUrl,
+      chapterId,
       (page) => {
-        // Use a ref counter so we never depend on stale state when many
-        // pages arrive in quick succession.
         const idx = ocrPageCounterRef.current;
         ocrPageCounterRef.current += 1;
         setOcrDataPages((prev) => {
           const next = prev.length >= images.length ? prev.slice() : new Array(images.length).fill(null);
-          if (idx < next.length) next[idx] = page as OCRPageData;
+          if (idx < next.length) next[idx] = page;
           return next;
         });
         setOcrPagesReceived((c) => c + 1);
@@ -1046,8 +938,19 @@ export default function MangaReaderPage() {
         toast.success('OCR đã tải xong');
       },
       (err) => {
-        console.error(err);
-        toast.error(`Không thể tải OCR: ${err.message}`);
+        // 409 = race: another client triggered OCR, try fetching the result
+        if (err.message.includes('409')) {
+          getOCRResult(chapterId!).then((existing) => {
+            const pages = existing.ocr_data.pages;
+            setOcrDataPages(pages.length === images.length ? pages : [...pages, ...new Array(Math.max(0, images.length - pages.length)).fill(null)]);
+            setOcrPagesReceived(pages.length);
+            setOcrLoaded(true);
+            toast.success('OCR đã được tải từ cache');
+          }).catch(() => toast.error('Không thể tải OCR'));
+        } else {
+          console.error(err);
+          toast.error(`Không thể tải OCR: ${err.message}`);
+        }
         setLoadingOCR(false);
         ocrStreamRef.current = null;
       },
@@ -1056,8 +959,8 @@ export default function MangaReaderPage() {
 
   // ── Chapter navigation ────────────────────────────────────────────────────
   const goToChapter = useCallback(
-    (chapter: ChapterInfo) => {
-      navigate(`/manga/${encodeURIComponent(mangaId)}/read/${encodeURIComponent(chapter.url)}`);
+    (chapter: ChapterPreview) => {
+      navigate(`/manga/${mangaId}/read/${chapter.id}`);
     },
     [mangaId, navigate],
   );
@@ -1070,9 +973,10 @@ export default function MangaReaderPage() {
 
   // ── Page navigation ───────────────────────────────────────────────────────
   const goTo = (idx: number) => {
-    const c = clampIdx(idx, images.length);
+    // idx === images.length is valid — it's the end-of-chapter card
+    const c = Math.min(Math.max(0, idx), images.length);
     setCurrentPageIndex(c);
-    if (readMode === 'vertical' && pageRefs.current[c]) {
+    if (readMode === 'vertical' && c < images.length && pageRefs.current[c]) {
       pageRefs.current[c]!.scrollIntoView({ behavior: 'smooth' });
     }
   };
@@ -1087,6 +991,7 @@ export default function MangaReaderPage() {
     setPanelTab('text');
   }, []);
 
+  // ── Quick-add word search ─────────────────────────────────────────────────
   useEffect(() => {
     if (!quickAddText) return;
     let cancelled = false;
@@ -1105,29 +1010,70 @@ export default function MangaReaderPage() {
         if (!cancelled) toast.error('Không tìm được từ');
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [quickAddText]);
 
-  const selectedBlockData = selectedBlock
-    ? ocrDataPages[selectedBlock.pageIdx]?.blocks[selectedBlock.blockIdx] ?? null
-    : null;
+  const selectedBlockData =
+    selectedBlock ? ocrDataPages[selectedBlock.pageIdx]?.blocks[selectedBlock.blockIdx] ?? null : null;
   const selectedText = selectedBlockData ? selectedBlockData.lines.join('\n') : '';
 
   const zoomScale = zoom / 100;
-  const singleW = viewerSize.w;
-  const singleH = viewerSize.h;
+
+  // ── Chapter label helper ──────────────────────────────────────────────────
+  const chapterLabel = (ch: ChapterPreview) =>
+    ch.chapter_index != null ? `Ch. ${ch.chapter_index}` : ch.title;
+
+  // ── End-of-chapter card ───────────────────────────────────────────────────
+  const EndCard = () => (
+    <div
+      className="flex flex-col items-center justify-center gap-6 text-center px-8"
+      style={{ width: viewerSize.w || '100%', height: viewerSize.h || '100%', background: BG_COLOR }}
+    >
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground uppercase tracking-widest">Hết chương</p>
+        <p className="text-xl font-bold text-foreground">
+          {currentChapter ? chapterLabel(currentChapter) : ''}
+        </p>
+        {currentChapter?.title && (
+          <p className="text-sm text-muted-foreground">{currentChapter.title}</p>
+        )}
+      </div>
+      <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+        {prevChapter && (
+          <Button
+            variant="outline"
+            className="flex-1 gap-2"
+            onClick={() => goToChapter(prevChapter)}
+          >
+            <SkipBack className="w-4 h-4" />
+            <span className="truncate">{chapterLabel(prevChapter)}</span>
+          </Button>
+        )}
+        {nextChapter ? (
+          <Button className="flex-1 gap-2" onClick={() => goToChapter(nextChapter)}>
+            <span className="truncate">{chapterLabel(nextChapter)}</span>
+            <SkipForward className="w-4 h-4" />
+          </Button>
+        ) : (
+          <Button variant="outline" className="flex-1 gap-2" onClick={() => navigate(`/manga/${mangaId}`)}>
+            <ArrowLeft className="w-4 h-4" /> Về trang manga
+          </Button>
+        )}
+      </div>
+      <button
+        className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+        onClick={() => goTo(images.length - 1)}
+      >
+        ← Quay lại trang cuối
+      </button>
+    </div>
+  );
 
   // ── Render pages ──────────────────────────────────────────────────────────
   const renderPages = () => {
     if (readMode === 'vertical') {
       return (
-        <div
-          ref={verticalContainerRef}
-          className="flex-1 overflow-auto"
-          style={{ background: BG_COLOR }}
-        >
+        <div ref={verticalContainerRef} className="flex-1 overflow-auto" style={{ background: BG_COLOR }}>
           <div
             style={{
               transformOrigin: 'top center',
@@ -1158,56 +1104,61 @@ export default function MangaReaderPage() {
                   />
                 </div>
               ))}
+              {/* End card at bottom of vertical scroll */}
+              <div style={{ width: '100%', maxWidth: 900, minHeight: 320 }} className="flex items-center justify-center">
+                <EndCard />
+              </div>
             </div>
           </div>
         </div>
       );
     }
 
+    // Single mode — end card replaces the page when index === images.length
+    const isEndCard = currentPageIndex >= images.length;
+
     return (
       <div
         className="flex-1 overflow-auto flex items-center justify-center"
         style={{ background: BG_COLOR }}
       >
-        {images[currentPageIndex] && (
-          <div
-            style={{
-              transform: `scale(${zoomScale})`,
-              transformOrigin: 'center center',
-              flexShrink: 0,
-            }}
-          >
-            <MangaPage
-              src={images[currentPageIndex]}
-              pageIndex={currentPageIndex}
-              ocrData={ocrDataPages[currentPageIndex]}
-              showOCRBoxes={showOCRBoxes}
-              boxPadding={boxPadding}
-              fitMode="contain"
-              containerW={singleW}
-              containerH={singleH}
-              selectedBlock={selectedBlock}
-              onSelectBlock={handleSelectBlock}
-            />
-          </div>
+        {isEndCard ? (
+          <EndCard />
+        ) : (
+          images[currentPageIndex] && (
+            <div style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center center', flexShrink: 0 }}>
+              <MangaPage
+                src={images[currentPageIndex]}
+                pageIndex={currentPageIndex}
+                ocrData={ocrDataPages[currentPageIndex]}
+                showOCRBoxes={showOCRBoxes}
+                boxPadding={boxPadding}
+                fitMode="contain"
+                containerW={viewerSize.w}
+                containerH={viewerSize.h}
+                selectedBlock={selectedBlock}
+                onSelectBlock={handleSelectBlock}
+              />
+            </div>
+          )
         )}
       </div>
     );
   };
 
-  if (loadingImages) return <LoadingScreen isOpen message="Loading chapter..." />;
+  if (loadingChapter) return <LoadingScreen isOpen message="Đang tải chapter..." />;
 
   if (images.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4">
-        <p className="text-muted-foreground">No images found</p>
-        <Button onClick={() => navigate(`/manga/${mangaId}`)}>Go Back</Button>
+        <p className="text-muted-foreground">Không tìm thấy ảnh</p>
+        <Button onClick={() => navigate(`/manga/${mangaId}`)}>Quay lại</Button>
       </div>
     );
   }
 
-  const currentChapter = currentChapterIdx >= 0 ? chapters[currentChapterIdx] : null;
-  const pageLabel = `${currentPageIndex + 1} / ${images.length}`;
+  const isEndCard = currentPageIndex >= images.length;
+  const pageLabel = isEndCard ? `Hết / ${images.length}` : `${currentPageIndex + 1} / ${images.length}`;
 
   // ── JSX ───────────────────────────────────────────────────────────────────
   return (
@@ -1219,26 +1170,22 @@ export default function MangaReaderPage() {
             variant="ghost"
             size="icon"
             className="h-8 w-8 flex-shrink-0"
-            onClick={() => navigate(`/manga/${encodeURIComponent(mangaId)}`)}
+            onClick={() => navigate(`/manga/${mangaId}`)}
           >
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="min-w-0">
             <p className="font-semibold text-sm truncate">
-              {currentChapter
-                ? `Ch. ${currentChapter.num} ${currentChapter.title}`
-                : `Chapter ${chapterUrl}`}
+              {currentChapter ? chapterLabel(currentChapter) : ''}
+              {currentChapter?.title ? ` ${currentChapter.title}` : ''}
             </p>
-            <p className="text-xs text-muted-foreground">{pageLabel}</p>
+            <p className="text-xs text-muted-foreground">{mangaTitle} · {pageLabel}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {readMode !== 'vertical' && (
-            <Select
-              value={String(currentPageIndex)}
-              onValueChange={(v) => goTo(parseInt(v))}
-            >
+            <Select value={String(currentPageIndex)} onValueChange={(v) => goTo(parseInt(v))}>
               <SelectTrigger className="w-[100px] h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -1272,52 +1219,28 @@ export default function MangaReaderPage() {
           )}
 
           {prevChapter && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              title={`Prev: Ch. ${prevChapter.num}`}
-              onClick={() => goToChapter(prevChapter)}
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" title={`Prev: ${chapterLabel(prevChapter)}`} onClick={() => goToChapter(prevChapter)}>
               <SkipBack className="w-4 h-4" />
             </Button>
           )}
           {nextChapter && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              title={`Next: Ch. ${nextChapter.num}`}
-              onClick={() => goToChapter(nextChapter)}
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" title={`Next: ${chapterLabel(nextChapter)}`} onClick={() => goToChapter(nextChapter)}>
               <SkipForward className="w-4 h-4" />
             </Button>
           )}
 
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setPanelOpen((v) => !v)}
-          >
-            {panelOpen ? (
-              <PanelRightClose className="w-4 h-4" />
-            ) : (
-              <PanelRightOpen className="w-4 h-4" />
-            )}
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPanelOpen((v) => !v)}>
+            {panelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
           </Button>
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 flex overflow-hidden min-h-0">
-        <div
-          ref={setViewerNode}
-          className="flex-1 flex overflow-hidden relative min-w-0 min-h-0"
-        >
+      {/* Body — viewer always takes full width, panel floats over it */}
+      <div className="flex-1 overflow-hidden min-h-0 relative">
+        <div ref={setViewerNode} className="absolute inset-0 flex overflow-hidden">
           {renderPages()}
 
-          {readMode !== 'vertical' && (
+          {readMode !== 'vertical' && !isEndCard && (
             <>
               <button
                 onClick={prevPage}
@@ -1337,63 +1260,57 @@ export default function MangaReaderPage() {
           )}
         </div>
 
-        {/* Right panel */}
+        {/* Right panel — overlays the reader, doesn't push it */}
         {panelOpen && (
-          <div className="w-72 border-l border-border bg-card flex flex-col flex-shrink-0 min-h-0">
-            <div className="flex border-b border-border flex-shrink-0">
-              {(['settings', 'chapters', 'text', 'dictionary'] as PanelTab[]).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setPanelTab(tab)}
-                  className={`flex-1 py-2 text-xs font-medium capitalize transition-colors ${panelTab === tab
-                      ? 'border-b-2 border-primary text-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
+          <>
+            {/* Backdrop — tappable on mobile to close */}
+            <div
+              className="absolute inset-0 z-20 bg-black/40 sm:hidden"
+              onClick={() => setPanelOpen(false)}
+            />
+            <div className="absolute top-0 right-0 bottom-0 z-30 w-72 max-w-[85vw] border-l border-border bg-card flex flex-col shadow-2xl">
+              {/* Tab bar */}
+              <div className="flex border-b border-border flex-shrink-0">
+                {(['settings', 'chapters', 'text', 'dictionary'] as PanelTab[]).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setPanelTab(tab)}
+                    className={`flex-1 py-2 text-xs font-medium capitalize transition-colors ${
+                      panelTab === tab ? 'border-b-2 border-primary text-foreground' : 'text-muted-foreground hover:text-foreground'
                     }`}
-                >
-                  {tab === 'chapters' ? (
-                    <span className="flex items-center justify-center gap-1">
-                      <List className="w-3 h-3" /> Chapters
-                    </span>
-                  ) : tab === 'text' ? (
-                    <span className="flex items-center justify-center gap-1">
-                      <Type className="w-3 h-3" /> Text
-                    </span>
-                  ) : tab === 'dictionary' ? (
-                    <span className="flex items-center justify-center gap-1">
-                      <BookOpen className="w-3 h-3" /> Dict
-                    </span>
-                  ) : (
-                    'Settings'
-                  )}
-                </button>
-              ))}
-            </div>
+                  >
+                    {tab === 'chapters' ? (
+                      <span className="flex items-center justify-center gap-1"><List className="w-3 h-3" /> Chapters</span>
+                    ) : tab === 'text' ? (
+                      <span className="flex items-center justify-center gap-1"><Type className="w-3 h-3" /> Text</span>
+                    ) : tab === 'dictionary' ? (
+                      <span className="flex items-center justify-center gap-1"><BookOpen className="w-3 h-3" /> Dict</span>
+                    ) : 'Settings'}
+                  </button>
+                ))}
+              </div>
 
-            {panelTab === 'settings' ? (
+            {/* Settings tab */}
+            {panelTab === 'settings' && (
               <ScrollArea className="flex-1">
                 <div className="p-4 space-y-5">
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                      Reading Mode
-                    </Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Reading Mode</Label>
                     <div className="grid grid-cols-2 gap-1.5">
-                      {(
-                        [
-                          { value: 'single', label: 'Trang đơn', icon: BookOpen },
-                          { value: 'vertical', label: 'Cuộn dọc', icon: AlignJustify },
-                        ] as const
-                      ).map(({ value, label, icon: Icon }) => (
+                      {([
+                        { value: 'single', label: 'Trang đơn', icon: BookOpen },
+                        { value: 'vertical', label: 'Cuộn dọc', icon: AlignJustify },
+                      ] as const).map(({ value, label, icon: Icon }) => (
                         <button
                           key={value}
                           onClick={() => setReadMode(value)}
-                          className={`flex flex-col items-center gap-1 p-2 rounded-md border text-xs font-medium transition-colors ${readMode === value
+                          className={`flex flex-col items-center gap-1 p-2 rounded-md border text-xs font-medium transition-colors ${
+                            readMode === value
                               ? 'border-primary bg-primary/10 text-primary'
                               : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
-                            }`}
-                          data-testid={`read-mode-${value}`}
+                          }`}
                         >
-                          <Icon className="w-4 h-4" />
-                          {label}
+                          <Icon className="w-4 h-4" /> {label}
                         </button>
                       ))}
                     </div>
@@ -1403,44 +1320,18 @@ export default function MangaReaderPage() {
 
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                        Zoom
-                      </Label>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Zoom</Label>
                       <span className="text-xs font-mono text-muted-foreground">{zoom}%</span>
                     </div>
-                    <Slider
-                      min={MIN_ZOOM}
-                      max={MAX_ZOOM}
-                      step={ZOOM_STEP}
-                      value={[zoom]}
-                      onValueChange={([v]) => setZoom(v)}
-                      className="w-full"
-                    />
+                    <Slider min={MIN_ZOOM} max={MAX_ZOOM} step={ZOOM_STEP} value={[zoom]} onValueChange={([v]) => setZoom(v)} className="w-full" />
                     <div className="flex items-center gap-1.5">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7 flex-1"
-                        onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
-                        disabled={zoom <= MIN_ZOOM}
-                      >
+                      <Button variant="outline" size="icon" className="h-7 w-7 flex-1" onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))} disabled={zoom <= MIN_ZOOM}>
                         <ZoomOut className="w-3.5 h-3.5" />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 flex-1 text-xs"
-                        onClick={() => setZoom(100)}
-                      >
+                      <Button variant="outline" size="sm" className="h-7 flex-1 text-xs" onClick={() => setZoom(100)}>
                         <Maximize2 className="w-3 h-3 mr-1" /> Reset
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-7 w-7 flex-1"
-                        onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
-                        disabled={zoom >= MAX_ZOOM}
-                      >
+                      <Button variant="outline" size="icon" className="h-7 w-7 flex-1" onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))} disabled={zoom >= MAX_ZOOM}>
                         <ZoomIn className="w-3.5 h-3.5" />
                       </Button>
                     </div>
@@ -1450,13 +1341,9 @@ export default function MangaReaderPage() {
                   <Separator />
 
                   <div className="space-y-3">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                      OCR / Text
-                    </Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">OCR / Text</Label>
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="ocr-boxes" className="text-sm cursor-pointer">
-                        Hiện bounding box
-                      </Label>
+                      <Label htmlFor="ocr-boxes" className="text-sm cursor-pointer">Hiện bounding box</Label>
                       <Switch
                         id="ocr-boxes"
                         checked={showOCRBoxes}
@@ -1464,78 +1351,34 @@ export default function MangaReaderPage() {
                         disabled={!ocrLoaded && ocrPagesReceived === 0}
                       />
                     </div>
-
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <Label className="text-xs cursor-pointer">Padding box</Label>
-                        <span className="text-xs font-mono text-muted-foreground">
-                          {boxPadding}px
-                        </span>
+                        <span className="text-xs font-mono text-muted-foreground">{boxPadding}px</span>
                       </div>
-                      <Slider
-                        min={MIN_PADDING}
-                        max={MAX_PADDING}
-                        step={1}
-                        value={[boxPadding]}
-                        onValueChange={([v]) => setBoxPadding(v)}
-                        className="w-full"
-                      />
+                      <Slider min={MIN_PADDING} max={MAX_PADDING} step={1} value={[boxPadding]} onValueChange={([v]) => setBoxPadding(v)} className="w-full" />
                     </div>
 
-                    <Button
-                      onClick={loadOCR}
-                      disabled={loadingOCR || ocrLoaded}
-                      size="sm"
-                      className="w-full h-8 text-xs gap-1.5"
-                    >
-                      {loadingOCR ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <ScanText className="w-3.5 h-3.5" />
-                      )}
-                      {ocrLoaded
-                        ? 'OCR đã tải'
-                        : loadingOCR
-                          ? `Đang tải OCR ${ocrPagesReceived}/${images.length}…`
-                          : 'Tải OCR'}
+                    <Button onClick={loadOCR} disabled={loadingOCR || ocrLoaded} size="sm" className="w-full h-8 text-xs gap-1.5">
+                      {loadingOCR ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ScanText className="w-3.5 h-3.5" />}
+                      {ocrLoaded ? 'OCR đã tải' : loadingOCR ? `Đang tải OCR ${ocrPagesReceived}/${images.length}…` : 'Tải OCR'}
                     </Button>
 
-                    {/* Progress bar — visible while streaming or once any
-                        page is loaded, so users can see how much of the
-                        chapter is already OCR'd while they keep reading
-                        and copying. */}
                     {(loadingOCR || ocrPagesReceived > 0) && (
                       <div className="space-y-1">
                         <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                           <div
-                            className={`h-full transition-all ${
-                              ocrLoaded ? 'bg-emerald-500' : 'bg-primary'
-                            }`}
-                            style={{
-                              width: `${
-                                images.length === 0
-                                  ? 0
-                                  : Math.min(
-                                      100,
-                                      Math.round((ocrPagesReceived / images.length) * 100),
-                                    )
-                              }%`,
-                            }}
+                            className={`h-full transition-all ${ocrLoaded ? 'bg-emerald-500' : 'bg-primary'}`}
+                            style={{ width: `${images.length === 0 ? 0 : Math.min(100, Math.round((ocrPagesReceived / images.length) * 100))}%` }}
                           />
                         </div>
                         <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                          <span>
-                            {ocrPagesReceived}/{images.length} trang
-                          </span>
-                          <span>
-                            {images.length === 0
-                              ? '0%'
-                              : `${Math.round((ocrPagesReceived / images.length) * 100)}%`}
-                          </span>
+                          <span>{ocrPagesReceived}/{images.length} trang</span>
+                          <span>{images.length === 0 ? '0%' : `${Math.round((ocrPagesReceived / images.length) * 100)}%`}</span>
                         </div>
                         {loadingOCR && (
                           <p className="text-[11px] text-muted-foreground leading-snug">
-                            Bạn có thể tiếp tục đọc và sao chép text ở các trang đã tải xong — phần còn lại đang được tải nền.
+                            Bạn có thể tiếp tục đọc và sao chép text ở các trang đã tải xong.
                           </p>
                         )}
                       </div>
@@ -1543,7 +1386,7 @@ export default function MangaReaderPage() {
 
                     {ocrLoaded && (
                       <p className="text-xs text-muted-foreground leading-snug">
-                        Chạm vào bounding box để mở trong tab Text. Nhấn nút copy ở góc để sao chép toàn bộ.
+                        Chạm vào bounding box để mở trong tab Text.
                       </p>
                     )}
                   </div>
@@ -1552,21 +1395,12 @@ export default function MangaReaderPage() {
 
                   {readMode !== 'vertical' && (
                     <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                        Jump to Page
-                      </Label>
-                      <Select
-                        value={String(currentPageIndex)}
-                        onValueChange={(v) => goTo(parseInt(v))}
-                      >
-                        <SelectTrigger className="text-xs h-8">
-                          <SelectValue />
-                        </SelectTrigger>
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Jump to Page</Label>
+                      <Select value={String(currentPageIndex)} onValueChange={(v) => goTo(parseInt(v))}>
+                        <SelectTrigger className="text-xs h-8"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {images.map((_, i) => (
-                            <SelectItem key={i} value={String(i)} className="text-xs">
-                              Page {i + 1}
-                            </SelectItem>
+                            <SelectItem key={i} value={String(i)} className="text-xs">Page {i + 1}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -1576,56 +1410,40 @@ export default function MangaReaderPage() {
                   <Separator />
 
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                      Chapter
-                    </Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Chapter</Label>
                     <div className="flex gap-1.5">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 h-8 text-xs gap-1"
-                        disabled={!prevChapter}
-                        onClick={() => prevChapter && goToChapter(prevChapter)}
-                      >
+                      <Button variant="outline" size="sm" className="flex-1 h-8 text-xs gap-1" disabled={!prevChapter} onClick={() => prevChapter && goToChapter(prevChapter)}>
                         <SkipBack className="w-3.5 h-3.5" /> Prev
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 h-8 text-xs gap-1"
-                        disabled={!nextChapter}
-                        onClick={() => nextChapter && goToChapter(nextChapter)}
-                      >
+                      <Button variant="outline" size="sm" className="flex-1 h-8 text-xs gap-1" disabled={!nextChapter} onClick={() => nextChapter && goToChapter(nextChapter)}>
                         Next <SkipForward className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>
                 </div>
               </ScrollArea>
-            ) : panelTab === 'chapters' ? (
+            )}
+
+            {/* Chapters tab */}
+            {panelTab === 'chapters' && (
               <ScrollArea className="flex-1">
-                {loadingChapters ? (
-                  <div className="p-4 text-xs text-muted-foreground">Loading chapters…</div>
-                ) : chapters.length === 0 ? (
-                  <div className="p-4 text-xs text-muted-foreground">No chapters found.</div>
+                {chapters.length === 0 ? (
+                  <div className="p-4 text-xs text-muted-foreground">Không có chapter nào.</div>
                 ) : (
                   <div className="py-1">
                     {chapters.map((ch, i) => {
                       const isActive = i === currentChapterIdx;
                       return (
                         <button
-                          key={ch.url}
+                          key={ch.id}
                           onClick={() => goToChapter(ch)}
-                          className={`w-full text-left px-4 py-2.5 transition-colors ${isActive
-                              ? 'bg-primary/10 text-primary font-medium'
-                              : 'text-foreground hover:bg-muted/50'
-                            }`}
+                          className={`w-full text-left px-4 py-2.5 transition-colors ${
+                            isActive ? 'bg-primary/10 text-primary font-medium' : 'text-foreground hover:bg-muted/50'
+                          }`}
                         >
-                          <p className="text-xs font-semibold">Ch. {ch.num}</p>
+                          <p className="text-xs font-semibold">{chapterLabel(ch)}</p>
                           {ch.title && (
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">
-                              {ch.title}
-                            </p>
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{ch.title}</p>
                           )}
                         </button>
                       );
@@ -1633,7 +1451,10 @@ export default function MangaReaderPage() {
                   </div>
                 )}
               </ScrollArea>
-            ) : panelTab === 'text' ? (
+            )}
+
+            {/* Text tab */}
+            {panelTab === 'text' && (
               <div className="flex-1 flex flex-col min-h-0">
                 {selectedBlockData ? (
                   <>
@@ -1643,16 +1464,10 @@ export default function MangaReaderPage() {
                           Page {selectedBlock!.pageIdx + 1} · Block {selectedBlock!.blockIdx + 1}
                         </p>
                         <p className="text-[10px] text-muted-foreground">
-                          {selectedBlockData.vertical ? 'Dọc' : 'Ngang'} ·{' '}
-                          {selectedBlockData.lines.length} dòng
+                          {selectedBlockData.vertical ? 'Dọc' : 'Ngang'} · {selectedBlockData.lines.length} dòng
                         </p>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs gap-1"
-                        onClick={() => copyToClipboard(selectedText)}
-                      >
+                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => copyToClipboard(selectedText)}>
                         <Copy className="w-3.5 h-3.5" /> Copy
                       </Button>
                     </div>
@@ -1662,26 +1477,13 @@ export default function MangaReaderPage() {
                           readOnly
                           value={selectedText}
                           className="w-full min-h-[180px] p-3 text-sm leading-relaxed bg-background border rounded-md font-japanese resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 select-text"
-                          style={{
-                            fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif',
-                          }}
+                          style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
                         />
                         <div className="flex flex-col gap-2">
-                          <Button
-                            size="sm"
-                            className="w-full gap-1.5"
-                            onClick={() => setTokenizeOpen(true)}
-                            data-testid="manga-tokenize-text-btn"
-                          >
+                          <Button size="sm" className="w-full gap-1.5" onClick={() => setTokenizeOpen(true)}>
                             <Wand2 className="w-3.5 h-3.5" /> Phân tích từ
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="w-full gap-1.5"
-                            onClick={() => setQuickAddText(selectedText)}
-                            data-testid="manga-add-to-deck-btn"
-                          >
+                          <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={() => setQuickAddText(selectedText)}>
                             <BookmarkPlus className="w-3.5 h-3.5" /> Lưu vào bộ
                           </Button>
                         </div>
@@ -1694,9 +1496,7 @@ export default function MangaReaderPage() {
                 ) : (
                   <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-2">
                     <Type className="w-8 h-8 text-muted-foreground/50" />
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Chưa chọn bounding box
-                    </p>
+                    <p className="text-sm font-medium text-muted-foreground">Chưa chọn bounding box</p>
                     <p className="text-xs text-muted-foreground">
                       {ocrLoaded
                         ? 'Chạm vào một bounding box trên trang để hiển thị text ở đây.'
@@ -1705,34 +1505,22 @@ export default function MangaReaderPage() {
                   </div>
                 )}
               </div>
-            ) : (
-              <DictionaryRightPanel />
             )}
+
+            {/* Dictionary tab */}
+            {panelTab === 'dictionary' && <DictionaryRightPanel />}
           </div>
+          </>
         )}
       </div>
 
-      <SentenceTokenizeDialog
-        open={tokenizeOpen}
-        onOpenChange={setTokenizeOpen}
-        text={selectedText}
-      />
+      <SentenceTokenizeDialog open={tokenizeOpen} onOpenChange={setTokenizeOpen} text={selectedText} />
       <AddToDeckDialog
         open={!!quickAddText && quickAddWords.length > 0}
-        onOpenChange={(o) => {
-          if (!o) {
-            setQuickAddText(null);
-            setQuickAddWords([]);
-          }
-        }}
+        onOpenChange={(o) => { if (!o) { setQuickAddText(null); setQuickAddWords([]); } }}
         words={quickAddWords}
         title={`Lưu từ tìm được (${quickAddWords.length})`}
       />
     </div>
   );
-}
-
-function clampIdx(i: number, len: number) {
-  if (len === 0) return 0;
-  return Math.max(0, Math.min(i, len - 1));
 }

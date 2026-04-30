@@ -1,20 +1,18 @@
-import { apiCall, API_BASE_URL } from '../api-client';
+import { apiCall, API_BASE_URL, getStoredToken } from '../api-client';
 
 // ────────────────────────────────────────────────────────────────────────────
-// Schemas mirror the backend `openapi.json` (paths under `/manga/*`).
-// The manga service is id-based: every manga / chapter is identified by a
-// UUID (`manga_id`, `chapter_id`). There is no `manga_url` hack anymore.
+// Types — mirror the OpenAPI schema exactly
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface MangaPreview {
-  id: string;               // UUID
+  id: string;
   title: string;
   cover: string | null;
   status: string | null;
 }
 
 export interface ChapterPreview {
-  id: string;               // UUID
+  id: string;
   title: string;
   chapter_index: number | null;
   date: string | null;
@@ -58,9 +56,6 @@ export interface OCRResultResponse {
   ocr_data: OCRResponse;
 }
 
-/** Response of `GET /manga/read/{chapter_id}` — gives everything the reader
- * needs in one call: manga preview, the current chapter, the whole chapter
- * list and the page image URLs. */
 export interface ReadResponse {
   manga: MangaPreview;
   chapter: ChapterPreview;
@@ -68,14 +63,13 @@ export interface ReadResponse {
   pages: string[];
 }
 
-/** Body for `POST /manga/history`. */
+/** Shape accepted by POST /manga/history */
 export interface ReadHistoryUpdate {
   manga_id: string;
   chapter_id: string;
   current_page?: number;
 }
 
-/** Schema of each item returned by `GET /manga/history`. */
 export interface ReadHistoryResponse {
   id: string;
   current_page: number;
@@ -92,23 +86,14 @@ export interface ReadHistoryResponse {
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface SearchMangaParams {
-  /** Free-text query. Empty string (default) returns a curated / all list. */
-  q?: string;
-  /** Page size, 1-100. */
+  q?: string | null;
   limit?: number;
-  /** Result offset, for pagination. */
   offset?: number;
 }
 
-/**
- * GET /manga/manga?q=&limit=&offset=
- * NOTE: the query string defaults to `''` (empty) — never `null` —
- * matching the "default query is the empty query but not null" rule.
- */
-export async function searchManga(
-  params: SearchMangaParams = {},
-): Promise<MangaPreview[]> {
-  const { q = '', limit = 20, offset = 0 } = params;
+/** GET /manga/manga */
+export async function searchManga(params: SearchMangaParams = {}): Promise<MangaPreview[]> {
+  const { q = null, limit = 20, offset = 0 } = params;
   return apiCall<MangaPreview[]>('/manga/manga', {
     method: 'GET',
     query: { q, limit, offset },
@@ -116,31 +101,32 @@ export async function searchManga(
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Manga detail + reader data
+// Manga detail
 // ────────────────────────────────────────────────────────────────────────────
 
-/** GET /manga/manga/{manga_id}. */
+/** GET /manga/manga/{manga_id} */
 export async function getMangaDetail(mangaId: string): Promise<MangaDetail> {
   return apiCall<MangaDetail>(`/manga/manga/${encodeURIComponent(mangaId)}`, {
     method: 'GET',
   });
 }
 
-/** GET /manga/read/{chapter_id} — returns manga + chapter + chapters + pages. */
+// ────────────────────────────────────────────────────────────────────────────
+// Reader  — single call returns manga info, chapter list, and page URLs
+// ────────────────────────────────────────────────────────────────────────────
+
+/** GET /manga/read/{chapter_id} */
 export async function getChapterRead(chapterId: string): Promise<ReadResponse> {
   return apiCall<ReadResponse>(`/manga/read/${encodeURIComponent(chapterId)}`, {
     method: 'GET',
   });
 }
 
-/** GET /manga/ocr_data/{chapter_id} — non-streaming fallback. */
-export async function getOCRData(chapterId: string): Promise<OCRResponse> {
-  return apiCall<OCRResponse>(`/manga/ocr_data/${encodeURIComponent(chapterId)}`, {
-    method: 'GET',
-  });
-}
+// ────────────────────────────────────────────────────────────────────────────
+// OCR (non-streaming)
+// ────────────────────────────────────────────────────────────────────────────
 
-/** GET /manga/ocr/{chapter_id} — full OCR metadata (who OCR'd etc). */
+/** GET /manga/ocr/{chapter_id} — returns cached OCR result or 404 */
 export async function getOCRResult(chapterId: string): Promise<OCRResultResponse> {
   return apiCall<OCRResultResponse>(`/manga/ocr/${encodeURIComponent(chapterId)}`, {
     method: 'GET',
@@ -149,38 +135,39 @@ export async function getOCRResult(chapterId: string): Promise<OCRResultResponse
 
 // ────────────────────────────────────────────────────────────────────────────
 // Streaming OCR
+// GET /manga/ocr/stream/{chapter_id}
+//   • Backend returns 409 if OCR already exists → caller should use getOCRResult instead
+//   • Requires auth (token attached via Authorization header)
 // ────────────────────────────────────────────────────────────────────────────
 
 export interface OCRStreamHandle {
-  /** Aborts the in-flight SSE stream (closes connection). */
   abort: () => void;
 }
 
-/**
- * GET /manga/ocr_data/stream/{chapter_id}
- * SSE endpoint that yields one `OCRPage` per `data:` event. A trailing
- * `data: [DONE]` event signals completion.
- *
- * Each received page triggers `onPage` immediately so UIs can render them
- * progressively. Callers receive a handle with an `abort()` method so that
- * navigating away cancels the stream cleanly.
- */
 export function getOCRDataStream(
   chapterId: string,
   onPage: (page: OCRPage) => void,
   onDone?: () => void,
   onError?: (error: Error) => void,
 ): OCRStreamHandle {
-  const url = `${API_BASE_URL}/manga/ocr_data/stream/${encodeURIComponent(chapterId)}`;
+  const url = `${API_BASE_URL}/manga/ocr/stream/${encodeURIComponent(chapterId)}`;
   const controller = new AbortController();
 
   (async () => {
     try {
+      const token = getStoredToken();
       const response = await fetch(url, {
         signal: controller.signal,
-        headers: { Accept: 'text/event-stream' },
+        headers: {
+          Accept: 'text/event-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
       });
-      if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+
+      if (!response.ok) {
+        // 409 = already OCR'd; caller should switch to getOCRResult
+        throw new Error(`HTTP ${response.status}`);
+      }
       if (!response.body) throw new Error('No response body');
 
       const reader = response.body.getReader();
@@ -209,7 +196,6 @@ export function getOCRDataStream(
           onPage(parsed as OCRPage);
           return 'ok';
         } catch {
-          console.warn('Failed to parse SSE message:', raw);
           return 'skip';
         }
       };
@@ -217,12 +203,9 @@ export function getOCRDataStream(
       while (!finished) {
         const { done, value } = await reader.read();
         if (done) break;
-
         buffer += decoder.decode(value, { stream: true });
-
         const parts = buffer.split(/\r?\n\r?\n/);
         buffer = parts.pop() ?? '';
-
         for (const part of parts) {
           if (flushEvent(part) === 'done') {
             finished = true;
@@ -232,15 +215,12 @@ export function getOCRDataStream(
         }
       }
 
-      // Drain whatever is left if the server didn't terminate with \n\n.
       if (!finished && buffer.trim().length > 0) {
-        const res = flushEvent(buffer);
-        if (res === 'done') {
+        if (flushEvent(buffer) === 'done') {
           finished = true;
           onDone?.();
         }
       }
-
       if (!finished) onDone?.();
     } catch (e) {
       if ((e as Error).name === 'AbortError') return;
@@ -248,24 +228,23 @@ export function getOCRDataStream(
     }
   })();
 
-  return {
-    abort: () => controller.abort(),
-  };
+  return { abort: () => controller.abort() };
 }
 
 // ────────────────────────────────────────────────────────────────────────────
 // Reading history
 // ────────────────────────────────────────────────────────────────────────────
 
-/** GET /manga/history — returns the authenticated user's reading history. */
+/** GET /manga/history */
 export async function getMangaHistory(): Promise<ReadHistoryResponse[]> {
   return apiCall<ReadHistoryResponse[]>('/manga/history', { method: 'GET' });
 }
 
-/** POST /manga/history — upsert progress by `(manga_id, chapter_id)`. */
-export async function upsertMangaHistory(
-  data: ReadHistoryUpdate,
-): Promise<ReadHistoryResponse> {
+/**
+ * POST /manga/history
+ * Only accepts { manga_id, chapter_id, current_page } — all UUIDs.
+ */
+export async function upsertMangaHistory(data: ReadHistoryUpdate): Promise<ReadHistoryResponse> {
   return apiCall<ReadHistoryResponse>('/manga/history', {
     method: 'POST',
     body: {
