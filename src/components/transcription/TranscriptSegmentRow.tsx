@@ -3,6 +3,7 @@ import { Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
 import type { ClozeSegment, ClozeToken } from '@/lib/cloze-block';
+import type { HighlightMode } from '@/lib/settings-storage';
 
 /**
  * A single cloze "word" inside the transcript. Behaviours:
@@ -107,6 +108,7 @@ export function TranscriptSegmentRow({
   currentTime,
   onSeek,
   rowRef,
+  highlightMode = 'token',
 }: {
   cs: ClozeSegment;
   isActive: boolean;
@@ -114,36 +116,45 @@ export function TranscriptSegmentRow({
   currentTime: number;
   onSeek?: (seconds: number) => void;
   rowRef?: React.Ref<HTMLDivElement>;
+  highlightMode?: HighlightMode;
 }) {
   const [tokenizeOpen, setTokenizeOpen] = useState(false);
 
   const sentence = cs.tokens.map((t) => t.word.token).join('');
 
+  const sentenceHighlight =
+    highlightMode === 'sentence' && isActive
+      ? 'bg-primary/8 border-primary/60 shadow-sm'
+      : highlightMode === 'none'
+      ? 'border-transparent hover:bg-white/3 hover:border-white/8'
+      : isActive
+      ? 'bg-primary/8 border-primary/60 shadow-sm'
+      : 'border-transparent hover:bg-white/3 hover:border-white/8';
+
   return (
     <div
       ref={rowRef}
-      className={`group transition-all duration-300 p-4 rounded-xl border-l-4 relative ${
-        isActive
-          ? 'bg-primary/8 border-primary/60 shadow-sm'
-          : 'border-transparent hover:bg-white/3 hover:border-white/8'
-      }`}
+      className={`group transition-all duration-300 p-4 rounded-xl border-l-4 relative ${sentenceHighlight}`}
     >
       <p className="flex flex-wrap items-center leading-[2.2] text-base">
-        {cs.tokens.map((ct, ti) => (
-          <TranscriptClozeWord
-            key={ti}
-            ct={ct}
-            showClozeMode={showClozeMode}
-            isCurrent={
-              isActive &&
-              ct.word.start !== null &&
-              ct.word.end !== null &&
-              currentTime >= ct.word.start &&
-              currentTime <= ct.word.end
-            }
-            onSeek={onSeek}
-          />
-        ))}
+        {cs.tokens.map((ct, ti) => {
+          const isCurrentToken =
+            highlightMode === 'token' &&
+            isActive &&
+            ct.word.start !== null &&
+            ct.word.end !== null &&
+            currentTime >= ct.word.start &&
+            currentTime <= ct.word.end;
+          return (
+            <TranscriptClozeWord
+              key={ti}
+              ct={ct}
+              showClozeMode={showClozeMode}
+              isCurrent={isCurrentToken}
+              onSeek={onSeek}
+            />
+          );
+        })}
       </p>
 
       <Button

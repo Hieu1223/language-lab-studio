@@ -1,15 +1,23 @@
+// localStorage-backed settings used across the app.
+
+export type HighlightMode = 'token' | 'sentence' | 'none';
+
 export interface TranscriptionSettings {
-  clozeMinGaps: number;
-  clozeMaxGaps: number;
-  clozeMinChars: number;
-  clozeMaxChars: number;
+  /** Hide block range [min, max] */
+  hiddenRange: [number, number];
+  /** Visible block range [min, max] */
+  visibleRange: [number, number];
+  /** Auto-scroll the transcript to keep current item visible */
   autoScroll: boolean;
-  splitRatio: number;
+  /** Highlight mode for currently-spoken content */
+  highlightMode: HighlightMode;
+  /** Show cloze (Study) vs raw text (Read) */
+  showClozeMode: boolean;
 }
 
 export interface MangaSettings {
   showOCR: boolean;
-  ocrPages: number[]; // Page indices with OCR enabled
+  ocrPages: number[];
 }
 
 export interface AppSettings {
@@ -19,15 +27,16 @@ export interface AppSettings {
 
 const STORAGE_KEY = 'language-lab-studio-settings';
 
+const DEFAULT_TRANSCRIPTION: TranscriptionSettings = {
+  hiddenRange: [1, 3],
+  visibleRange: [2, 5],
+  autoScroll: true,
+  highlightMode: 'token',
+  showClozeMode: true,
+};
+
 const DEFAULT_SETTINGS: AppSettings = {
-  transcription: {
-    clozeMinGaps: 2,
-    clozeMaxGaps: 5,
-    clozeMinChars: 2,
-    clozeMaxChars: 5,
-    autoScroll: true,
-    splitRatio: 50,
-  },
+  transcription: { ...DEFAULT_TRANSCRIPTION },
   manga: {
     showOCR: false,
     ocrPages: [],
@@ -37,11 +46,9 @@ const DEFAULT_SETTINGS: AppSettings = {
 function loadSettings(): AppSettings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Failed to parse settings:', error);
+    if (stored) return JSON.parse(stored);
+  } catch (e) {
+    console.error('Failed to parse settings:', e);
   }
   return DEFAULT_SETTINGS;
 }
@@ -49,21 +56,26 @@ function loadSettings(): AppSettings {
 function saveSettings(settings: AppSettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch (error) {
-    console.error('Failed to save settings:', error);
+  } catch (e) {
+    console.error('Failed to save settings:', e);
   }
 }
 
 export function getTranscriptionSettings(): TranscriptionSettings {
   const settings = loadSettings();
-  return {
-    ...DEFAULT_SETTINGS.transcription,
-    ...(settings.transcription || {}),
-  } as TranscriptionSettings;
+  const merged = { ...DEFAULT_TRANSCRIPTION, ...(settings.transcription || {}) };
+  // Defensive: ensure tuples
+  if (!Array.isArray(merged.hiddenRange) || merged.hiddenRange.length !== 2) {
+    merged.hiddenRange = DEFAULT_TRANSCRIPTION.hiddenRange;
+  }
+  if (!Array.isArray(merged.visibleRange) || merged.visibleRange.length !== 2) {
+    merged.visibleRange = DEFAULT_TRANSCRIPTION.visibleRange;
+  }
+  return merged;
 }
 
 export function setTranscriptionSettings(
-  partial: Partial<TranscriptionSettings>
+  partial: Partial<TranscriptionSettings>,
 ): void {
   const settings = loadSettings();
   settings.transcription = {
@@ -83,10 +95,7 @@ export function getMangaSettings(): MangaSettings {
 
 export function setMangaSettings(partial: Partial<MangaSettings>): void {
   const settings = loadSettings();
-  settings.manga = {
-    ...getMangaSettings(),
-    ...partial,
-  };
+  settings.manga = { ...getMangaSettings(), ...partial };
   saveSettings(settings);
 }
 

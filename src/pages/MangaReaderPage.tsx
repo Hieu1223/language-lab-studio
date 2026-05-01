@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ChevronLeft,
-  ChevronRight,
   Eye,
   EyeOff,
   BookOpen,
@@ -1374,40 +1372,28 @@ export default function MangaReaderPage() {
         </div>
       </div>
 
-      {/* Body — viewer always takes full width, panel floats over it */}
-      <div className="flex-1 overflow-hidden min-h-0 relative">
-        <div ref={setViewerNode} className="absolute inset-0 flex overflow-hidden">
-          {renderPages()}
-
-          {readMode !== 'vertical' && !isEndCard && (
-            <>
-              <button
-                onClick={prevPage}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-20 w-10 flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors rounded-r-lg"
-                aria-label="Previous"
-              >
-                <ChevronLeft className="w-5 h-5 text-white" />
-              </button>
-              <button
-                onClick={nextPage}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-20 w-10 flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors rounded-l-lg"
-                aria-label="Next"
-              >
-                <ChevronRight className="w-5 h-5 text-white" />
-              </button>
-            </>
-          )}
+      {/* Body — desktop: panel pushes layout. Mobile: panel overlays. */}
+      <div className="flex-1 overflow-hidden min-h-0 flex">
+        {/* Viewer fills remaining space */}
+        <div className="flex-1 min-w-0 min-h-0 relative overflow-hidden">
+          <div ref={setViewerNode} className="absolute inset-0 flex overflow-hidden">
+            {renderPages()}
+            {/* Single-mode arrows removed per UX request — use keyboard / page picker / scroll */}
+          </div>
         </div>
 
-        {/* Right panel — overlays the reader, doesn't push it */}
+        {/* Right panel */}
         {panelOpen && (
           <>
-            {/* Backdrop — tappable on mobile to close */}
+            {/* Mobile-only backdrop */}
             <div
               className="absolute inset-0 z-20 bg-black/40 sm:hidden"
               onClick={() => setPanelOpen(false)}
             />
-            <div className="absolute top-0 right-0 bottom-0 z-30 w-72 max-w-[85vw] border-l border-border bg-card flex flex-col shadow-2xl">
+            {/* Drawer:
+                - Mobile: absolute floating over viewer
+                - Desktop (sm+): relative, part of flex flow → pushes viewer */}
+            <div className="absolute sm:relative top-0 right-0 bottom-0 sm:top-auto sm:right-auto sm:bottom-auto z-30 sm:z-auto w-72 sm:w-80 max-w-[85vw] sm:max-w-none flex-shrink-0 border-l border-border bg-card flex flex-col shadow-2xl sm:shadow-none h-full">
               {/* Tab bar */}
               <div className="flex border-b border-border flex-shrink-0">
                 {(['settings', 'chapters', 'text', 'dictionary'] as PanelTab[]).map((tab) => (
@@ -1627,7 +1613,7 @@ export default function MangaReaderPage() {
 
                     {/* ── Block list ── */}
                     <ScrollArea className="flex-1">
-                      <div ref={blockListRef} className="divide-y divide-border w-full">
+                      <div ref={blockListRef} className="p-2 space-y-2 w-full">
                         {ocrDataPages.map((page, pageIdx) => {
                           if (!page) return null;
                           return page.blocks.map((block, blockIdx) => {
@@ -1660,16 +1646,16 @@ export default function MangaReaderPage() {
                                   if (el) blockItemRefs.current.set(key, el);
                                   else blockItemRefs.current.delete(key);
                                 }}
-                                className={
+                                className={`rounded-lg border bg-card overflow-hidden transition-colors ${
                                   isSelected
-                                    ? 'border-l-2 border-l-amber-400 bg-amber-400/5'
-                                    : 'border-l-2 border-l-transparent'
-                                }
+                                    ? 'border-amber-400 ring-1 ring-amber-400/40'
+                                    : 'border-border hover:border-primary/40'
+                                }`}
                               >
                                 {/* ── Header row ── */}
                                 <button
                                   type="button"
-                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/40 transition-colors group"
+                                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-muted/40 transition-colors group"
                                   onClick={() => {
                                     const next = isExpanded ? null : key;
                                     setExpandedBlock(next);
@@ -1687,7 +1673,6 @@ export default function MangaReaderPage() {
                                   <span className="flex-1 min-w-0 text-xs font-japanese truncate text-foreground/80">
                                     {preview}
                                   </span>
-                                  {/* Tokenized indicator dot */}
                                   {tokens && !isTokenizing && (
                                     <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" title="Đã phân tích" />
                                   )}
@@ -1709,27 +1694,7 @@ export default function MangaReaderPage() {
 
                                 {/* ── Expanded body ── */}
                                 {isExpanded && (
-                                  <div className="border-t border-border/50 bg-muted/20 pl-3 pr-3 pt-2.5 pb-3 space-y-2.5 overflow-hidden">
-                                    {/* Raw text — selectable */}
-                                    <p
-                                      className="text-sm font-japanese leading-relaxed text-foreground/90 whitespace-pre-wrap select-text"
-                                      style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
-                                    >
-                                      {blockText}
-                                    </p>
-
-                                    {/* Before tokenized: show button */}
-                                    {!tokens && !isTokenizing && (
-                                      <Button
-                                        size="sm"
-                                        className="w-full h-8 text-xs gap-1.5"
-                                        onClick={() => tokenizeBlock(key, blockText)}
-                                      >
-                                        <Wand2 className="w-3.5 h-3.5 flex-shrink-0" />
-                                        <span className="truncate">Phân tích</span>
-                                      </Button>
-                                    )}
-
+                                  <div className="border-t border-border/50 bg-muted/20 px-3 pt-2.5 pb-3 space-y-2.5">
                                     {/* While tokenizing */}
                                     {isTokenizing && (
                                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -1737,7 +1702,28 @@ export default function MangaReaderPage() {
                                       </div>
                                     )}
 
-                                    {/* After tokenized: compact inline tokens, no button */}
+                                    {/* Not yet tokenized: raw text + analyze button (per-card) */}
+                                    {!tokens && !isTokenizing && (
+                                      <>
+                                        <p
+                                          className="text-sm font-japanese leading-relaxed text-foreground/90 whitespace-pre-wrap select-text"
+                                          style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
+                                        >
+                                          {blockText}
+                                        </p>
+                                        <Button
+                                          size="sm"
+                                          variant="default"
+                                          className="w-full h-8 text-xs gap-1.5"
+                                          onClick={() => tokenizeBlock(key, blockText)}
+                                        >
+                                          <Wand2 className="w-3.5 h-3.5 flex-shrink-0" />
+                                          Phân tích từ
+                                        </Button>
+                                      </>
+                                    )}
+
+                                    {/* After tokenize: tokens REPLACE the raw text — clickable underline pop */}
                                     {tokens && !isTokenizing && (
                                       <BlockTokenResult
                                         tokens={tokens}
