@@ -1379,24 +1379,7 @@ export default function MangaReaderPage() {
         <div ref={setViewerNode} className="absolute inset-0 flex overflow-hidden">
           {renderPages()}
 
-          {readMode !== 'vertical' && !isEndCard && (
-            <>
-              <button
-                onClick={prevPage}
-                className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-20 w-10 flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors rounded-r-lg"
-                aria-label="Previous"
-              >
-                <ChevronLeft className="w-5 h-5 text-white" />
-              </button>
-              <button
-                onClick={nextPage}
-                className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-20 w-10 flex items-center justify-center bg-black/30 hover:bg-black/50 transition-colors rounded-l-lg"
-                aria-label="Next"
-              >
-                <ChevronRight className="w-5 h-5 text-white" />
-              </button>
-            </>
-          )}
+          {/* Single-mode arrows removed per UX request — use keyboard / page picker / scroll */}
         </div>
 
         {/* Right panel — overlays the reader, doesn't push it */}
