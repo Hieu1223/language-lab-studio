@@ -1374,23 +1374,28 @@ export default function MangaReaderPage() {
         </div>
       </div>
 
-      {/* Body — viewer always takes full width, panel floats over it */}
-      <div className="flex-1 overflow-hidden min-h-0 relative">
-        <div ref={setViewerNode} className="absolute inset-0 flex overflow-hidden">
-          {renderPages()}
-
-          {/* Single-mode arrows removed per UX request — use keyboard / page picker / scroll */}
+      {/* Body — desktop: panel pushes layout. Mobile: panel overlays. */}
+      <div className="flex-1 overflow-hidden min-h-0 flex">
+        {/* Viewer fills remaining space */}
+        <div className="flex-1 min-w-0 min-h-0 relative overflow-hidden">
+          <div ref={setViewerNode} className="absolute inset-0 flex overflow-hidden">
+            {renderPages()}
+            {/* Single-mode arrows removed per UX request — use keyboard / page picker / scroll */}
+          </div>
         </div>
 
-        {/* Right panel — overlays the reader, doesn't push it */}
+        {/* Right panel */}
         {panelOpen && (
           <>
-            {/* Backdrop — tappable on mobile to close */}
+            {/* Mobile-only backdrop */}
             <div
               className="absolute inset-0 z-20 bg-black/40 sm:hidden"
               onClick={() => setPanelOpen(false)}
             />
-            <div className="absolute top-0 right-0 bottom-0 z-30 w-72 max-w-[85vw] border-l border-border bg-card flex flex-col shadow-2xl">
+            {/* Drawer:
+                - Mobile: absolute floating over viewer
+                - Desktop (sm+): relative, part of flex flow → pushes viewer */}
+            <div className="absolute sm:relative top-0 right-0 bottom-0 sm:top-auto sm:right-auto sm:bottom-auto z-30 sm:z-auto w-72 sm:w-80 max-w-[85vw] sm:max-w-none flex-shrink-0 border-l border-border bg-card flex flex-col shadow-2xl sm:shadow-none h-full">
               {/* Tab bar */}
               <div className="flex border-b border-border flex-shrink-0">
                 {(['settings', 'chapters', 'text', 'dictionary'] as PanelTab[]).map((tab) => (
