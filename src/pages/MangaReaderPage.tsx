@@ -24,6 +24,7 @@ import {
   BookmarkPlus,
   Search,
   Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -40,10 +41,9 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
 import { AddToDeckDialog } from '@/components/dictionary/AddToDeckDialog';
 import { searchWords, type WordResponse } from '@/lib/api/flashcard';
-import { searchKanji, getKanji, type KanjiResponse } from '@/lib/api/tokenization';
+import { searchKanji, getKanji, type KanjiResponse, tokenize, type Token, type WordEntry } from '@/lib/api/tokenization';
 import {
   getChapterRead,
   getOCRResult,
@@ -382,6 +382,127 @@ function MangaPage({
 
 // ─── Dictionary Panel ─────────────────────────────────────────────────────────
 
+// ─── Block Token Result ──────────────────────────────────────────────────────
+// Compact inline token display that fits the 288px drawer.
+// • Tokens wrap naturally — no horizontal overflow.
+// • Click a word → shows reading + meaning card below the flow.
+// • Individual save or bulk-save to deck via AddToDeckDialog.
+
+interface BlockTokenResultProps {
+  tokens: Token[];
+  deckEntries: WordEntry[];
+  onRetokenize: () => void;
+}
+
+function BlockTokenResult({ tokens, deckEntries, onRetokenize }: BlockTokenResultProps) {
+  const [activeToken, setActiveToken] = useState<Token | null>(null);
+  const [deckOpen, setDeckOpen] = useState(false);
+  const [deckWords, setDeckWords] = useState<WordEntry[]>([]);
+
+  const openDeck = (words: WordEntry[]) => {
+    setDeckWords(words);
+    setDeckOpen(true);
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* ── Wrapping token flow ── */}
+      <div
+        className="flex flex-wrap gap-x-0.5 gap-y-1.5 leading-loose"
+        style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
+      >
+        {tokens.map((t, i) => {
+          const hasEntry = !!t.entry;
+          const isActive = activeToken === t;
+          if (!hasEntry) {
+            return (
+              <span key={i} className="text-sm text-foreground/50 font-japanese">
+                {t.surface}
+              </span>
+            );
+          }
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setActiveToken(isActive ? null : t)}
+              className={`font-japanese text-sm rounded px-0.5 transition-colors ${
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'underline decoration-dotted underline-offset-2 decoration-primary/60 hover:bg-primary/10'
+              }`}
+            >
+              {/* Reading as ruby */}
+              <ruby>
+                {t.surface}
+                <rt className="text-[8px] font-normal not-italic">
+                  {t.entry!.reading}
+                </rt>
+              </ruby>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Active token detail card ── */}
+      {activeToken?.entry && (
+        <div className="rounded-md border bg-card p-2 space-y-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="text-base font-bold font-japanese leading-tight">
+                {activeToken.entry.word}
+              </p>
+              <p className="text-[11px] text-muted-foreground font-japanese">
+                {activeToken.entry.reading}
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-6 w-6 p-0 flex-shrink-0"
+              title="Lưu từ này"
+              onClick={() => openDeck([activeToken.entry!])}
+            >
+              <BookmarkPlus className="w-3.5 h-3.5 text-primary" />
+            </Button>
+          </div>
+          <p className="text-[11px] leading-snug text-foreground/80 line-clamp-3">
+            {activeToken.entry.meaning}
+          </p>
+        </div>
+      )}
+
+      {/* ── Footer ── */}
+      <div className="flex items-center justify-between gap-2 pt-0.5">
+        <button
+          type="button"
+          className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+          onClick={onRetokenize}
+        >
+          Phân tích lại
+        </button>
+        {deckEntries.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-6 text-[10px] px-2 gap-1"
+            onClick={() => openDeck(deckEntries)}
+          >
+            <BookmarkPlus className="w-3 h-3" />
+            Lưu tất cả ({deckEntries.length})
+          </Button>
+        )}
+      </div>
+
+      <AddToDeckDialog
+        open={deckOpen}
+        onOpenChange={(o) => { setDeckOpen(o); if (!o) setDeckWords([]); }}
+        words={deckWords}
+      />
+    </div>
+  );
+}
+
 function DictionaryRightPanel() {
   const [mode, setMode] = useState<'words' | 'kanji'>('words');
 
@@ -711,9 +832,17 @@ export default function MangaReaderPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
   const [selectedBlock, setSelectedBlock] = useState<SelectedBlock | null>(null);
-  const [tokenizeOpen, setTokenizeOpen] = useState(false);
-  const [quickAddText, setQuickAddText] = useState<string | null>(null);
-  const [quickAddWords, setQuickAddWords] = useState<WordResponse[]>([]);
+
+  // ── OCR block list state ──────────────────────────────────────────────────
+  // expandedBlock: "pageIdx-blockIdx" of the currently open accordion item
+  const [expandedBlock, setExpandedBlock] = useState<string | null>(null);
+  // cached tokenization results per block key
+  const [blockTokens, setBlockTokens] = useState<Map<string, Token[]>>(new Map());
+  // blocks currently being tokenized
+  const [blockTokenizing, setBlockTokenizing] = useState<Set<string>>(new Set());
+  // refs for scrolling list items into view when canvas block is clicked
+  const blockListRef = useRef<HTMLDivElement>(null);
+  const blockItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // ── Viewer size ───────────────────────────────────────────────────────────
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -986,36 +1115,46 @@ export default function MangaReaderPage() {
   const clampZoom = (v: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v));
 
   const handleSelectBlock = useCallback((pageIdx: number, blockIdx: number) => {
+    const key = `${pageIdx}-${blockIdx}`;
     setSelectedBlock({ pageIdx, blockIdx });
+    setExpandedBlock(key);
     setPanelOpen(true);
     setPanelTab('text');
+    // Scroll the list item into view after the panel renders
+    requestAnimationFrame(() => {
+      const el = blockItemRefs.current.get(key);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   }, []);
 
-  // ── Quick-add word search ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!quickAddText) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const q = quickAddText.split('\n')[0].trim() || quickAddText.trim();
-        const results = await searchWords(q, 10);
-        if (!cancelled) {
-          setQuickAddWords(results);
-          if (results.length === 0) {
-            toast.info('Không tìm được từ trong từ điển. Hãy phân tích câu trước.');
-            setQuickAddText(null);
-          }
-        }
-      } catch {
-        if (!cancelled) toast.error('Không tìm được từ');
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [quickAddText]);
+  // ── Block tokenize ───────────────────────────────────────────────────────
+  const tokenizeBlock = async (key: string, text: string) => {
+    if (blockTokenizing.has(key)) return;
+    setBlockTokenizing((prev) => { const s = new Set(prev); s.add(key); return s; });
+    try {
+      const res = await tokenize(text);
+      setBlockTokens((prev) => new Map(prev).set(key, res.tokens));
+    } catch {
+      toast.error('Phân tích thất bại');
+    } finally {
+      setBlockTokenizing((prev) => { const s = new Set(prev); s.delete(key); return s; });
+    }
+  };
 
-  const selectedBlockData =
-    selectedBlock ? ocrDataPages[selectedBlock.pageIdx]?.blocks[selectedBlock.blockIdx] ?? null : null;
-  const selectedText = selectedBlockData ? selectedBlockData.lines.join('\n') : '';
+  // Tokenize every block that hasn't been tokenized yet, sequentially
+  const tokenizeAll = async () => {
+    for (const [pageIdx, page] of ocrDataPages.entries()) {
+      if (!page) continue;
+      for (const [blockIdx] of page.blocks.entries()) {
+        const key = `${pageIdx}-${blockIdx}`;
+        if (blockTokens.has(key)) continue;
+        const text = page.blocks[blockIdx].lines.join('\n');
+        if (!text.trim()) continue;
+        await tokenizeBlock(key, text);
+      }
+    }
+  };
+  const isTokenizingAny = blockTokenizing.size > 0;
 
   const zoomScale = zoom / 100;
 
@@ -1453,56 +1592,168 @@ export default function MangaReaderPage() {
               </ScrollArea>
             )}
 
-            {/* Text tab */}
+            {/* Text tab — OCR block list */}
             {panelTab === 'text' && (
               <div className="flex-1 flex flex-col min-h-0">
-                {selectedBlockData ? (
+                {ocrDataPages.every((p) => p === null) ? (
+                  /* No OCR yet */
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-2">
+                    <Type className="w-8 h-8 text-muted-foreground/50" />
+                    <p className="text-sm font-medium text-muted-foreground">Chưa có dữ liệu OCR</p>
+                    <p className="text-xs text-muted-foreground">
+                      Tải OCR ở tab Settings, sau đó các block chữ sẽ hiện ở đây.
+                    </p>
+                  </div>
+                ) : (
                   <>
-                    <div className="p-3 border-b border-border bg-muted/30 flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold">
-                          Page {selectedBlock!.pageIdx + 1} · Block {selectedBlock!.blockIdx + 1}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {selectedBlockData.vertical ? 'Dọc' : 'Ngang'} · {selectedBlockData.lines.length} dòng
-                        </p>
-                      </div>
-                      <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => copyToClipboard(selectedText)}>
-                        <Copy className="w-3.5 h-3.5" /> Copy
+                    {/* ── Toolbar ── */}
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-shrink-0">
+                      <span className="text-[11px] text-muted-foreground flex-1">
+                        {blockTokens.size} / {ocrDataPages.reduce((n, p) => n + (p?.blocks.length ?? 0), 0)} đã phân tích
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5"
+                        disabled={isTokenizingAny}
+                        onClick={tokenizeAll}
+                      >
+                        {isTokenizingAny
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <Wand2 className="w-3 h-3" />}
+                        Phân tích tất cả
                       </Button>
                     </div>
+
+                    {/* ── Block list ── */}
                     <ScrollArea className="flex-1">
-                      <div className="p-4 space-y-3">
-                        <textarea
-                          readOnly
-                          value={selectedText}
-                          className="w-full min-h-[180px] p-3 text-sm leading-relaxed bg-background border rounded-md font-japanese resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 select-text"
-                          style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
-                        />
-                        <div className="flex flex-col gap-2">
-                          <Button size="sm" className="w-full gap-1.5" onClick={() => setTokenizeOpen(true)}>
-                            <Wand2 className="w-3.5 h-3.5" /> Phân tích từ
-                          </Button>
-                          <Button size="sm" variant="outline" className="w-full gap-1.5" onClick={() => setQuickAddText(selectedText)}>
-                            <BookmarkPlus className="w-3.5 h-3.5" /> Lưu vào bộ
-                          </Button>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-snug">
-                          Bạn có thể chọn một phần hoặc toàn bộ text phía trên rồi sao chép.
-                        </p>
+                      <div ref={blockListRef} className="divide-y divide-border w-full">
+                        {ocrDataPages.map((page, pageIdx) => {
+                          if (!page) return null;
+                          return page.blocks.map((block, blockIdx) => {
+                            const key = `${pageIdx}-${blockIdx}`;
+                            const blockText = block.lines.join('');
+                            const preview = block.lines[0]?.slice(0, 26) +
+                              (block.lines[0]?.length > 26 || block.lines.length > 1 ? '…' : '');
+                            const isSelected =
+                              selectedBlock?.pageIdx === pageIdx &&
+                              selectedBlock?.blockIdx === blockIdx;
+                            const isExpanded = expandedBlock === key;
+                            const tokens = blockTokens.get(key);
+                            const isTokenizing = blockTokenizing.has(key);
+
+                            // Unique words with entries for deck dialog
+                            const deckEntries: WordEntry[] = tokens
+                              ? Array.from(
+                                  new Map(
+                                    tokens
+                                      .filter((t) => t.entry)
+                                      .map((t) => [t.entry!.id, t.entry!])
+                                  ).values()
+                                )
+                              : [];
+
+                            return (
+                              <div
+                                key={key}
+                                ref={(el) => {
+                                  if (el) blockItemRefs.current.set(key, el);
+                                  else blockItemRefs.current.delete(key);
+                                }}
+                                className={
+                                  isSelected
+                                    ? 'border-l-2 border-l-amber-400 bg-amber-400/5'
+                                    : 'border-l-2 border-l-transparent'
+                                }
+                              >
+                                {/* ── Header row ── */}
+                                <button
+                                  type="button"
+                                  className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/40 transition-colors group"
+                                  onClick={() => {
+                                    const next = isExpanded ? null : key;
+                                    setExpandedBlock(next);
+                                    setSelectedBlock({ pageIdx, blockIdx });
+                                    if (readMode === 'single') {
+                                      goTo(pageIdx);
+                                    } else if (readMode === 'vertical' && pageRefs.current[pageIdx]) {
+                                      pageRefs.current[pageIdx]!.scrollIntoView({ behavior: 'smooth' });
+                                    }
+                                  }}
+                                >
+                                  <span className="flex-shrink-0 text-[10px] font-mono text-muted-foreground leading-none" style={{ width: '2.8rem' }}>
+                                    P{pageIdx + 1}·{blockIdx + 1}
+                                  </span>
+                                  <span className="flex-1 min-w-0 text-xs font-japanese truncate text-foreground/80">
+                                    {preview}
+                                  </span>
+                                  {/* Tokenized indicator dot */}
+                                  {tokens && !isTokenizing && (
+                                    <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" title="Đã phân tích" />
+                                  )}
+                                  {isTokenizing && (
+                                    <Loader2 className="flex-shrink-0 w-3 h-3 animate-spin text-muted-foreground" />
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="flex-shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-1 rounded hover:bg-muted"
+                                    onClick={(e) => { e.stopPropagation(); copyToClipboard(blockText); }}
+                                    title="Sao chép"
+                                  >
+                                    <Copy className="w-3 h-3" />
+                                  </button>
+                                  <ChevronDown
+                                    className={`flex-shrink-0 w-3.5 h-3.5 text-muted-foreground transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`}
+                                  />
+                                </button>
+
+                                {/* ── Expanded body ── */}
+                                {isExpanded && (
+                                  <div className="border-t border-border/50 bg-muted/20 pl-3 pr-3 pt-2.5 pb-3 space-y-2.5 overflow-hidden">
+                                    {/* Raw text — selectable */}
+                                    <p
+                                      className="text-sm font-japanese leading-relaxed text-foreground/90 whitespace-pre-wrap select-text"
+                                      style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
+                                    >
+                                      {blockText}
+                                    </p>
+
+                                    {/* Before tokenized: show button */}
+                                    {!tokens && !isTokenizing && (
+                                      <Button
+                                        size="sm"
+                                        className="w-full h-8 text-xs gap-1.5"
+                                        onClick={() => tokenizeBlock(key, blockText)}
+                                      >
+                                        <Wand2 className="w-3.5 h-3.5 flex-shrink-0" />
+                                        <span className="truncate">Phân tích</span>
+                                      </Button>
+                                    )}
+
+                                    {/* While tokenizing */}
+                                    {isTokenizing && (
+                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang phân tích…
+                                      </div>
+                                    )}
+
+                                    {/* After tokenized: compact inline tokens, no button */}
+                                    {tokens && !isTokenizing && (
+                                      <BlockTokenResult
+                                        tokens={tokens}
+                                        deckEntries={deckEntries}
+                                        onRetokenize={() => tokenizeBlock(key, blockText)}
+                                      />
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          });
+                        })}
                       </div>
                     </ScrollArea>
                   </>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-2">
-                    <Type className="w-8 h-8 text-muted-foreground/50" />
-                    <p className="text-sm font-medium text-muted-foreground">Chưa chọn bounding box</p>
-                    <p className="text-xs text-muted-foreground">
-                      {ocrLoaded
-                        ? 'Chạm vào một bounding box trên trang để hiển thị text ở đây.'
-                        : 'Tải OCR trước, sau đó chạm vào bounding box.'}
-                    </p>
-                  </div>
                 )}
               </div>
             )}
@@ -1514,13 +1765,7 @@ export default function MangaReaderPage() {
         )}
       </div>
 
-      <SentenceTokenizeDialog open={tokenizeOpen} onOpenChange={setTokenizeOpen} text={selectedText} />
-      <AddToDeckDialog
-        open={!!quickAddText && quickAddWords.length > 0}
-        onOpenChange={(o) => { if (!o) { setQuickAddText(null); setQuickAddWords([]); } }}
-        words={quickAddWords}
-        title={`Lưu từ tìm được (${quickAddWords.length})`}
-      />
+
     </div>
   );
 }
