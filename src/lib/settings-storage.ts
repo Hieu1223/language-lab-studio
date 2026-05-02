@@ -39,25 +39,6 @@ const DEFAULT_TRANSCRIPTION: TranscriptionSettings = {
   layout: 'split-v',
 };
 
-export interface MangaSettings {
-  showOCR: boolean;
-  ocrPages: number[];
-}
-
-export interface AppSettings {
-  transcription: Partial<TranscriptionSettings>;
-  manga: Partial<MangaSettings>;
-}
-
-const STORAGE_KEY = 'language-lab-studio-settings';
-
-const DEFAULT_TRANSCRIPTION: TranscriptionSettings = {
-  hiddenRange: [1, 3],
-  visibleRange: [2, 5],
-  autoScroll: true,
-  highlightMode: 'token',
-  showClozeMode: true,
-};
 
 const DEFAULT_SETTINGS: AppSettings = {
   transcription: { ...DEFAULT_TRANSCRIPTION },
