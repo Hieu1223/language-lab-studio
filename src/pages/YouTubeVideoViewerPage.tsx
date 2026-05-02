@@ -26,7 +26,7 @@ import { VideoPlayer } from '@/components/video/VideoPlayer';
 import { Button } from '@/components/ui/button';
 import { RangeSlider } from '@/components/ui/range-slider';
 import { Switch } from '@/components/ui/switch';
-import { ResizableSplit } from '@/components/ResizableSplit';
+import { ResizableSplit, VerticalResizableSplit } from '@/components/ResizableSplit';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
