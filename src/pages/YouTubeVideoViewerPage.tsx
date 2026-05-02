@@ -474,18 +474,12 @@ export default function YouTubeVideoViewerPage() {
                       {settings.hiddenRange[0]} – {settings.hiddenRange[1]}
                     </span>
                   </div>
-                  <Slider
+                  <RangeSlider
                     min={1}
                     max={10}
                     step={1}
                     value={settings.hiddenRange}
-                    minStepsBetweenThumbs={0}
-                    onValueChange={(v) => {
-                      if (v.length === 2) {
-                        const sorted = [...v].sort((a, b) => a - b) as [number, number];
-                        updateSettings({ hiddenRange: sorted });
-                      }
-                    }}
+                    onValueChange={(v) => updateSettings({ hiddenRange: v })}
                   />
                 </div>
 
@@ -498,18 +492,13 @@ export default function YouTubeVideoViewerPage() {
                       {settings.visibleRange[0]} – {settings.visibleRange[1]}
                     </span>
                   </div>
-                  <Slider
+                  <RangeSlider
                     min={0}
                     max={15}
                     step={1}
                     value={settings.visibleRange}
-                    minStepsBetweenThumbs={0}
-                    onValueChange={(v) => {
-                      if (v.length === 2) {
-                        const sorted = [...v].sort((a, b) => a - b) as [number, number];
-                        updateSettings({ visibleRange: sorted });
-                      }
-                    }}
+                    onValueChange={(v) => updateSettings({ visibleRange: v })}
+                    rangeClassName="bg-emerald-500"
                   />
                 </div>
 
