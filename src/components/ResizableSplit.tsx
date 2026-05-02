@@ -44,7 +44,6 @@ export function ResizableSplit({
         {left}
       </div>
 
-      {/* Drag handle */}
       <div
         {...dragHandleProps}
         role="separator"
@@ -58,10 +57,72 @@ export function ResizableSplit({
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-10 w-1 rounded-full bg-muted-foreground/40 group-hover:bg-primary-foreground/80" />
       </div>
 
-      <div
-        className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col"
-      >
+      <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
         {right}
+      </div>
+    </div>
+  );
+}
+
+interface VerticalResizableSplitProps {
+  top: React.ReactNode;
+  bottom: React.ReactNode;
+  initialPercent?: number;
+  minPercent?: number;
+  maxPercent?: number;
+  storageKey?: string;
+  className?: string;
+}
+
+/**
+ * Vertical two-pane resizable split.
+ * Drag the horizontal handle between top and bottom to resize.
+ */
+export function VerticalResizableSplit({
+  top,
+  bottom,
+  initialPercent = 50,
+  minPercent = 20,
+  maxPercent = 80,
+  storageKey,
+  className = '',
+}: VerticalResizableSplitProps) {
+  const { containerRef, percent, dragging, dragHandleProps } = useResizableSplit({
+    initialPercent,
+    minPercent,
+    maxPercent,
+    storageKey,
+    orientation: 'vertical',
+  });
+
+  return (
+    <div
+      ref={containerRef}
+      className={`relative flex flex-col w-full h-full min-h-0 min-w-0 ${className}`}
+      style={{ userSelect: dragging ? 'none' : undefined }}
+    >
+      <div
+        className="min-w-0 min-h-0 overflow-hidden flex flex-col"
+        style={{ height: `${percent}%` }}
+      >
+        {top}
+      </div>
+
+      <div
+        {...dragHandleProps}
+        role="separator"
+        aria-orientation="horizontal"
+        className={`group relative h-1.5 cursor-row-resize bg-border hover:bg-primary/60 transition-colors ${
+          dragging ? 'bg-primary' : ''
+        }`}
+        style={{ touchAction: 'none' }}
+      >
+        <div className="absolute inset-x-0 -top-1 -bottom-1" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-1 rounded-full bg-muted-foreground/40 group-hover:bg-primary-foreground/80" />
+      </div>
+
+      <div className="flex-1 min-w-0 min-h-0 overflow-hidden flex flex-col">
+        {bottom}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 // localStorage-backed settings used across the app.
 
 export type HighlightMode = 'token' | 'sentence' | 'none';
+export type ViewerLayout = 'split-h' | 'split-v' | 'video' | 'transcript';
 
 export interface TranscriptionSettings {
   /** Hide block range [min, max] */
@@ -13,6 +14,8 @@ export interface TranscriptionSettings {
   highlightMode: HighlightMode;
   /** Show cloze (Study) vs raw text (Read) */
   showClozeMode: boolean;
+  /** Layout of the viewer */
+  layout: ViewerLayout;
 }
 
 export interface MangaSettings {
@@ -33,7 +36,9 @@ const DEFAULT_TRANSCRIPTION: TranscriptionSettings = {
   autoScroll: true,
   highlightMode: 'token',
   showClozeMode: true,
+  layout: 'split-v',
 };
+
 
 const DEFAULT_SETTINGS: AppSettings = {
   transcription: { ...DEFAULT_TRANSCRIPTION },

@@ -16,12 +16,17 @@ import {
   BookOpen,
   X,
   Highlighter,
+  Rows2,
+  Columns2,
+  Square,
+  Layout as LayoutIcon,
 } from 'lucide-react';
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
+import { RangeSlider } from '@/components/ui/range-slider';
 import { Switch } from '@/components/ui/switch';
+import { ResizableSplit, VerticalResizableSplit } from '@/components/ResizableSplit';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -444,6 +449,43 @@ export default function YouTubeVideoViewerPage() {
               </div>
             </div>
 
+            <Separator />
+
+            {/* Layout selector */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <LayoutIcon className="w-3 h-3" /> Bố cục
+              </Label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(
+                  [
+                    { value: 'split-v', label: 'Trên/Dưới', icon: Rows2 },
+                    { value: 'split-h', label: 'Trái/Phải', icon: Columns2 },
+                    { value: 'video', label: 'Video', icon: Square },
+                    { value: 'transcript', label: 'Text', icon: BookOpen },
+                  ] as const
+                ).map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => updateSettings({ layout: value })}
+                    className={`p-2 rounded-md border text-[10px] font-medium transition-colors flex flex-col items-center gap-1 ${
+                      settings.layout === value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Có thể kéo thanh giữa các cửa sổ để thay đổi kích thước.
+              </p>
+            </div>
+
+            <Separator />
+
             <div className="flex items-center justify-between">
               <Label htmlFor="autoscroll" className="text-sm cursor-pointer">
                 Tự động cuộn
@@ -469,18 +511,12 @@ export default function YouTubeVideoViewerPage() {
                       {settings.hiddenRange[0]} – {settings.hiddenRange[1]}
                     </span>
                   </div>
-                  <Slider
+                  <RangeSlider
                     min={1}
                     max={10}
                     step={1}
                     value={settings.hiddenRange}
-                    minStepsBetweenThumbs={0}
-                    onValueChange={(v) => {
-                      if (v.length === 2) {
-                        const sorted = [...v].sort((a, b) => a - b) as [number, number];
-                        updateSettings({ hiddenRange: sorted });
-                      }
-                    }}
+                    onValueChange={(v) => updateSettings({ hiddenRange: v })}
                   />
                 </div>
 
@@ -493,18 +529,13 @@ export default function YouTubeVideoViewerPage() {
                       {settings.visibleRange[0]} – {settings.visibleRange[1]}
                     </span>
                   </div>
-                  <Slider
+                  <RangeSlider
                     min={0}
                     max={15}
                     step={1}
                     value={settings.visibleRange}
-                    minStepsBetweenThumbs={0}
-                    onValueChange={(v) => {
-                      if (v.length === 2) {
-                        const sorted = [...v].sort((a, b) => a - b) as [number, number];
-                        updateSettings({ visibleRange: sorted });
-                      }
-                    }}
+                    onValueChange={(v) => updateSettings({ visibleRange: v })}
+                    rangeClassName="bg-emerald-500"
                   />
                 </div>
 
@@ -650,93 +681,129 @@ export default function YouTubeVideoViewerPage() {
     </div>
   );
 
-  // ── Main left content (video + transcript) ──────────────────────────────
-  const mainContent = (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden">
-      {/* Video at top — always */}
-      <div className="bg-black flex-shrink-0">
-        <VideoPlayer
-          url={`https://www.youtube.com/watch?v=${videoId}`}
-          onTimeUpdate={setCurrentTime}
-          seekRef={seekRef}
-        />
-      </div>
-
-      {/* Transcript area below */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-background">
-        {status === 'checking' && (
-          <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-sm">Đang kiểm tra transcript...</p>
-          </div>
-        )}
-
-        {status === 'not_found' && (
-          <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-6">
-            <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 max-w-sm">
-              <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-1">
-                Chưa có transcript
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Yêu cầu phiên dịch để tạo transcript với timestamp và luyện tập cloze.
-              </p>
-            </div>
-            <Button
-              onClick={handleRequestTranscription}
-              disabled={requesting}
-              size="lg"
-              className="gap-2"
-            >
-              {requesting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang yêu cầu...
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4" />
-                  Yêu cầu phiên dịch
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-
-        {status === 'processing' && (
-          <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground text-center px-6">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            <p className="text-sm font-medium">Đang xử lý transcript…</p>
-            <p className="text-xs">Quá trình này có thể mất vài phút.</p>
-          </div>
-        )}
-
-        {status === 'ready' && rawSegments.length > 0 && (
-          <div className="space-y-3 max-w-3xl mx-auto">
-            {clozeSegments.map((cs, si) => (
-              <TranscriptSegmentRow
-                key={si}
-                cs={cs}
-                isActive={si === activeSegIdx}
-                showClozeMode={settings.showClozeMode}
-                highlightMode={settings.highlightMode}
-                currentTime={currentTime}
-                onSeek={handleSeek}
-                rowRef={si === activeSegIdx ? activeSegRef : undefined}
-              />
-            ))}
-            <div className="h-32" />
-          </div>
-        )}
-
-        {status === 'error' && (
-          <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
-            <p className="text-sm">Đã xảy ra lỗi khi tải transcript.</p>
-            <Button onClick={() => window.location.reload()}>Tải lại</Button>
-          </div>
-        )}
-      </div>
+  // ── Main content panes ──────────────────────────────────────────────────
+  const videoNode = (
+    <div className="bg-black w-full h-full flex items-center justify-center overflow-hidden">
+      <VideoPlayer
+        url={`https://www.youtube.com/watch?v=${videoId}`}
+        onTimeUpdate={setCurrentTime}
+        seekRef={seekRef}
+      />
     </div>
   );
+
+  const transcriptNode = (
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-background h-full">
+      {status === 'checking' && (
+        <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm">Đang kiểm tra transcript...</p>
+        </div>
+      )}
+
+      {status === 'not_found' && (
+        <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-6">
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 max-w-sm">
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-1">
+              Chưa có transcript
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Yêu cầu phiên dịch để tạo transcript với timestamp và luyện tập cloze.
+            </p>
+          </div>
+          <Button
+            onClick={handleRequestTranscription}
+            disabled={requesting}
+            size="lg"
+            className="gap-2"
+          >
+            {requesting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Đang yêu cầu...
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4" />
+                Yêu cầu phiên dịch
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+
+      {status === 'processing' && (
+        <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground text-center px-6">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm font-medium">Đang xử lý transcript…</p>
+          <p className="text-xs">Quá trình này có thể mất vài phút.</p>
+        </div>
+      )}
+
+      {status === 'ready' && rawSegments.length > 0 && (
+        <div className="space-y-3 max-w-3xl mx-auto">
+          {clozeSegments.map((cs, si) => (
+            <TranscriptSegmentRow
+              key={si}
+              cs={cs}
+              isActive={si === activeSegIdx}
+              showClozeMode={settings.showClozeMode}
+              highlightMode={settings.highlightMode}
+              currentTime={currentTime}
+              onSeek={handleSeek}
+              rowRef={si === activeSegIdx ? activeSegRef : undefined}
+            />
+          ))}
+          <div className="h-32" />
+        </div>
+      )}
+
+      {status === 'error' && (
+        <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+          <p className="text-sm">Đã xảy ra lỗi khi tải transcript.</p>
+          <Button onClick={() => window.location.reload()}>Tải lại</Button>
+        </div>
+      )}
+    </div>
+  );
+
+  // Render based on selected layout. Mobile always falls back to vertical split
+  // (video on top, transcript below) for a sane experience.
+  const effectiveLayout = isMobile && (settings.layout === 'split-h')
+    ? 'split-v'
+    : settings.layout;
+
+  const mainContent = (() => {
+    if (effectiveLayout === 'video') {
+      return <div className="h-full w-full">{videoNode}</div>;
+    }
+    if (effectiveLayout === 'transcript') {
+      return <div className="h-full w-full">{transcriptNode}</div>;
+    }
+    if (effectiveLayout === 'split-h') {
+      // Side-by-side: video left, transcript right
+      return (
+        <ResizableSplit
+          left={videoNode}
+          right={transcriptNode}
+          initialPercent={55}
+          minPercent={25}
+          maxPercent={80}
+          storageKey="viewer-split-h"
+          className="h-full"
+        />
+      );
+    }
+    // split-v: video on top, transcript below — built with vertical resize
+    return (
+      <VerticalResizableSplit
+        top={videoNode}
+        bottom={transcriptNode}
+        storageKey="viewer-split-v"
+        initialPercent={45}
+      />
+    );
+  })();
 
   return (
     <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
