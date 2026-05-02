@@ -449,6 +449,43 @@ export default function YouTubeVideoViewerPage() {
               </div>
             </div>
 
+            <Separator />
+
+            {/* Layout selector */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <LayoutIcon className="w-3 h-3" /> Bố cục
+              </Label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {(
+                  [
+                    { value: 'split-v', label: 'Trên/Dưới', icon: Rows2 },
+                    { value: 'split-h', label: 'Trái/Phải', icon: Columns2 },
+                    { value: 'video', label: 'Video', icon: Square },
+                    { value: 'transcript', label: 'Text', icon: BookOpen },
+                  ] as const
+                ).map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => updateSettings({ layout: value })}
+                    className={`p-2 rounded-md border text-[10px] font-medium transition-colors flex flex-col items-center gap-1 ${
+                      settings.layout === value
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Có thể kéo thanh giữa các cửa sổ để thay đổi kích thước.
+              </p>
+            </div>
+
+            <Separator />
+
             <div className="flex items-center justify-between">
               <Label htmlFor="autoscroll" className="text-sm cursor-pointer">
                 Tự động cuộn
