@@ -1,6 +1,7 @@
 // localStorage-backed settings used across the app.
 
 export type HighlightMode = 'token' | 'sentence' | 'none';
+export type ViewerLayout = 'split-h' | 'split-v' | 'video' | 'transcript';
 
 export interface TranscriptionSettings {
   /** Hide block range [min, max] */
@@ -13,7 +14,30 @@ export interface TranscriptionSettings {
   highlightMode: HighlightMode;
   /** Show cloze (Study) vs raw text (Read) */
   showClozeMode: boolean;
+  /** Layout of the viewer */
+  layout: ViewerLayout;
 }
+
+export interface MangaSettings {
+  showOCR: boolean;
+  ocrPages: number[];
+}
+
+export interface AppSettings {
+  transcription: Partial<TranscriptionSettings>;
+  manga: Partial<MangaSettings>;
+}
+
+const STORAGE_KEY = 'language-lab-studio-settings';
+
+const DEFAULT_TRANSCRIPTION: TranscriptionSettings = {
+  hiddenRange: [1, 3],
+  visibleRange: [2, 5],
+  autoScroll: true,
+  highlightMode: 'token',
+  showClozeMode: true,
+  layout: 'split-v',
+};
 
 export interface MangaSettings {
   showOCR: boolean;
