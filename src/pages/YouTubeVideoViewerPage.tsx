@@ -518,7 +518,7 @@ export default function YouTubeVideoViewerPage() {
 
             <Separator />
 
-            {/* Cloze range sliders — TWO sliders, each with min/max thumbs */}
+            {/* Cloze range sliders — draft + Apply (no auto-regen on drag) */}
             {settings.showClozeMode && (
               <>
                 <div className="space-y-2">
@@ -527,15 +527,15 @@ export default function YouTubeVideoViewerPage() {
                       Khối ẩn (min – max)
                     </Label>
                     <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded">
-                      {settings.hiddenRange[0]} – {settings.hiddenRange[1]}
+                      {draftHidden[0]} – {draftHidden[1]}
                     </span>
                   </div>
                   <RangeSlider
                     min={1}
                     max={10}
                     step={1}
-                    value={settings.hiddenRange}
-                    onValueChange={(v) => updateSettings({ hiddenRange: v })}
+                    value={draftHidden}
+                    onValueChange={(v) => setDraftHidden(v)}
                   />
                 </div>
 
@@ -545,18 +545,28 @@ export default function YouTubeVideoViewerPage() {
                       Khối hiện (min – max)
                     </Label>
                     <span className="text-xs font-mono bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded">
-                      {settings.visibleRange[0]} – {settings.visibleRange[1]}
+                      {draftVisible[0]} – {draftVisible[1]}
                     </span>
                   </div>
                   <RangeSlider
                     min={0}
                     max={15}
                     step={1}
-                    value={settings.visibleRange}
-                    onValueChange={(v) => updateSettings({ visibleRange: v })}
+                    value={draftVisible}
+                    onValueChange={(v) => setDraftVisible(v)}
                     rangeClassName="bg-emerald-500"
                   />
                 </div>
+
+                <Button
+                  className="w-full h-8 text-xs gap-1.5"
+                  onClick={applyClozeSettings}
+                  disabled={!clozeDirty}
+                  variant={clozeDirty ? 'default' : 'outline'}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  {clozeDirty ? 'Áp dụng & tạo lại' : 'Đã áp dụng'}
+                </Button>
 
                 <div className="grid grid-cols-2 gap-1.5 pt-1">
                   <Button
@@ -594,106 +604,6 @@ export default function YouTubeVideoViewerPage() {
         </ScrollArea>
       )}
 
-      {/* Loop tab */}
-      {panelTab === 'loop' && (
-        <ScrollArea className="flex-1">
-          <div className="p-4 space-y-4">
-            <div>
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                Lặp một đoạn nhiều câu
-              </Label>
-              <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                Chọn câu bắt đầu và câu kết thúc — video sẽ tự lặp đoạn đó.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5">
-              <Button
-                variant={loopPicking === 'start' ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => setLoopPicking(loopPicking === 'start' ? null : 'start')}
-              >
-                {loopRange ? `Câu #${loopRange.start + 1}` : 'Chọn bắt đầu'}
-              </Button>
-              <Button
-                variant={loopPicking === 'end' ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => setLoopPicking(loopPicking === 'end' ? null : 'end')}
-                disabled={!loopRange}
-              >
-                {loopRange ? `Câu #${loopRange.end + 1}` : 'Chọn kết thúc'}
-              </Button>
-            </div>
-
-            {loopPicking && (
-              <div className="rounded-md p-2 text-[11px] bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400">
-                Click vào câu trong danh sách bên dưới để đặt điểm{' '}
-                <b>{loopPicking === 'start' ? 'bắt đầu' : 'kết thúc'}</b>.
-              </div>
-            )}
-
-            {loopRange && loopBounds && (
-              <div className="rounded-md p-3 bg-emerald-500/10 border border-emerald-500/30 space-y-2">
-                <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
-                  <Repeat className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '2.5s' }} />
-                  <span className="font-semibold">
-                    Đang lặp câu {loopRange.start + 1} → {loopRange.end + 1}
-                  </span>
-                </div>
-                <p className="text-[10px] text-muted-foreground font-mono">
-                  {loopBounds.from.toFixed(1)}s – {loopBounds.to.toFixed(1)}s
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-7 text-[11px]"
-                  onClick={() => {
-                    setLoopRange(null);
-                    setLoopPicking(null);
-                  }}
-                >
-                  Xoá lặp
-                </Button>
-              </div>
-            )}
-
-            <Separator />
-
-            <div className="space-y-1.5">
-              <p className="text-[11px] text-muted-foreground font-semibold uppercase">
-                Danh sách câu
-              </p>
-              {rawSegments.map((seg, i) => {
-                const text = seg.text || seg.words.map((w) => w.token).join('');
-                const isInLoop =
-                  loopRange && i >= loopRange.start && i <= loopRange.end;
-                const isStart = loopRange?.start === i;
-                const isEnd = loopRange?.end === i;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => handleSegmentClick(i)}
-                    className={`w-full text-left p-2 rounded-md border text-[11px] transition-colors ${
-                      isStart || isEnd
-                        ? 'border-primary bg-primary/10'
-                        : isInLoop
-                        ? 'border-primary/40 bg-primary/5'
-                        : 'border-border hover:border-primary/40 bg-card'
-                    }`}
-                  >
-                    <span className="font-mono text-muted-foreground">
-                      #{i + 1}
-                    </span>{' '}
-                    <span className="font-japanese">{text}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </ScrollArea>
-      )}
 
       {/* Dictionary tab */}
       {panelTab === 'dictionary' && <DictionaryPanel />}
