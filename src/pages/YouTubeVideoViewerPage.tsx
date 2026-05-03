@@ -20,6 +20,9 @@ import {
   Columns2,
   Square,
   Layout as LayoutIcon,
+  Check,
+  Flag,
+  FlagOff,
 } from 'lucide-react';
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
@@ -63,7 +66,66 @@ const POLL_INTERVAL_MS = 4000;
 const POLL_MAX_ATTEMPTS = 60;
 
 type PageStatus = 'checking' | 'not_found' | 'processing' | 'ready' | 'error';
-type PanelTab = 'settings' | 'loop' | 'dictionary';
+type PanelTab = 'settings' | 'dictionary';
+
+// ─── Resizable right drawer (desktop) ────────────────────────────────────
+
+function ResizableDrawer({ children }: { children: React.ReactNode }) {
+  const [width, setWidth] = useState<number>(() => {
+    const saved = parseInt(localStorage.getItem('viewer-drawer-width') || '', 10);
+    return !isNaN(saved) ? Math.min(720, Math.max(280, saved)) : 360;
+  });
+  const draggingRef = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem('viewer-drawer-width', String(width));
+  }, [width]);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!draggingRef.current) return;
+      e.preventDefault();
+      const next = window.innerWidth - e.clientX;
+      setWidth(Math.min(720, Math.max(280, next)));
+    };
+    const onUp = () => {
+      draggingRef.current = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, []);
+
+  return (
+    <aside
+      className="flex-shrink-0 border-l border-border h-full relative"
+      style={{ width }}
+    >
+      {/* Resize handle on the left edge of the drawer */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        onPointerDown={(e) => {
+          if (e.button !== 0 && e.pointerType === 'mouse') return;
+          e.preventDefault();
+          draggingRef.current = true;
+          document.body.style.userSelect = 'none';
+          document.body.style.cursor = 'col-resize';
+        }}
+        className="absolute -left-1 top-0 bottom-0 w-2 z-30 cursor-col-resize hover:bg-primary/40 transition-colors"
+        style={{ touchAction: 'none' }}
+      />
+      <div className="h-full">{children}</div>
+    </aside>
+  );
+}
 
 // ─── Main ────────────────────────────────────────────────────────────────
 
@@ -102,6 +164,15 @@ export default function YouTubeVideoViewerPage() {
     });
   };
 
+  // Draft cloze ranges — edits don't auto-apply; user must click Apply.
+  const [draftHidden, setDraftHidden] = useState<[number, number]>(settings.hiddenRange);
+  const [draftVisible, setDraftVisible] = useState<[number, number]>(settings.visibleRange);
+  const clozeDirty =
+    draftHidden[0] !== settings.hiddenRange[0] ||
+    draftHidden[1] !== settings.hiddenRange[1] ||
+    draftVisible[0] !== settings.visibleRange[0] ||
+    draftVisible[1] !== settings.visibleRange[1];
+
   const clozeOpts: BlockClozeOptions = useMemo(
     () => ({
       minHidden: settings.hiddenRange[0],
@@ -123,12 +194,10 @@ export default function YouTubeVideoViewerPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
 
-  // Loop state — multi-segment range loop
-  const [loopRange, setLoopRange] = useState<{ start: number; end: number } | null>(
-    null,
-  );
-  // Currently being defined: 'start' | 'end' | null
-  const [loopPicking, setLoopPicking] = useState<'start' | 'end' | null>(null);
+  // ── Loop state — token-level start/end with timestamps ───────────────────
+  const [loopStart, setLoopStart] = useState<number | null>(null); // seconds
+  const [loopEnd, setLoopEnd] = useState<number | null>(null);     // seconds
+  const [loopEnabled, setLoopEnabled] = useState(false);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
@@ -252,28 +321,65 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [activeSegIdx, settings.autoScroll]);
 
-  // ── Loop logic ───────────────────────────────────────────────────────────
-  const loopBounds = useMemo(() => {
-    if (!loopRange) return null;
-    const { start, end } = loopRange;
-    const segStart = rawSegments[start];
-    const segEnd = rawSegments[end];
-    if (!segStart || !segEnd) return null;
-    const startWords = segStart.words.filter((w) => w.start != null);
-    const endWords = segEnd.words.filter((w) => w.end != null);
-    if (startWords.length === 0 || endWords.length === 0) return null;
-    return {
-      from: startWords[0].start as number,
-      to: endWords[endWords.length - 1].end as number,
-    };
-  }, [loopRange, rawSegments]);
-
+  // ── Loop logic — token-level start/end (in seconds) ─────────────────────
+  // While loopEnabled, jump back to loopStart whenever currentTime crosses end.
   useEffect(() => {
-    if (!loopBounds) return;
-    if (currentTime >= loopBounds.to) {
-      seekRef.current?.(loopBounds.from);
+    if (!loopEnabled || loopStart == null || loopEnd == null) return;
+    if (currentTime >= loopEnd) {
+      seekRef.current?.(loopStart);
     }
-  }, [currentTime, loopBounds]);
+  }, [currentTime, loopEnabled, loopStart, loopEnd]);
+
+  // Set loop start = current playback time (snap to nearest word start ≤ now)
+  const handleSetLoopStart = () => {
+    let candidate = currentTime;
+    // snap to the start of the word currently being spoken if any
+    for (const seg of rawSegments) {
+      for (const w of seg.words) {
+        if (w.start != null && w.end != null && currentTime >= w.start && currentTime <= w.end) {
+          candidate = w.start;
+          break;
+        }
+      }
+    }
+    setLoopStart(candidate);
+    if (loopEnd != null && candidate >= loopEnd) setLoopEnd(null);
+    toast.success(`Bắt đầu lặp ở ${candidate.toFixed(2)}s`);
+  };
+
+  const handleSetLoopEnd = () => {
+    let candidate = currentTime;
+    for (const seg of rawSegments) {
+      for (const w of seg.words) {
+        if (w.start != null && w.end != null && currentTime >= w.start && currentTime <= w.end) {
+          candidate = w.end;
+          break;
+        }
+      }
+    }
+    if (loopStart != null && candidate <= loopStart) {
+      toast.error('Điểm kết thúc phải sau điểm bắt đầu.');
+      return;
+    }
+    setLoopEnd(candidate);
+    toast.success(`Kết thúc lặp ở ${candidate.toFixed(2)}s`);
+  };
+
+  const handleToggleLoop = () => {
+    if (!loopEnabled) {
+      if (loopStart == null || loopEnd == null) {
+        toast.error('Hãy đặt điểm bắt đầu và kết thúc trước.');
+        return;
+      }
+    }
+    setLoopEnabled((v) => !v);
+  };
+
+  const applyClozeSettings = () => {
+    updateSettings({ hiddenRange: draftHidden, visibleRange: draftVisible });
+    setSeed(Date.now());
+    toast.success('Đã áp dụng cài đặt mới');
+  };
 
   // ── Actions ──────────────────────────────────────────────────────────────
   const handleRequestTranscription = async () => {
@@ -324,33 +430,6 @@ export default function YouTubeVideoViewerPage() {
     setAllRevealed(next);
   };
 
-  const handleSegmentClick = (segIdx: number) => {
-    if (loopPicking === 'start') {
-      setLoopRange((prev) => {
-        const end = prev && prev.end >= segIdx ? prev.end : segIdx;
-        return { start: segIdx, end };
-      });
-      setLoopPicking('end');
-      return;
-    }
-    if (loopPicking === 'end') {
-      setLoopRange((prev) => {
-        const start = prev ? Math.min(prev.start, segIdx) : segIdx;
-        return { start, end: Math.max(start, segIdx) };
-      });
-      setLoopPicking(null);
-      // Jump to loop start
-      const seg = rawSegments[Math.min(loopRange?.start ?? segIdx, segIdx)];
-      const firstTime = seg?.words.find((w) => w.start != null)?.start;
-      if (firstTime != null) seekRef.current?.(firstTime);
-      return;
-    }
-    // Default: just seek
-    const seg = rawSegments[segIdx];
-    const firstTime = seg?.words.find((w) => w.start != null)?.start;
-    if (firstTime != null) seekRef.current?.(firstTime);
-  };
-
   // ── Render helpers ───────────────────────────────────────────────────────
   const title = video?.title || transcriptInfo?.original_source || 'YouTube Video';
 
@@ -361,7 +440,6 @@ export default function YouTubeVideoViewerPage() {
       <div className="flex border-b border-border flex-shrink-0">
         {([
           { id: 'settings' as const, label: 'Settings', icon: SettingsIcon },
-          { id: 'loop' as const, label: 'Loop', icon: Repeat },
           { id: 'dictionary' as const, label: 'Dict', icon: BookOpen },
         ]).map(({ id, label, icon: Icon }) => (
           <button
@@ -499,7 +577,7 @@ export default function YouTubeVideoViewerPage() {
 
             <Separator />
 
-            {/* Cloze range sliders — TWO sliders, each with min/max thumbs */}
+            {/* Cloze range sliders — draft + Apply (no auto-regen on drag) */}
             {settings.showClozeMode && (
               <>
                 <div className="space-y-2">
@@ -508,15 +586,15 @@ export default function YouTubeVideoViewerPage() {
                       Khối ẩn (min – max)
                     </Label>
                     <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded">
-                      {settings.hiddenRange[0]} – {settings.hiddenRange[1]}
+                      {draftHidden[0]} – {draftHidden[1]}
                     </span>
                   </div>
                   <RangeSlider
                     min={1}
                     max={10}
                     step={1}
-                    value={settings.hiddenRange}
-                    onValueChange={(v) => updateSettings({ hiddenRange: v })}
+                    value={draftHidden}
+                    onValueChange={(v) => setDraftHidden(v)}
                   />
                 </div>
 
@@ -526,18 +604,28 @@ export default function YouTubeVideoViewerPage() {
                       Khối hiện (min – max)
                     </Label>
                     <span className="text-xs font-mono bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded">
-                      {settings.visibleRange[0]} – {settings.visibleRange[1]}
+                      {draftVisible[0]} – {draftVisible[1]}
                     </span>
                   </div>
                   <RangeSlider
                     min={0}
                     max={15}
                     step={1}
-                    value={settings.visibleRange}
-                    onValueChange={(v) => updateSettings({ visibleRange: v })}
+                    value={draftVisible}
+                    onValueChange={(v) => setDraftVisible(v)}
                     rangeClassName="bg-emerald-500"
                   />
                 </div>
+
+                <Button
+                  className="w-full h-8 text-xs gap-1.5"
+                  onClick={applyClozeSettings}
+                  disabled={!clozeDirty}
+                  variant={clozeDirty ? 'default' : 'outline'}
+                >
+                  <Check className="w-3.5 h-3.5" />
+                  {clozeDirty ? 'Áp dụng & tạo lại' : 'Đã áp dụng'}
+                </Button>
 
                 <div className="grid grid-cols-2 gap-1.5 pt-1">
                   <Button
@@ -575,106 +663,6 @@ export default function YouTubeVideoViewerPage() {
         </ScrollArea>
       )}
 
-      {/* Loop tab */}
-      {panelTab === 'loop' && (
-        <ScrollArea className="flex-1">
-          <div className="p-4 space-y-4">
-            <div>
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                Lặp một đoạn nhiều câu
-              </Label>
-              <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                Chọn câu bắt đầu và câu kết thúc — video sẽ tự lặp đoạn đó.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-1.5">
-              <Button
-                variant={loopPicking === 'start' ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => setLoopPicking(loopPicking === 'start' ? null : 'start')}
-              >
-                {loopRange ? `Câu #${loopRange.start + 1}` : 'Chọn bắt đầu'}
-              </Button>
-              <Button
-                variant={loopPicking === 'end' ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 text-xs"
-                onClick={() => setLoopPicking(loopPicking === 'end' ? null : 'end')}
-                disabled={!loopRange}
-              >
-                {loopRange ? `Câu #${loopRange.end + 1}` : 'Chọn kết thúc'}
-              </Button>
-            </div>
-
-            {loopPicking && (
-              <div className="rounded-md p-2 text-[11px] bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400">
-                Click vào câu trong danh sách bên dưới để đặt điểm{' '}
-                <b>{loopPicking === 'start' ? 'bắt đầu' : 'kết thúc'}</b>.
-              </div>
-            )}
-
-            {loopRange && loopBounds && (
-              <div className="rounded-md p-3 bg-emerald-500/10 border border-emerald-500/30 space-y-2">
-                <div className="flex items-center gap-2 text-xs text-emerald-700 dark:text-emerald-400">
-                  <Repeat className="w-3.5 h-3.5 animate-spin" style={{ animationDuration: '2.5s' }} />
-                  <span className="font-semibold">
-                    Đang lặp câu {loopRange.start + 1} → {loopRange.end + 1}
-                  </span>
-                </div>
-                <p className="text-[10px] text-muted-foreground font-mono">
-                  {loopBounds.from.toFixed(1)}s – {loopBounds.to.toFixed(1)}s
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full h-7 text-[11px]"
-                  onClick={() => {
-                    setLoopRange(null);
-                    setLoopPicking(null);
-                  }}
-                >
-                  Xoá lặp
-                </Button>
-              </div>
-            )}
-
-            <Separator />
-
-            <div className="space-y-1.5">
-              <p className="text-[11px] text-muted-foreground font-semibold uppercase">
-                Danh sách câu
-              </p>
-              {rawSegments.map((seg, i) => {
-                const text = seg.text || seg.words.map((w) => w.token).join('');
-                const isInLoop =
-                  loopRange && i >= loopRange.start && i <= loopRange.end;
-                const isStart = loopRange?.start === i;
-                const isEnd = loopRange?.end === i;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => handleSegmentClick(i)}
-                    className={`w-full text-left p-2 rounded-md border text-[11px] transition-colors ${
-                      isStart || isEnd
-                        ? 'border-primary bg-primary/10'
-                        : isInLoop
-                        ? 'border-primary/40 bg-primary/5'
-                        : 'border-border hover:border-primary/40 bg-card'
-                    }`}
-                  >
-                    <span className="font-mono text-muted-foreground">
-                      #{i + 1}
-                    </span>{' '}
-                    <span className="font-japanese">{text}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </ScrollArea>
-      )}
 
       {/* Dictionary tab */}
       {panelTab === 'dictionary' && <DictionaryPanel />}
@@ -824,12 +812,48 @@ export default function YouTubeVideoViewerPage() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {loopRange && (
-            <span className="hidden sm:flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
-              <Repeat className="w-3 h-3" />
-              Loop {loopRange.start + 1}-{loopRange.end + 1}
-            </span>
+          {/* Loop controls — only the toggle is always visible. Set-start /
+              set-end appear only when looping is enabled. */}
+          <Button
+            variant={loopEnabled ? 'default' : 'ghost'}
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={handleToggleLoop}
+            title={loopEnabled ? 'Tắt lặp' : 'Bật lặp (cần đặt mốc trước)'}
+          >
+            <Repeat className={`w-3.5 h-3.5 ${loopEnabled ? '' : 'opacity-70'}`} />
+            <span className="hidden sm:inline">{loopEnabled ? 'Đang lặp' : 'Lặp'}</span>
+          </Button>
+
+          {loopEnabled && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 text-[11px]"
+                onClick={handleSetLoopStart}
+                title="Đặt điểm bắt đầu = thời điểm hiện tại"
+              >
+                <Flag className="w-3 h-3 text-emerald-500" />
+                <span className="font-mono">
+                  {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
+                </span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 text-[11px]"
+                onClick={handleSetLoopEnd}
+                title="Đặt điểm kết thúc = thời điểm hiện tại"
+              >
+                <FlagOff className="w-3 h-3 text-rose-500" />
+                <span className="font-mono">
+                  {loopEnd != null ? `${loopEnd.toFixed(1)}s` : '—'}
+                </span>
+              </Button>
+            </>
           )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -864,9 +888,7 @@ export default function YouTubeVideoViewerPage() {
                 {drawerContent}
               </aside>
             ) : (
-              <aside className="w-[360px] flex-shrink-0 border-l border-border h-full">
-                {drawerContent}
-              </aside>
+              <ResizableDrawer>{drawerContent}</ResizableDrawer>
             )}
           </>
         )}
