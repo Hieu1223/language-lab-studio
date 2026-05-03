@@ -381,7 +381,6 @@ export default function YouTubeVideoViewerPage() {
       <div className="flex border-b border-border flex-shrink-0">
         {([
           { id: 'settings' as const, label: 'Settings', icon: SettingsIcon },
-          { id: 'loop' as const, label: 'Loop', icon: Repeat },
           { id: 'dictionary' as const, label: 'Dict', icon: BookOpen },
         ]).map(({ id, label, icon: Icon }) => (
           <button
