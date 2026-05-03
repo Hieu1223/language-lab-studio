@@ -1595,90 +1595,93 @@ export default function MangaReaderPage() {
                                   if (el) blockItemRefs.current.set(key, el);
                                   else blockItemRefs.current.delete(key);
                                 }}
-                                className={`rounded-lg border bg-card overflow-hidden transition-colors ${
+                                className={`rounded-lg border bg-card overflow-hidden transition-colors w-full ${
                                   isSelected
                                     ? 'border-amber-400 ring-1 ring-amber-400/40'
                                     : 'border-border hover:border-primary/40'
                                 }`}
                               >
-                                {/* ── Header row ── */}
-                                <button
-                                  type="button"
-                                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-muted/40 transition-colors group"
-                                  onClick={() => {
-                                    const next = isExpanded ? null : key;
-                                    setExpandedBlock(next);
-                                    setSelectedBlock({ pageIdx, blockIdx });
-                                    if (readMode === 'single') {
-                                      goTo(pageIdx);
-                                    } else if (readMode === 'vertical' && pageRefs.current[pageIdx]) {
-                                      pageRefs.current[pageIdx]!.scrollIntoView({ behavior: 'smooth' });
-                                    }
-                                  }}
-                                >
-                                  <span className="flex-shrink-0 text-[10px] font-mono text-muted-foreground leading-none" style={{ width: '2.8rem' }}>
-                                    P{pageIdx + 1}·{blockIdx + 1}
-                                  </span>
-                                  <span className="flex-1 min-w-0 text-xs font-japanese truncate text-foreground/80">
-                                    {preview}
-                                  </span>
-                                  {tokens && !isTokenizing && (
-                                    <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" title="Đã phân tích" />
-                                  )}
-                                  {isTokenizing && (
-                                    <Loader2 className="flex-shrink-0 w-3 h-3 animate-spin text-muted-foreground" />
-                                  )}
+                                {/* ── Collapsed: preview only with see-more affordance ── */}
+                                {!isExpanded && (
                                   <button
                                     type="button"
-                                    className="flex-shrink-0 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity p-1 rounded hover:bg-muted"
-                                    onClick={(e) => { e.stopPropagation(); copyToClipboard(blockText); }}
-                                    title="Sao chép"
+                                    className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-muted/40 transition-colors group min-w-0"
+                                    onClick={() => {
+                                      setExpandedBlock(key);
+                                      setSelectedBlock({ pageIdx, blockIdx });
+                                      if (readMode === 'single') {
+                                        goTo(pageIdx);
+                                      } else if (readMode === 'vertical' && pageRefs.current[pageIdx]) {
+                                        pageRefs.current[pageIdx]!.scrollIntoView({ behavior: 'smooth' });
+                                      }
+                                    }}
                                   >
-                                    <Copy className="w-3 h-3" />
+                                    <span className="flex-1 min-w-0 text-xs font-japanese truncate text-foreground/85">
+                                      {preview}
+                                    </span>
+                                    {tokens && (
+                                      <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" title="Đã phân tích" />
+                                    )}
+                                    {isTokenizing && (
+                                      <Loader2 className="flex-shrink-0 w-3 h-3 animate-spin text-muted-foreground" />
+                                    )}
+                                    <span className="flex-shrink-0 text-[10px] text-primary/80 group-hover:text-primary font-medium">
+                                      xem thêm
+                                    </span>
                                   </button>
-                                  <ChevronDown
-                                    className={`flex-shrink-0 w-3.5 h-3.5 text-muted-foreground transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`}
-                                  />
-                                </button>
+                                )}
 
-                                {/* ── Expanded body ── */}
+                                {/* ── Expanded body: full sentence ── */}
                                 {isExpanded && (
-                                  <div className="border-t border-border/50 bg-muted/20 px-3 pt-2.5 pb-3 space-y-2.5">
-                                    {/* While tokenizing */}
+                                  <div className="px-3 pt-2.5 pb-3 space-y-2 min-w-0">
+                                    {/* Top action row: collapse + inline analyze + copy */}
+                                    <div className="flex items-center justify-end gap-1 -mt-1 -mr-1">
+                                      {!tokens && !isTokenizing && (
+                                        <button
+                                          type="button"
+                                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors"
+                                          onClick={() => tokenizeBlock(key, blockText)}
+                                          title="Phân tích từ"
+                                        >
+                                          <Wand2 className="w-3 h-3" />
+                                          Phân tích
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                        onClick={() => copyToClipboard(blockText)}
+                                        title="Sao chép"
+                                      >
+                                        <Copy className="w-3 h-3" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                        onClick={() => setExpandedBlock(null)}
+                                        title="Thu gọn"
+                                      >
+                                        <ChevronDown className="w-3.5 h-3.5 rotate-180" />
+                                      </button>
+                                    </div>
+
                                     {isTokenizing && (
                                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                         <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang phân tích…
                                       </div>
                                     )}
 
-                                    {/* Not yet tokenized: raw text + analyze button (per-card) */}
                                     {!tokens && !isTokenizing && (
-                                      <>
-                                        <p
-                                          className="text-sm font-japanese leading-relaxed text-foreground/90 whitespace-pre-wrap select-text"
-                                          style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
-                                        >
-                                          {blockText}
-                                        </p>
-                                        <Button
-                                          size="sm"
-                                          variant="default"
-                                          className="w-full h-8 text-xs gap-1.5"
-                                          onClick={() => tokenizeBlock(key, blockText)}
-                                        >
-                                          <Wand2 className="w-3.5 h-3.5 flex-shrink-0" />
-                                          Phân tích từ
-                                        </Button>
-                                      </>
+                                      <p
+                                        className="text-sm font-japanese leading-relaxed text-foreground/90 whitespace-pre-wrap select-text break-words"
+                                        style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
+                                      >
+                                        {blockText}
+                                      </p>
                                     )}
 
-                                    {/* After tokenize: tokens REPLACE the raw text — clickable underline pop */}
                                     {tokens && !isTokenizing && (
-                                      <BlockTokenResult
-                                        tokens={tokens}
-                                        deckEntries={deckEntries}
-                                        onRetokenize={() => tokenizeBlock(key, blockText)}
-                                      />
+                                      <BlockTokenResult tokens={tokens} deckEntries={deckEntries} />
                                     )}
                                   </div>
                                 )}
