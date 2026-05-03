@@ -262,28 +262,65 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [activeSegIdx, settings.autoScroll]);
 
-  // ── Loop logic ───────────────────────────────────────────────────────────
-  const loopBounds = useMemo(() => {
-    if (!loopRange) return null;
-    const { start, end } = loopRange;
-    const segStart = rawSegments[start];
-    const segEnd = rawSegments[end];
-    if (!segStart || !segEnd) return null;
-    const startWords = segStart.words.filter((w) => w.start != null);
-    const endWords = segEnd.words.filter((w) => w.end != null);
-    if (startWords.length === 0 || endWords.length === 0) return null;
-    return {
-      from: startWords[0].start as number,
-      to: endWords[endWords.length - 1].end as number,
-    };
-  }, [loopRange, rawSegments]);
-
+  // ── Loop logic — token-level start/end (in seconds) ─────────────────────
+  // While loopEnabled, jump back to loopStart whenever currentTime crosses end.
   useEffect(() => {
-    if (!loopBounds) return;
-    if (currentTime >= loopBounds.to) {
-      seekRef.current?.(loopBounds.from);
+    if (!loopEnabled || loopStart == null || loopEnd == null) return;
+    if (currentTime >= loopEnd) {
+      seekRef.current?.(loopStart);
     }
-  }, [currentTime, loopBounds]);
+  }, [currentTime, loopEnabled, loopStart, loopEnd]);
+
+  // Set loop start = current playback time (snap to nearest word start ≤ now)
+  const handleSetLoopStart = () => {
+    let candidate = currentTime;
+    // snap to the start of the word currently being spoken if any
+    for (const seg of rawSegments) {
+      for (const w of seg.words) {
+        if (w.start != null && w.end != null && currentTime >= w.start && currentTime <= w.end) {
+          candidate = w.start;
+          break;
+        }
+      }
+    }
+    setLoopStart(candidate);
+    if (loopEnd != null && candidate >= loopEnd) setLoopEnd(null);
+    toast.success(`Bắt đầu lặp ở ${candidate.toFixed(2)}s`);
+  };
+
+  const handleSetLoopEnd = () => {
+    let candidate = currentTime;
+    for (const seg of rawSegments) {
+      for (const w of seg.words) {
+        if (w.start != null && w.end != null && currentTime >= w.start && currentTime <= w.end) {
+          candidate = w.end;
+          break;
+        }
+      }
+    }
+    if (loopStart != null && candidate <= loopStart) {
+      toast.error('Điểm kết thúc phải sau điểm bắt đầu.');
+      return;
+    }
+    setLoopEnd(candidate);
+    toast.success(`Kết thúc lặp ở ${candidate.toFixed(2)}s`);
+  };
+
+  const handleToggleLoop = () => {
+    if (!loopEnabled) {
+      if (loopStart == null || loopEnd == null) {
+        toast.error('Hãy đặt điểm bắt đầu và kết thúc trước.');
+        return;
+      }
+    }
+    setLoopEnabled((v) => !v);
+  };
+
+  const applyClozeSettings = () => {
+    updateSettings({ hiddenRange: draftHidden, visibleRange: draftVisible });
+    setSeed(Date.now());
+    toast.success('Đã áp dụng cài đặt mới');
+  };
 
   // ── Actions ──────────────────────────────────────────────────────────────
   const handleRequestTranscription = async () => {
@@ -332,33 +369,6 @@ export default function YouTubeVideoViewerPage() {
       })),
     );
     setAllRevealed(next);
-  };
-
-  const handleSegmentClick = (segIdx: number) => {
-    if (loopPicking === 'start') {
-      setLoopRange((prev) => {
-        const end = prev && prev.end >= segIdx ? prev.end : segIdx;
-        return { start: segIdx, end };
-      });
-      setLoopPicking('end');
-      return;
-    }
-    if (loopPicking === 'end') {
-      setLoopRange((prev) => {
-        const start = prev ? Math.min(prev.start, segIdx) : segIdx;
-        return { start, end: Math.max(start, segIdx) };
-      });
-      setLoopPicking(null);
-      // Jump to loop start
-      const seg = rawSegments[Math.min(loopRange?.start ?? segIdx, segIdx)];
-      const firstTime = seg?.words.find((w) => w.start != null)?.start;
-      if (firstTime != null) seekRef.current?.(firstTime);
-      return;
-    }
-    // Default: just seek
-    const seg = rawSegments[segIdx];
-    const firstTime = seg?.words.find((w) => w.start != null)?.start;
-    if (firstTime != null) seekRef.current?.(firstTime);
   };
 
   // ── Render helpers ───────────────────────────────────────────────────────
