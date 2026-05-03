@@ -753,12 +753,48 @@ export default function YouTubeVideoViewerPage() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {loopRange && (
-            <span className="hidden sm:flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded">
-              <Repeat className="w-3 h-3" />
-              Loop {loopRange.start + 1}-{loopRange.end + 1}
-            </span>
+          {/* Loop controls — only the toggle is always visible. Set-start /
+              set-end appear only when looping is enabled. */}
+          <Button
+            variant={loopEnabled ? 'default' : 'ghost'}
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={handleToggleLoop}
+            title={loopEnabled ? 'Tắt lặp' : 'Bật lặp (cần đặt mốc trước)'}
+          >
+            <Repeat className={`w-3.5 h-3.5 ${loopEnabled ? '' : 'opacity-70'}`} />
+            <span className="hidden sm:inline">{loopEnabled ? 'Đang lặp' : 'Lặp'}</span>
+          </Button>
+
+          {loopEnabled && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 text-[11px]"
+                onClick={handleSetLoopStart}
+                title="Đặt điểm bắt đầu = thời điểm hiện tại"
+              >
+                <Flag className="w-3 h-3 text-emerald-500" />
+                <span className="font-mono">
+                  {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
+                </span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 text-[11px]"
+                onClick={handleSetLoopEnd}
+                title="Đặt điểm kết thúc = thời điểm hiện tại"
+              >
+                <FlagOff className="w-3 h-3 text-rose-500" />
+                <span className="font-mono">
+                  {loopEnd != null ? `${loopEnd.toFixed(1)}s` : '—'}
+                </span>
+              </Button>
+            </>
           )}
+
           <Button
             variant="ghost"
             size="icon"
