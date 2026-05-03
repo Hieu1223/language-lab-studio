@@ -829,9 +829,7 @@ export default function YouTubeVideoViewerPage() {
                 {drawerContent}
               </aside>
             ) : (
-              <aside className="w-[360px] flex-shrink-0 border-l border-border h-full">
-                {drawerContent}
-              </aside>
+              <ResizableDrawer>{drawerContent}</ResizableDrawer>
             )}
           </>
         )}
