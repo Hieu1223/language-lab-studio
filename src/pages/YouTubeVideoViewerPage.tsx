@@ -20,6 +20,9 @@ import {
   Columns2,
   Square,
   Layout as LayoutIcon,
+  Check,
+  Flag,
+  FlagOff,
 } from 'lucide-react';
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
