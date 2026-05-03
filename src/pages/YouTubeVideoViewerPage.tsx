@@ -105,6 +105,15 @@ export default function YouTubeVideoViewerPage() {
     });
   };
 
+  // Draft cloze ranges — edits don't auto-apply; user must click Apply.
+  const [draftHidden, setDraftHidden] = useState<[number, number]>(settings.hiddenRange);
+  const [draftVisible, setDraftVisible] = useState<[number, number]>(settings.visibleRange);
+  const clozeDirty =
+    draftHidden[0] !== settings.hiddenRange[0] ||
+    draftHidden[1] !== settings.hiddenRange[1] ||
+    draftVisible[0] !== settings.visibleRange[0] ||
+    draftVisible[1] !== settings.visibleRange[1];
+
   const clozeOpts: BlockClozeOptions = useMemo(
     () => ({
       minHidden: settings.hiddenRange[0],
@@ -126,12 +135,10 @@ export default function YouTubeVideoViewerPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
 
-  // Loop state — multi-segment range loop
-  const [loopRange, setLoopRange] = useState<{ start: number; end: number } | null>(
-    null,
-  );
-  // Currently being defined: 'start' | 'end' | null
-  const [loopPicking, setLoopPicking] = useState<'start' | 'end' | null>(null);
+  // ── Loop state — token-level start/end with timestamps ───────────────────
+  const [loopStart, setLoopStart] = useState<number | null>(null); // seconds
+  const [loopEnd, setLoopEnd] = useState<number | null>(null);     // seconds
+  const [loopEnabled, setLoopEnabled] = useState(false);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
