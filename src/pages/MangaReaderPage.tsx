@@ -390,113 +390,61 @@ function MangaPage({
 interface BlockTokenResultProps {
   tokens: Token[];
   deckEntries: WordEntry[];
-  onRetokenize: () => void;
 }
 
-function BlockTokenResult({ tokens, deckEntries, onRetokenize }: BlockTokenResultProps) {
-  const [activeToken, setActiveToken] = useState<Token | null>(null);
+/**
+ * Compact token flow. Tokens with dictionary entries are underlined and
+ * open a popover with full meaning + "save to deck" button on click.
+ * Tokens without entries render as plain inline text.
+ */
+function BlockTokenResult({ tokens, deckEntries }: BlockTokenResultProps) {
   const [deckOpen, setDeckOpen] = useState(false);
-  const [deckWords, setDeckWords] = useState<WordEntry[]>([]);
-
-  const openDeck = (words: WordEntry[]) => {
-    setDeckWords(words);
-    setDeckOpen(true);
-  };
 
   return (
     <div className="space-y-2">
-      {/* ── Wrapping token flow ── */}
-      <div
-        className="flex flex-wrap gap-x-0.5 gap-y-1.5 leading-loose"
+      <p
+        className="text-sm leading-relaxed font-japanese text-foreground/90"
         style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
       >
         {tokens.map((t, i) => {
-          const hasEntry = !!t.entry;
-          const isActive = activeToken === t;
-          if (!hasEntry) {
+          if (!t.entry) {
             return (
-              <span key={i} className="text-sm text-foreground/50 font-japanese">
+              <span key={i} className="text-foreground/70">
                 {t.surface}
               </span>
             );
           }
           return (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setActiveToken(isActive ? null : t)}
-              className={`font-japanese text-sm rounded px-0.5 transition-colors ${
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'underline decoration-dotted underline-offset-2 decoration-primary/60 hover:bg-primary/10'
-              }`}
-            >
-              {/* Reading as ruby */}
-              <ruby>
+            <TokenPopover key={i} token={t}>
+              <button
+                type="button"
+                className="underline decoration-dotted underline-offset-[3px] decoration-primary/70 hover:bg-primary/15 hover:decoration-primary rounded-sm px-px transition-colors"
+              >
                 {t.surface}
-                <rt className="text-[8px] font-normal not-italic">
-                  {t.entry!.reading}
-                </rt>
-              </ruby>
-            </button>
+              </button>
+            </TokenPopover>
           );
         })}
-      </div>
+      </p>
 
-      {/* ── Active token detail card ── */}
-      {activeToken?.entry && (
-        <div className="rounded-md border bg-card p-2 space-y-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="text-base font-bold font-japanese leading-tight">
-                {activeToken.entry.word}
-              </p>
-              <p className="text-[11px] text-muted-foreground font-japanese">
-                {activeToken.entry.reading}
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 flex-shrink-0"
-              title="Lưu từ này"
-              onClick={() => openDeck([activeToken.entry!])}
-            >
-              <BookmarkPlus className="w-3.5 h-3.5 text-primary" />
-            </Button>
-          </div>
-          <p className="text-[11px] leading-snug text-foreground/80 line-clamp-3">
-            {activeToken.entry.meaning}
-          </p>
-        </div>
-      )}
-
-      {/* ── Footer ── */}
-      <div className="flex items-center justify-between gap-2 pt-0.5">
-        <button
-          type="button"
-          className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
-          onClick={onRetokenize}
-        >
-          Phân tích lại
-        </button>
-        {deckEntries.length > 0 && (
+      {deckEntries.length > 0 && (
+        <div className="flex justify-end pt-1">
           <Button
             size="sm"
             variant="outline"
             className="h-6 text-[10px] px-2 gap-1"
-            onClick={() => openDeck(deckEntries)}
+            onClick={() => setDeckOpen(true)}
           >
             <BookmarkPlus className="w-3 h-3" />
             Lưu tất cả ({deckEntries.length})
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       <AddToDeckDialog
         open={deckOpen}
-        onOpenChange={(o) => { setDeckOpen(o); if (!o) setDeckWords([]); }}
-        words={deckWords}
+        onOpenChange={setDeckOpen}
+        words={deckEntries}
       />
     </div>
   );
