@@ -40,6 +40,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { AddToDeckDialog } from '@/components/dictionary/AddToDeckDialog';
+import { TokenPopover } from '@/components/dictionary/TokenPopover';
 import { searchWords, type WordResponse } from '@/lib/api/flashcard';
 import { searchKanji, getKanji, type KanjiResponse, tokenize, type Token, type WordEntry } from '@/lib/api/tokenization';
 import {
