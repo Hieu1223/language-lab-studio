@@ -68,6 +68,65 @@ const POLL_MAX_ATTEMPTS = 60;
 type PageStatus = 'checking' | 'not_found' | 'processing' | 'ready' | 'error';
 type PanelTab = 'settings' | 'dictionary';
 
+// ─── Resizable right drawer (desktop) ────────────────────────────────────
+
+function ResizableDrawer({ children }: { children: React.ReactNode }) {
+  const [width, setWidth] = useState<number>(() => {
+    const saved = parseInt(localStorage.getItem('viewer-drawer-width') || '', 10);
+    return !isNaN(saved) ? Math.min(720, Math.max(280, saved)) : 360;
+  });
+  const draggingRef = useRef(false);
+
+  useEffect(() => {
+    localStorage.setItem('viewer-drawer-width', String(width));
+  }, [width]);
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      if (!draggingRef.current) return;
+      e.preventDefault();
+      const next = window.innerWidth - e.clientX;
+      setWidth(Math.min(720, Math.max(280, next)));
+    };
+    const onUp = () => {
+      draggingRef.current = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, []);
+
+  return (
+    <aside
+      className="flex-shrink-0 border-l border-border h-full relative"
+      style={{ width }}
+    >
+      {/* Resize handle on the left edge of the drawer */}
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        onPointerDown={(e) => {
+          if (e.button !== 0 && e.pointerType === 'mouse') return;
+          e.preventDefault();
+          draggingRef.current = true;
+          document.body.style.userSelect = 'none';
+          document.body.style.cursor = 'col-resize';
+        }}
+        className="absolute -left-1 top-0 bottom-0 w-2 z-30 cursor-col-resize hover:bg-primary/40 transition-colors"
+        style={{ touchAction: 'none' }}
+      />
+      <div className="h-full">{children}</div>
+    </aside>
+  );
+}
+
 // ─── Main ────────────────────────────────────────────────────────────────
 
 export default function YouTubeVideoViewerPage() {
