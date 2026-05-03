@@ -66,7 +66,7 @@ const POLL_INTERVAL_MS = 4000;
 const POLL_MAX_ATTEMPTS = 60;
 
 type PageStatus = 'checking' | 'not_found' | 'processing' | 'ready' | 'error';
-type PanelTab = 'settings' | 'loop' | 'dictionary';
+type PanelTab = 'settings' | 'dictionary';
 
 // ─── Main ────────────────────────────────────────────────────────────────
 
