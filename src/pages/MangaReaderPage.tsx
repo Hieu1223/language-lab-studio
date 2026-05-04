@@ -759,7 +759,7 @@ export default function MangaReaderPage() {
 
   // ── Settings ─────────────────────────────────────────────────────────────
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
-  const { readMode, showOCRBoxes, boxPadding, zoom } = settings;
+  const { readMode, showOCRBoxes, boxPadding, zoom, autoOpenPanelOnBlock } = settings;
 
   const updateSettings = (patch: Partial<ReaderSettings>) =>
     setSettings((s) => ({ ...s, ...patch }));
