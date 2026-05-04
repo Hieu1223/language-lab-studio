@@ -198,6 +198,8 @@ export default function YouTubeVideoViewerPage() {
   const [loopStart, setLoopStart] = useState<number | null>(null); // seconds
   const [loopEnd, setLoopEnd] = useState<number | null>(null);     // seconds
   const [loopEnabled, setLoopEnabled] = useState(false);
+  // When non-null, the next token click sets the loop boundary instead of seeking.
+  const [pickMode, setPickMode] = useState<'start' | 'end' | null>(null);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
@@ -330,49 +332,24 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [currentTime, loopEnabled, loopStart, loopEnd]);
 
-  // Set loop start = current playback time (snap to nearest word start ≤ now)
+  // Enter "pick start" mode — the next token click will set the start.
   const handleSetLoopStart = () => {
-    let candidate = currentTime;
-    // snap to the start of the word currently being spoken if any
-    for (const seg of rawSegments) {
-      for (const w of seg.words) {
-        if (w.start != null && w.end != null && currentTime >= w.start && currentTime <= w.end) {
-          candidate = w.start;
-          break;
-        }
-      }
-    }
-    setLoopStart(candidate);
-    if (loopEnd != null && candidate >= loopEnd) setLoopEnd(null);
-    toast.success(`Bắt đầu lặp ở ${candidate.toFixed(2)}s`);
+    setPickMode((m) => (m === 'start' ? null : 'start'));
+    if (pickMode !== 'start') toast.info('Bấm vào một từ trong transcript để đặt điểm bắt đầu');
   };
 
   const handleSetLoopEnd = () => {
-    let candidate = currentTime;
-    for (const seg of rawSegments) {
-      for (const w of seg.words) {
-        if (w.start != null && w.end != null && currentTime >= w.start && currentTime <= w.end) {
-          candidate = w.end;
-          break;
-        }
-      }
-    }
-    if (loopStart != null && candidate <= loopStart) {
-      toast.error('Điểm kết thúc phải sau điểm bắt đầu.');
-      return;
-    }
-    setLoopEnd(candidate);
-    toast.success(`Kết thúc lặp ở ${candidate.toFixed(2)}s`);
+    setPickMode((m) => (m === 'end' ? null : 'end'));
+    if (pickMode !== 'end') toast.info('Bấm vào một từ trong transcript để đặt điểm kết thúc');
   };
 
   const handleToggleLoop = () => {
-    if (!loopEnabled) {
-      if (loopStart == null || loopEnd == null) {
-        toast.error('Hãy đặt điểm bắt đầu và kết thúc trước.');
-        return;
-      }
+    if (loopEnabled) {
+      setLoopEnabled(false);
+      setPickMode(null);
+      return;
     }
-    setLoopEnabled((v) => !v);
+    setLoopEnabled(true);
   };
 
   const applyClozeSettings = () => {
@@ -416,8 +393,26 @@ export default function YouTubeVideoViewerPage() {
   };
 
   const handleSeek = useCallback((seconds: number) => {
+    if (pickMode === 'start') {
+      setLoopStart(seconds);
+      if (loopEnd != null && seconds >= loopEnd) setLoopEnd(null);
+      setPickMode(null);
+      toast.success(`Bắt đầu lặp ở ${seconds.toFixed(2)}s`);
+      return;
+    }
+    if (pickMode === 'end') {
+      if (loopStart != null && seconds <= loopStart) {
+        toast.error('Điểm kết thúc phải sau điểm bắt đầu.');
+        setPickMode(null);
+        return;
+      }
+      setLoopEnd(seconds);
+      setPickMode(null);
+      toast.success(`Kết thúc lặp ở ${seconds.toFixed(2)}s`);
+      return;
+    }
     seekRef.current?.(seconds);
-  }, []);
+  }, [pickMode, loopStart, loopEnd]);
 
   const handleToggleAll = () => {
     const next = !allRevealed;
@@ -825,34 +820,32 @@ export default function YouTubeVideoViewerPage() {
             <span className="hidden sm:inline">{loopEnabled ? 'Đang lặp' : 'Lặp'}</span>
           </Button>
 
-          {loopEnabled && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 text-[11px]"
-                onClick={handleSetLoopStart}
-                title="Đặt điểm bắt đầu = thời điểm hiện tại"
-              >
-                <Flag className="w-3 h-3 text-emerald-500" />
-                <span className="font-mono">
-                  {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
-                </span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 text-[11px]"
-                onClick={handleSetLoopEnd}
-                title="Đặt điểm kết thúc = thời điểm hiện tại"
-              >
-                <FlagOff className="w-3 h-3 text-rose-500" />
-                <span className="font-mono">
-                  {loopEnd != null ? `${loopEnd.toFixed(1)}s` : '—'}
-                </span>
-              </Button>
-            </>
-          )}
+          <Button
+            variant={pickMode === 'start' ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 gap-1 text-[11px]"
+            onClick={handleSetLoopStart}
+            disabled={!loopEnabled}
+            title="Bấm rồi chọn 1 từ trong transcript để đặt điểm bắt đầu"
+          >
+            <Flag className="w-3 h-3 text-emerald-500" />
+            <span className="font-mono">
+              {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
+            </span>
+          </Button>
+          <Button
+            variant={pickMode === 'end' ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 gap-1 text-[11px]"
+            onClick={handleSetLoopEnd}
+            disabled={!loopEnabled}
+            title="Bấm rồi chọn 1 từ trong transcript để đặt điểm kết thúc"
+          >
+            <FlagOff className="w-3 h-3 text-rose-500" />
+            <span className="font-mono">
+              {loopEnd != null ? `${loopEnd.toFixed(1)}s` : '—'}
+            </span>
+          </Button>
 
           <Button
             variant="ghost"

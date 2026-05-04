@@ -401,15 +401,15 @@ function BlockTokenResult({ tokens, deckEntries }: BlockTokenResultProps) {
   const [deckOpen, setDeckOpen] = useState(false);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 min-w-0">
       <p
-        className="text-sm leading-relaxed font-japanese text-foreground/90"
-        style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
+        className="text-sm leading-relaxed font-japanese text-foreground/90 break-words overflow-wrap-anywhere"
+        style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
       >
         {tokens.map((t, i) => {
           if (!t.entry) {
             return (
-              <span key={i} className="text-foreground/70">
+              <span key={i} className="text-foreground/70 break-words">
                 {t.surface}
               </span>
             );
@@ -418,7 +418,8 @@ function BlockTokenResult({ tokens, deckEntries }: BlockTokenResultProps) {
             <TokenPopover key={i} token={t}>
               <button
                 type="button"
-                className="underline decoration-dotted underline-offset-[3px] decoration-primary/70 hover:bg-primary/15 hover:decoration-primary rounded-sm px-px transition-colors"
+                className="underline decoration-dotted underline-offset-[3px] decoration-primary/70 hover:bg-primary/15 hover:decoration-primary rounded-sm px-px transition-colors break-words"
+                style={{ wordBreak: 'break-word' }}
               >
                 {t.surface}
               </button>
@@ -708,6 +709,7 @@ interface ReaderSettings {
   showOCRBoxes: boolean;
   boxPadding: number;
   zoom: number;
+  autoOpenPanelOnBlock: boolean;
 }
 
 const DEFAULT_SETTINGS: ReaderSettings = {
@@ -715,6 +717,7 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   showOCRBoxes: true,
   boxPadding: 0,
   zoom: 100,
+  autoOpenPanelOnBlock: true,
 };
 
 function loadSettings(): ReaderSettings {
@@ -757,7 +760,7 @@ export default function MangaReaderPage() {
 
   // ── Settings ─────────────────────────────────────────────────────────────
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
-  const { readMode, showOCRBoxes, boxPadding, zoom } = settings;
+  const { readMode, showOCRBoxes, boxPadding, zoom, autoOpenPanelOnBlock } = settings;
 
   const updateSettings = (patch: Partial<ReaderSettings>) =>
     setSettings((s) => ({ ...s, ...patch }));
@@ -1065,14 +1068,16 @@ export default function MangaReaderPage() {
     const key = `${pageIdx}-${blockIdx}`;
     setSelectedBlock({ pageIdx, blockIdx });
     setExpandedBlock(key);
-    setPanelOpen(true);
-    setPanelTab('text');
+    if (autoOpenPanelOnBlock) {
+      setPanelOpen(true);
+      setPanelTab('text');
+    }
     // Scroll the list item into view after the panel renders
     requestAnimationFrame(() => {
       const el = blockItemRefs.current.get(key);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
-  }, []);
+  }, [autoOpenPanelOnBlock]);
 
   // ── Block tokenize ───────────────────────────────────────────────────────
   const tokenizeBlock = async (key: string, text: string) => {
@@ -1322,7 +1327,7 @@ export default function MangaReaderPage() {
       </div>
 
       {/* Body — desktop: panel pushes layout. Mobile: panel overlays. */}
-      <div className="flex-1 overflow-hidden min-h-0 flex">
+      <div className="flex-1 overflow-hidden min-h-0 flex relative">
         {/* Viewer fills remaining space */}
         <div className="flex-1 min-w-0 min-h-0 relative overflow-hidden">
           <div ref={setViewerNode} className="absolute inset-0 flex overflow-hidden">
@@ -1463,6 +1468,17 @@ export default function MangaReaderPage() {
                         Chạm vào bounding box để mở trong tab Text.
                       </p>
                     )}
+
+                    <div className="flex items-center justify-between pt-1">
+                      <Label htmlFor="auto-open-panel" className="text-sm cursor-pointer pr-2">
+                        Tự mở panel khi bấm OCR
+                      </Label>
+                      <Switch
+                        id="auto-open-panel"
+                        checked={autoOpenPanelOnBlock}
+                        onCheckedChange={(v) => updateSettings({ autoOpenPanelOnBlock: v })}
+                      />
+                    </div>
                   </div>
 
                   <Separator />
