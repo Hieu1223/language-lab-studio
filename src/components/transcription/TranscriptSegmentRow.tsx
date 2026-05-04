@@ -118,6 +118,9 @@ export function TranscriptSegmentRow({
   onSeek,
   rowRef,
   highlightMode = 'token',
+  loopStart,
+  loopEnd,
+  pickMode,
 }: {
   cs: ClozeSegment;
   isActive: boolean;
@@ -126,6 +129,9 @@ export function TranscriptSegmentRow({
   onSeek?: (seconds: number) => void;
   rowRef?: React.Ref<HTMLDivElement>;
   highlightMode?: HighlightMode;
+  loopStart?: number | null;
+  loopEnd?: number | null;
+  pickMode?: 'start' | 'end' | null;
 }) {
   const [tokenizeOpen, setTokenizeOpen] = useState(false);
 
@@ -154,12 +160,21 @@ export function TranscriptSegmentRow({
             ct.word.end !== null &&
             currentTime >= ct.word.start &&
             currentTime <= ct.word.end;
+          const isLoopStart =
+            loopStart != null && ct.word.start != null &&
+            Math.abs(ct.word.start - loopStart) < 0.01;
+          const isLoopEnd =
+            loopEnd != null && ct.word.start != null &&
+            Math.abs(ct.word.start - loopEnd) < 0.01;
           return (
             <TranscriptClozeWord
               key={ti}
               ct={ct}
               showClozeMode={showClozeMode}
               isCurrent={isCurrentToken}
+              isLoopStart={isLoopStart}
+              isLoopEnd={isLoopEnd}
+              pickMode={pickMode}
               onSeek={onSeek}
             />
           );
