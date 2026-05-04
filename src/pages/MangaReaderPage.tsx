@@ -1467,6 +1467,17 @@ export default function MangaReaderPage() {
                         Chạm vào bounding box để mở trong tab Text.
                       </p>
                     )}
+
+                    <div className="flex items-center justify-between pt-1">
+                      <Label htmlFor="auto-open-panel" className="text-sm cursor-pointer pr-2">
+                        Tự mở panel khi bấm OCR
+                      </Label>
+                      <Switch
+                        id="auto-open-panel"
+                        checked={autoOpenPanelOnBlock}
+                        onCheckedChange={(v) => updateSettings({ autoOpenPanelOnBlock: v })}
+                      />
+                    </div>
                   </div>
 
                   <Separator />
