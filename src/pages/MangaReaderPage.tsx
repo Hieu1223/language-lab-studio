@@ -1689,8 +1689,12 @@ export default function MangaReaderPage() {
 
                                     {!tokens && !isTokenizing && (
                                       <p
-                                        className="text-sm font-japanese leading-relaxed text-foreground/90 whitespace-pre-wrap select-text break-words"
-                                        style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
+                                        className="text-sm font-japanese leading-relaxed text-foreground/90 whitespace-pre-wrap select-text"
+                                        style={{
+                                          fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif',
+                                          wordBreak: 'break-all',
+                                          overflowWrap: 'anywhere',
+                                        }}
                                       >
                                         {blockText}
                                       </p>
