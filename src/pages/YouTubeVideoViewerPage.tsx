@@ -393,8 +393,26 @@ export default function YouTubeVideoViewerPage() {
   };
 
   const handleSeek = useCallback((seconds: number) => {
+    if (pickMode === 'start') {
+      setLoopStart(seconds);
+      if (loopEnd != null && seconds >= loopEnd) setLoopEnd(null);
+      setPickMode(null);
+      toast.success(`Bắt đầu lặp ở ${seconds.toFixed(2)}s`);
+      return;
+    }
+    if (pickMode === 'end') {
+      if (loopStart != null && seconds <= loopStart) {
+        toast.error('Điểm kết thúc phải sau điểm bắt đầu.');
+        setPickMode(null);
+        return;
+      }
+      setLoopEnd(seconds);
+      setPickMode(null);
+      toast.success(`Kết thúc lặp ở ${seconds.toFixed(2)}s`);
+      return;
+    }
     seekRef.current?.(seconds);
-  }, []);
+  }, [pickMode, loopStart, loopEnd]);
 
   const handleToggleAll = () => {
     const next = !allRevealed;
