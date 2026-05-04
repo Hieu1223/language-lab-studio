@@ -735,6 +735,9 @@ export default function YouTubeVideoViewerPage() {
               currentTime={currentTime}
               onSeek={handleSeek}
               rowRef={si === activeSegIdx ? activeSegRef : undefined}
+              loopStart={loopStart}
+              loopEnd={loopEnd}
+              pickMode={pickMode}
             />
           ))}
           <div className="h-32" />
