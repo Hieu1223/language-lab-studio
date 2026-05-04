@@ -14,11 +14,17 @@ import type { HighlightMode } from '@/lib/settings-storage';
 export function TranscriptClozeWord({
   ct,
   isCurrent,
+  isLoopStart,
+  isLoopEnd,
+  pickMode,
   showClozeMode,
   onSeek,
 }: {
   ct: ClozeToken;
   isCurrent: boolean;
+  isLoopStart?: boolean;
+  isLoopEnd?: boolean;
+  pickMode?: 'start' | 'end' | null;
   showClozeMode: boolean;
   onSeek?: (seconds: number) => void;
 }) {
@@ -27,6 +33,14 @@ export function TranscriptClozeWord({
 
   const base =
     'inline-block rounded px-1 mx-0.5 transition-all duration-150 select-none whitespace-pre cursor-pointer';
+
+  const loopRing = isLoopStart
+    ? 'ring-2 ring-emerald-500/80 bg-emerald-500/15'
+    : isLoopEnd
+    ? 'ring-2 ring-rose-500/80 bg-rose-500/15'
+    : '';
+
+  const pickPulse = pickMode ? 'outline-dashed outline-1 outline-primary/30' : '';
 
   const active = isCurrent
     ? 'bg-yellow-400/25 text-yellow-100 ring-1 ring-yellow-400/40'
@@ -42,7 +56,7 @@ export function TranscriptClozeWord({
     return (
       <span
         onClick={handleClick}
-        className={`${base} ${active} hover:bg-white/20 text-foreground`}
+        className={`${base} ${active} ${loopRing} ${pickPulse} hover:bg-white/20 text-foreground`}
         title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
       >
         {word.token}
@@ -60,11 +74,9 @@ export function TranscriptClozeWord({
         onMouseLeave={() => setHovered(false)}
         className={`${base} ${
           revealed
-            ? // Permanently revealed: muted green, easy on the eyes
-              'bg-green-900/40 text-green-300/90 border border-green-700/50'
-            : // Hovered-only reveal: muted amber
-              'bg-amber-900/40 text-amber-300/90 border border-amber-700/50'
-        } ${active}`}
+            ? 'bg-green-900/40 text-green-300/90 border border-green-700/50'
+            : 'bg-amber-900/40 text-amber-300/90 border border-amber-700/50'
+        } ${active} ${loopRing} ${pickPulse}`}
         title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
       >
         {word.token}
@@ -72,9 +84,6 @@ export function TranscriptClozeWord({
     );
   }
 
-  // Hidden cloze (mouse not over) → blank sized to match the token's visual width.
-  // CJK / full-width characters (U+1100–U+FFEE ranges) are double-width, so we
-  // count each one as 2 units so the blank doesn't look comically narrow.
   const isCJK = (ch: string) =>
     /[\u1100-\u115F\u2E80-\u303F\u3040-\u33FF\u3400-\u9FFF\uA000-\uA4CF\uAC00-\uD7AF\uF900-\uFAFF\uFE10-\uFE1F\uFE30-\uFE6F\uFF00-\uFFEF]/.test(ch);
 
@@ -88,7 +97,7 @@ export function TranscriptClozeWord({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       className={`${base} bg-primary/20 text-transparent border-b border-primary/50
-        hover:bg-primary/30 hover:border-primary/70 font-mono ${active}`}
+        hover:bg-primary/30 hover:border-primary/70 font-mono ${active} ${loopRing} ${pickPulse}`}
       title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
     >
       {blanks}
