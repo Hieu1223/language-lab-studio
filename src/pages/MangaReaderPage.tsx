@@ -401,15 +401,15 @@ function BlockTokenResult({ tokens, deckEntries }: BlockTokenResultProps) {
   const [deckOpen, setDeckOpen] = useState(false);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 min-w-0">
       <p
-        className="text-sm leading-relaxed font-japanese text-foreground/90"
-        style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif' }}
+        className="text-sm leading-relaxed font-japanese text-foreground/90 break-words overflow-wrap-anywhere"
+        style={{ fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif', overflowWrap: 'anywhere', wordBreak: 'break-word' }}
       >
         {tokens.map((t, i) => {
           if (!t.entry) {
             return (
-              <span key={i} className="text-foreground/70">
+              <span key={i} className="text-foreground/70 break-words">
                 {t.surface}
               </span>
             );
@@ -418,7 +418,8 @@ function BlockTokenResult({ tokens, deckEntries }: BlockTokenResultProps) {
             <TokenPopover key={i} token={t}>
               <button
                 type="button"
-                className="underline decoration-dotted underline-offset-[3px] decoration-primary/70 hover:bg-primary/15 hover:decoration-primary rounded-sm px-px transition-colors"
+                className="underline decoration-dotted underline-offset-[3px] decoration-primary/70 hover:bg-primary/15 hover:decoration-primary rounded-sm px-px transition-colors break-words"
+                style={{ wordBreak: 'break-word' }}
               >
                 {t.surface}
               </button>
