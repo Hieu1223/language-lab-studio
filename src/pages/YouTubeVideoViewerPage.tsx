@@ -198,6 +198,8 @@ export default function YouTubeVideoViewerPage() {
   const [loopStart, setLoopStart] = useState<number | null>(null); // seconds
   const [loopEnd, setLoopEnd] = useState<number | null>(null);     // seconds
   const [loopEnabled, setLoopEnabled] = useState(false);
+  // When non-null, the next token click sets the loop boundary instead of seeking.
+  const [pickMode, setPickMode] = useState<'start' | 'end' | null>(null);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
