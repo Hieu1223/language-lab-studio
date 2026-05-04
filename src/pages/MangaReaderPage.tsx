@@ -1067,14 +1067,16 @@ export default function MangaReaderPage() {
     const key = `${pageIdx}-${blockIdx}`;
     setSelectedBlock({ pageIdx, blockIdx });
     setExpandedBlock(key);
-    setPanelOpen(true);
-    setPanelTab('text');
+    if (autoOpenPanelOnBlock) {
+      setPanelOpen(true);
+      setPanelTab('text');
+    }
     // Scroll the list item into view after the panel renders
     requestAnimationFrame(() => {
       const el = blockItemRefs.current.get(key);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
-  }, []);
+  }, [autoOpenPanelOnBlock]);
 
   // ── Block tokenize ───────────────────────────────────────────────────────
   const tokenizeBlock = async (key: string, text: string) => {
