@@ -708,6 +708,7 @@ interface ReaderSettings {
   showOCRBoxes: boolean;
   boxPadding: number;
   zoom: number;
+  autoOpenPanelOnBlock: boolean;
 }
 
 const DEFAULT_SETTINGS: ReaderSettings = {
@@ -715,6 +716,7 @@ const DEFAULT_SETTINGS: ReaderSettings = {
   showOCRBoxes: true,
   boxPadding: 0,
   zoom: 100,
+  autoOpenPanelOnBlock: true,
 };
 
 function loadSettings(): ReaderSettings {
