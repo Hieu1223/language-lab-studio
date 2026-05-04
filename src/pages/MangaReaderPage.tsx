@@ -1327,7 +1327,7 @@ export default function MangaReaderPage() {
       </div>
 
       {/* Body — desktop: panel pushes layout. Mobile: panel overlays. */}
-      <div className="flex-1 overflow-hidden min-h-0 flex">
+      <div className="flex-1 overflow-hidden min-h-0 flex relative">
         {/* Viewer fills remaining space */}
         <div className="flex-1 min-w-0 min-h-0 relative overflow-hidden">
           <div ref={setViewerNode} className="absolute inset-0 flex overflow-hidden">
