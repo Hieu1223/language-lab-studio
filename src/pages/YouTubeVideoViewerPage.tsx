@@ -820,34 +820,32 @@ export default function YouTubeVideoViewerPage() {
             <span className="hidden sm:inline">{loopEnabled ? 'Đang lặp' : 'Lặp'}</span>
           </Button>
 
-          {loopEnabled && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 text-[11px]"
-                onClick={handleSetLoopStart}
-                title="Đặt điểm bắt đầu = thời điểm hiện tại"
-              >
-                <Flag className="w-3 h-3 text-emerald-500" />
-                <span className="font-mono">
-                  {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
-                </span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 text-[11px]"
-                onClick={handleSetLoopEnd}
-                title="Đặt điểm kết thúc = thời điểm hiện tại"
-              >
-                <FlagOff className="w-3 h-3 text-rose-500" />
-                <span className="font-mono">
-                  {loopEnd != null ? `${loopEnd.toFixed(1)}s` : '—'}
-                </span>
-              </Button>
-            </>
-          )}
+          <Button
+            variant={pickMode === 'start' ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 gap-1 text-[11px]"
+            onClick={handleSetLoopStart}
+            disabled={!loopEnabled}
+            title="Bấm rồi chọn 1 từ trong transcript để đặt điểm bắt đầu"
+          >
+            <Flag className="w-3 h-3 text-emerald-500" />
+            <span className="font-mono">
+              {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
+            </span>
+          </Button>
+          <Button
+            variant={pickMode === 'end' ? 'default' : 'outline'}
+            size="sm"
+            className="h-8 gap-1 text-[11px]"
+            onClick={handleSetLoopEnd}
+            disabled={!loopEnabled}
+            title="Bấm rồi chọn 1 từ trong transcript để đặt điểm kết thúc"
+          >
+            <FlagOff className="w-3 h-3 text-rose-500" />
+            <span className="font-mono">
+              {loopEnd != null ? `${loopEnd.toFixed(1)}s` : '—'}
+            </span>
+          </Button>
 
           <Button
             variant="ghost"
