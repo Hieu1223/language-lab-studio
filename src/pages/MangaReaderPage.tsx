@@ -1548,7 +1548,7 @@ export default function MangaReaderPage() {
 
             {/* Text tab — OCR block list */}
             {panelTab === 'text' && (
-              <div className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full">
                 {ocrDataPages.every((p) => p === null) ? (
                   /* No OCR yet */
                   <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-2">
