@@ -1580,8 +1580,8 @@ export default function MangaReaderPage() {
                     </div>
 
                     {/* ── Block list ── */}
-                    <ScrollArea className="flex-1">
-                      <div ref={blockListRef} className="p-2 space-y-2 w-full">
+                    <ScrollArea className="flex-1 w-full [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]]:!w-full">
+                      <div ref={blockListRef} className="p-2 space-y-2 w-full max-w-full min-w-0">
                         {ocrDataPages.map((page, pageIdx) => {
                           if (!page) return null;
                           return page.blocks.map((block, blockIdx) => {
