@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
