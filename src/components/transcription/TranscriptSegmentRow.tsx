@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
@@ -11,7 +11,7 @@ import type { HighlightMode } from '@/lib/settings-storage';
  *  - Hover  → reveal the cloze (without persisting). Leaving hides it again.
  *  - In Read mode (cloze off) the word is rendered plainly.
  */
-export function TranscriptClozeWord({
+export const TranscriptClozeWord = memo(function TranscriptClozeWord({
   ct,
   isCurrent,
   isLoopStart,
@@ -103,14 +103,14 @@ export function TranscriptClozeWord({
       {blanks}
     </span>
   );
-}
+});
 
 /**
  * One transcript segment row with all words + a "tokenize sentence"
  * button. The transcript is character/word level; the API tokenize
  * endpoint will give us full word-level tokens for dictionary lookup.
  */
-export function TranscriptSegmentRow({
+export const TranscriptSegmentRow = memo(function TranscriptSegmentRow({
   cs,
   isActive,
   showClozeMode,
@@ -202,4 +202,4 @@ export function TranscriptSegmentRow({
       />
     </div>
   );
-}
+});
