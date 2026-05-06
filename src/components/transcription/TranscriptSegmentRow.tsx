@@ -11,7 +11,7 @@ import type { HighlightMode } from '@/lib/settings-storage';
  *  - Hover  → reveal the cloze (without persisting). Leaving hides it again.
  *  - In Read mode (cloze off) the word is rendered plainly.
  */
-export function TranscriptClozeWord({
+export const TranscriptClozeWord = memo(function TranscriptClozeWord({
   ct,
   isCurrent,
   isLoopStart,
