@@ -131,7 +131,7 @@ export const TranscriptSegmentRow = memo(function TranscriptSegmentRow({
   highlightMode?: HighlightMode;
   loopStart?: number | null;
   loopEnd?: number | null;
-  pickMode?: 'start' | 'end' | null;
+  pickMode?: 'start' | 'end' | 'jump' | 'segment' | null;
 }) {
   const [tokenizeOpen, setTokenizeOpen] = useState(false);
 
