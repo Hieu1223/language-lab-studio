@@ -196,12 +196,18 @@ export default function YouTubeVideoViewerPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
 
-  // ── Loop state — token-level start/end with timestamps ───────────────────
+  // ── Loop state — three modes ─────────────────────────────────────────────
+  // 'range'   : loop between loopStart and loopEnd timestamps (token-level)
+  // 'jump'    : single anchor; button jumps the player to it (no auto loop)
+  // 'segment' : loop the entire active segment by index
+  type LoopMode = 'range' | 'jump' | 'segment';
+  const [loopMode, setLoopMode] = useState<LoopMode>('range');
   const [loopStart, setLoopStart] = useState<number | null>(null); // seconds
   const [loopEnd, setLoopEnd] = useState<number | null>(null);     // seconds
+  const [loopSegmentIdx, setLoopSegmentIdx] = useState<number | null>(null);
   const [loopEnabled, setLoopEnabled] = useState(false);
   // When non-null, the next token click sets the loop boundary instead of seeking.
-  const [pickMode, setPickMode] = useState<'start' | 'end' | null>(null);
+  const [pickMode, setPickMode] = useState<'start' | 'end' | 'jump' | 'segment' | null>(null);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
