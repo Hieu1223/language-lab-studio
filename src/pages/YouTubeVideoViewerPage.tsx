@@ -23,6 +23,8 @@ import {
   Check,
   Flag,
   FlagOff,
+  SkipForward,
+  Crosshair,
 } from 'lucide-react';
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
@@ -194,12 +196,18 @@ export default function YouTubeVideoViewerPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
 
-  // ── Loop state — token-level start/end with timestamps ───────────────────
+  // ── Loop state — three modes ─────────────────────────────────────────────
+  // 'range'   : loop between loopStart and loopEnd timestamps (token-level)
+  // 'jump'    : single anchor; button jumps the player to it (no auto loop)
+  // 'segment' : loop the entire active segment by index
+  type LoopMode = 'range' | 'jump' | 'segment';
+  const [loopMode, setLoopMode] = useState<LoopMode>('range');
   const [loopStart, setLoopStart] = useState<number | null>(null); // seconds
   const [loopEnd, setLoopEnd] = useState<number | null>(null);     // seconds
+  const [loopSegmentIdx, setLoopSegmentIdx] = useState<number | null>(null);
   const [loopEnabled, setLoopEnabled] = useState(false);
   // When non-null, the next token click sets the loop boundary instead of seeking.
-  const [pickMode, setPickMode] = useState<'start' | 'end' | null>(null);
+  const [pickMode, setPickMode] = useState<'start' | 'end' | 'jump' | 'segment' | null>(null);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
@@ -323,24 +331,48 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [activeSegIdx, settings.autoScroll]);
 
-  // ── Loop logic — token-level start/end (in seconds) ─────────────────────
-  // While loopEnabled, jump back to loopStart whenever currentTime crosses end.
+  // ── Loop logic — three modes ────────────────────────────────────────────
   useEffect(() => {
-    if (!loopEnabled || loopStart == null || loopEnd == null) return;
-    if (currentTime >= loopEnd) {
-      seekRef.current?.(loopStart);
+    if (!loopEnabled) return;
+    if (loopMode === 'range') {
+      if (loopStart == null || loopEnd == null) return;
+      if (currentTime >= loopEnd) seekRef.current?.(loopStart);
+    } else if (loopMode === 'segment') {
+      if (loopSegmentIdx == null) return;
+      const seg = rawSegments[loopSegmentIdx];
+      if (!seg) return;
+      const timed = seg.words.filter((w) => w.start !== null);
+      if (timed.length === 0) return;
+      const segStart = timed[0].start ?? 0;
+      const segEnd = timed[timed.length - 1].end ?? 0;
+      if (currentTime >= segEnd || currentTime < segStart - 0.05) {
+        seekRef.current?.(segStart);
+      }
     }
-  }, [currentTime, loopEnabled, loopStart, loopEnd]);
+  }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments]);
 
-  // Enter "pick start" mode — the next token click will set the start.
   const handleSetLoopStart = () => {
     setPickMode((m) => (m === 'start' ? null : 'start'));
     if (pickMode !== 'start') toast.info('Bấm vào một từ trong transcript để đặt điểm bắt đầu');
   };
-
   const handleSetLoopEnd = () => {
     setPickMode((m) => (m === 'end' ? null : 'end'));
     if (pickMode !== 'end') toast.info('Bấm vào một từ trong transcript để đặt điểm kết thúc');
+  };
+  const handleSetJumpAnchor = () => {
+    setPickMode((m) => (m === 'jump' ? null : 'jump'));
+    if (pickMode !== 'jump') toast.info('Bấm vào một từ để đặt điểm xuất phát');
+  };
+  const handleJumpNow = () => {
+    if (loopStart == null) {
+      toast.error('Chưa đặt điểm xuất phát');
+      return;
+    }
+    seekRef.current?.(loopStart);
+  };
+  const handleSetLoopSegment = () => {
+    setPickMode((m) => (m === 'segment' ? null : 'segment'));
+    if (pickMode !== 'segment') toast.info('Bấm vào một từ trong câu muốn lặp');
   };
 
   const handleToggleLoop = () => {
@@ -411,8 +443,31 @@ export default function YouTubeVideoViewerPage() {
       toast.success(`Kết thúc lặp ở ${seconds.toFixed(2)}s`);
       return;
     }
+    if (pickMode === 'jump') {
+      setLoopStart(seconds);
+      setPickMode(null);
+      toast.success(`Đặt xuất phát ở ${seconds.toFixed(2)}s`);
+      return;
+    }
+    if (pickMode === 'segment') {
+      const idx = rawSegments.findIndex((seg) => {
+        const timed = seg.words.filter((w) => w.start !== null);
+        if (!timed.length) return false;
+        const s = timed[0].start ?? 0;
+        const e = timed[timed.length - 1].end ?? 0;
+        return seconds >= s - 0.01 && seconds <= e + 0.01;
+      });
+      if (idx >= 0) {
+        setLoopSegmentIdx(idx);
+        toast.success(`Lặp câu #${idx + 1}`);
+      } else {
+        toast.error('Không tìm thấy câu chứa từ này.');
+      }
+      setPickMode(null);
+      return;
+    }
     seekRef.current?.(seconds);
-  }, [pickMode, loopStart, loopEnd]);
+  }, [pickMode, loopStart, loopEnd, rawSegments]);
 
   const handleToggleAll = () => {
     const next = !allRevealed;
@@ -813,46 +868,117 @@ export default function YouTubeVideoViewerPage() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Loop controls — only the toggle is always visible. Set-start /
-              set-end appear only when looping is enabled. */}
+          {/* Loop mode selector */}
+          <div className="hidden md:flex items-center rounded-md border border-border overflow-hidden mr-1">
+            {(
+              [
+                { v: 'range' as LoopMode, label: 'Khoảng' },
+                { v: 'jump' as LoopMode, label: 'Xuất phát' },
+                { v: 'segment' as LoopMode, label: 'Câu' },
+              ]
+            ).map((opt) => (
+              <button
+                key={opt.v}
+                onClick={() => { setLoopMode(opt.v); setPickMode(null); }}
+                className={`px-2 h-8 text-[11px] font-medium transition-colors ${
+                  loopMode === opt.v
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-transparent text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
           <Button
             variant={loopEnabled ? 'default' : 'ghost'}
             size="sm"
             className="h-8 gap-1.5 text-xs"
             onClick={handleToggleLoop}
-            title={loopEnabled ? 'Tắt lặp' : 'Bật lặp (cần đặt mốc trước)'}
+            title={loopEnabled ? 'Tắt lặp' : 'Bật lặp'}
           >
             <Repeat className={`w-3.5 h-3.5 ${loopEnabled ? '' : 'opacity-70'}`} />
             <span className="hidden sm:inline">{loopEnabled ? 'Đang lặp' : 'Lặp'}</span>
           </Button>
 
-          <Button
-            variant={pickMode === 'start' ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 gap-1 text-[11px]"
-            onClick={handleSetLoopStart}
-            disabled={!loopEnabled}
-            title="Bấm rồi chọn 1 từ trong transcript để đặt điểm bắt đầu"
-          >
-            <Flag className="w-3 h-3 text-emerald-500" />
-            <span className="font-mono">
-              {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
-            </span>
-          </Button>
-          <Button
-            variant={pickMode === 'end' ? 'default' : 'outline'}
-            size="sm"
-            className="h-8 gap-1 text-[11px]"
-            onClick={handleSetLoopEnd}
-            disabled={!loopEnabled}
-            title="Bấm rồi chọn 1 từ trong transcript để đặt điểm kết thúc"
-          >
-            <FlagOff className="w-3 h-3 text-rose-500" />
-            <span className="font-mono">
-              {loopEnd != null ? `${loopEnd.toFixed(1)}s` : '—'}
-            </span>
-          </Button>
+          {/* RANGE mode controls */}
+          {loopMode === 'range' && (
+            <>
+              <Button
+                variant={pickMode === 'start' ? 'default' : 'outline'}
+                size="sm"
+                className="h-8 gap-1 text-[11px]"
+                onClick={handleSetLoopStart}
+                disabled={!loopEnabled}
+                title="Đặt điểm bắt đầu"
+              >
+                <Flag className="w-3 h-3 text-emerald-500" />
+                <span className="font-mono">
+                  {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
+                </span>
+              </Button>
+              <Button
+                variant={pickMode === 'end' ? 'default' : 'outline'}
+                size="sm"
+                className="h-8 gap-1 text-[11px]"
+                onClick={handleSetLoopEnd}
+                disabled={!loopEnabled}
+                title="Đặt điểm kết thúc"
+              >
+                <FlagOff className="w-3 h-3 text-rose-500" />
+                <span className="font-mono">
+                  {loopEnd != null ? `${loopEnd.toFixed(1)}s` : '—'}
+                </span>
+              </Button>
+            </>
+          )}
 
+          {/* JUMP mode controls */}
+          {loopMode === 'jump' && (
+            <>
+              <Button
+                variant={pickMode === 'jump' ? 'default' : 'outline'}
+                size="sm"
+                className="h-8 gap-1 text-[11px]"
+                onClick={handleSetJumpAnchor}
+                title="Đặt điểm xuất phát"
+              >
+                <Crosshair className="w-3 h-3 text-emerald-500" />
+                <span className="font-mono">
+                  {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
+                </span>
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1 text-[11px]"
+                onClick={handleJumpNow}
+                disabled={loopStart == null}
+                title="Nhảy đến điểm xuất phát"
+              >
+                <SkipForward className="w-3 h-3 text-primary" />
+                <span className="hidden sm:inline">Nhảy</span>
+              </Button>
+            </>
+          )}
+
+          {/* SEGMENT mode controls */}
+          {loopMode === 'segment' && (
+            <Button
+              variant={pickMode === 'segment' ? 'default' : 'outline'}
+              size="sm"
+              className="h-8 gap-1 text-[11px]"
+              onClick={handleSetLoopSegment}
+              disabled={!loopEnabled}
+              title="Chọn câu để lặp"
+            >
+              <Repeat className="w-3 h-3 text-emerald-500" />
+              <span className="font-mono">
+                {loopSegmentIdx != null ? `#${loopSegmentIdx + 1}` : '—'}
+              </span>
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="icon"

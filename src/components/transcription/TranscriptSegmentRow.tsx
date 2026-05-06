@@ -24,7 +24,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
   isCurrent: boolean;
   isLoopStart?: boolean;
   isLoopEnd?: boolean;
-  pickMode?: 'start' | 'end' | null;
+  pickMode?: 'start' | 'end' | 'jump' | 'segment' | null;
   showClozeMode: boolean;
   onSeek?: (seconds: number) => void;
 }) {
@@ -131,7 +131,7 @@ export const TranscriptSegmentRow = memo(function TranscriptSegmentRow({
   highlightMode?: HighlightMode;
   loopStart?: number | null;
   loopEnd?: number | null;
-  pickMode?: 'start' | 'end' | null;
+  pickMode?: 'start' | 'end' | 'jump' | 'segment' | null;
 }) {
   const [tokenizeOpen, setTokenizeOpen] = useState(false);
 
