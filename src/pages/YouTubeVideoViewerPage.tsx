@@ -782,6 +782,14 @@ export default function YouTubeVideoViewerPage() {
         <div className="space-y-3 max-w-3xl mx-auto">
           {clozeSegments.map((cs, si) => {
             const isActive = si === activeSegIdx;
+            // Only pass loopStart/loopEnd to the segment that actually contains
+            // them so other rows don't re-render when markers change.
+            const segHasStart = loopStart != null && cs.tokens.some(
+              (t) => t.word.start != null && Math.abs(t.word.start - loopStart) < 0.01,
+            );
+            const segHasEnd = loopEnd != null && cs.tokens.some(
+              (t) => t.word.start != null && Math.abs(t.word.start - loopEnd) < 0.01,
+            );
             return (
               <TranscriptSegmentRow
                 key={si}
@@ -792,8 +800,8 @@ export default function YouTubeVideoViewerPage() {
                 currentTime={isActive ? currentTime : 0}
                 onSeek={handleSeek}
                 rowRef={isActive ? activeSegRef : undefined}
-                loopStart={loopStart}
-                loopEnd={loopEnd}
+                loopStart={segHasStart ? loopStart : null}
+                loopEnd={segHasEnd ? loopEnd : null}
                 pickMode={pickMode}
               />
             );
