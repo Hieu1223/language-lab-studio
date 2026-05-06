@@ -110,7 +110,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
  * button. The transcript is character/word level; the API tokenize
  * endpoint will give us full word-level tokens for dictionary lookup.
  */
-export function TranscriptSegmentRow({
+export const TranscriptSegmentRow = memo(function TranscriptSegmentRow({
   cs,
   isActive,
   showClozeMode,
