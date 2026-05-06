@@ -23,6 +23,8 @@ import {
   Check,
   Flag,
   FlagOff,
+  SkipForward,
+  Crosshair,
 } from 'lucide-react';
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
