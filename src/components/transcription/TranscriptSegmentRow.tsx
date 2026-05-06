@@ -202,4 +202,4 @@ export const TranscriptSegmentRow = memo(function TranscriptSegmentRow({
       />
     </div>
   );
-}
+});
