@@ -779,11 +779,11 @@ export default function YouTubeVideoViewerPage() {
       )}
 
       {status === 'ready' && rawSegments.length > 0 && (
-        <div className="space-y-3 max-w-3xl mx-auto">
+        <div
+          className={`space-y-3 max-w-3xl mx-auto ${pickMode ? 'cursor-crosshair [&_span]:hover:!ring-2 [&_span]:hover:!ring-primary/50' : ''}`}
+        >
           {clozeSegments.map((cs, si) => {
             const isActive = si === activeSegIdx;
-            // Only pass loopStart/loopEnd to the segment that actually contains
-            // them so other rows don't re-render when markers change.
             const segHasStart = loopStart != null && cs.tokens.some(
               (t) => t.word.start != null && Math.abs(t.word.start - loopStart) < 0.01,
             );
@@ -802,7 +802,7 @@ export default function YouTubeVideoViewerPage() {
                 rowRef={isActive ? activeSegRef : undefined}
                 loopStart={segHasStart ? loopStart : null}
                 loopEnd={segHasEnd ? loopEnd : null}
-                pickMode={pickMode}
+                pickMode={null}
               />
             );
           })}
