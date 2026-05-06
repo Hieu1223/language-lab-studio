@@ -877,7 +877,7 @@ export default function YouTubeVideoViewerPage() {
 
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Loop mode selector */}
-          <div className="hidden md:flex items-center rounded-md border border-border overflow-hidden mr-1">
+          <div className="flex items-center rounded-md border border-border overflow-hidden mr-1">
             {(
               [
                 { v: 'range' as LoopMode, label: 'Khoảng' },
@@ -888,7 +888,7 @@ export default function YouTubeVideoViewerPage() {
               <button
                 key={opt.v}
                 onClick={() => { setLoopMode(opt.v); setPickMode(null); }}
-                className={`px-2 h-8 text-[11px] font-medium transition-colors ${
+                className={`px-1.5 sm:px-2 h-8 text-[10px] sm:text-[11px] font-medium transition-colors ${
                   loopMode === opt.v
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-transparent text-muted-foreground hover:bg-muted'
