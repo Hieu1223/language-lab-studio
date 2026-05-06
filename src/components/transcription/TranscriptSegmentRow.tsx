@@ -24,7 +24,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
   isCurrent: boolean;
   isLoopStart?: boolean;
   isLoopEnd?: boolean;
-  pickMode?: 'start' | 'end' | null;
+  pickMode?: 'start' | 'end' | 'jump' | 'segment' | null;
   showClozeMode: boolean;
   onSeek?: (seconds: number) => void;
 }) {
