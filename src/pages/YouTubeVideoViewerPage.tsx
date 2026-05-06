@@ -779,9 +779,17 @@ export default function YouTubeVideoViewerPage() {
       )}
 
       {status === 'ready' && rawSegments.length > 0 && (
-        <div className="space-y-3 max-w-3xl mx-auto">
+        <div
+          className={`space-y-3 max-w-3xl mx-auto ${pickMode ? 'cursor-crosshair [&_span]:hover:!ring-2 [&_span]:hover:!ring-primary/50' : ''}`}
+        >
           {clozeSegments.map((cs, si) => {
             const isActive = si === activeSegIdx;
+            const segHasStart = loopStart != null && cs.tokens.some(
+              (t) => t.word.start != null && Math.abs(t.word.start - loopStart) < 0.01,
+            );
+            const segHasEnd = loopEnd != null && cs.tokens.some(
+              (t) => t.word.start != null && Math.abs(t.word.start - loopEnd) < 0.01,
+            );
             return (
               <TranscriptSegmentRow
                 key={si}
@@ -792,9 +800,9 @@ export default function YouTubeVideoViewerPage() {
                 currentTime={isActive ? currentTime : 0}
                 onSeek={handleSeek}
                 rowRef={isActive ? activeSegRef : undefined}
-                loopStart={loopStart}
-                loopEnd={loopEnd}
-                pickMode={pickMode}
+                loopStart={segHasStart ? loopStart : null}
+                loopEnd={segHasEnd ? loopEnd : null}
+                pickMode={null}
               />
             );
           })}
@@ -869,7 +877,7 @@ export default function YouTubeVideoViewerPage() {
 
         <div className="flex items-center gap-1 flex-shrink-0">
           {/* Loop mode selector */}
-          <div className="hidden md:flex items-center rounded-md border border-border overflow-hidden mr-1">
+          <div className="flex items-center rounded-md border border-border overflow-hidden mr-1">
             {(
               [
                 { v: 'range' as LoopMode, label: 'Khoảng' },
@@ -880,7 +888,7 @@ export default function YouTubeVideoViewerPage() {
               <button
                 key={opt.v}
                 onClick={() => { setLoopMode(opt.v); setPickMode(null); }}
-                className={`px-2 h-8 text-[11px] font-medium transition-colors ${
+                className={`px-1.5 sm:px-2 h-8 text-[10px] sm:text-[11px] font-medium transition-colors ${
                   loopMode === opt.v
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-transparent text-muted-foreground hover:bg-muted'
