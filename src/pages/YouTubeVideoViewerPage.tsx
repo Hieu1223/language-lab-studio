@@ -331,24 +331,48 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [activeSegIdx, settings.autoScroll]);
 
-  // ── Loop logic — token-level start/end (in seconds) ─────────────────────
-  // While loopEnabled, jump back to loopStart whenever currentTime crosses end.
+  // ── Loop logic — three modes ────────────────────────────────────────────
   useEffect(() => {
-    if (!loopEnabled || loopStart == null || loopEnd == null) return;
-    if (currentTime >= loopEnd) {
-      seekRef.current?.(loopStart);
+    if (!loopEnabled) return;
+    if (loopMode === 'range') {
+      if (loopStart == null || loopEnd == null) return;
+      if (currentTime >= loopEnd) seekRef.current?.(loopStart);
+    } else if (loopMode === 'segment') {
+      if (loopSegmentIdx == null) return;
+      const seg = rawSegments[loopSegmentIdx];
+      if (!seg) return;
+      const timed = seg.words.filter((w) => w.start !== null);
+      if (timed.length === 0) return;
+      const segStart = timed[0].start ?? 0;
+      const segEnd = timed[timed.length - 1].end ?? 0;
+      if (currentTime >= segEnd || currentTime < segStart - 0.05) {
+        seekRef.current?.(segStart);
+      }
     }
-  }, [currentTime, loopEnabled, loopStart, loopEnd]);
+  }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments]);
 
-  // Enter "pick start" mode — the next token click will set the start.
   const handleSetLoopStart = () => {
     setPickMode((m) => (m === 'start' ? null : 'start'));
     if (pickMode !== 'start') toast.info('Bấm vào một từ trong transcript để đặt điểm bắt đầu');
   };
-
   const handleSetLoopEnd = () => {
     setPickMode((m) => (m === 'end' ? null : 'end'));
     if (pickMode !== 'end') toast.info('Bấm vào một từ trong transcript để đặt điểm kết thúc');
+  };
+  const handleSetJumpAnchor = () => {
+    setPickMode((m) => (m === 'jump' ? null : 'jump'));
+    if (pickMode !== 'jump') toast.info('Bấm vào một từ để đặt điểm xuất phát');
+  };
+  const handleJumpNow = () => {
+    if (loopStart == null) {
+      toast.error('Chưa đặt điểm xuất phát');
+      return;
+    }
+    seekRef.current?.(loopStart);
+  };
+  const handleSetLoopSegment = () => {
+    setPickMode((m) => (m === 'segment' ? null : 'segment'));
+    if (pickMode !== 'segment') toast.info('Bấm vào một từ trong câu muốn lặp');
   };
 
   const handleToggleLoop = () => {
