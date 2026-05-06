@@ -443,8 +443,31 @@ export default function YouTubeVideoViewerPage() {
       toast.success(`Kết thúc lặp ở ${seconds.toFixed(2)}s`);
       return;
     }
+    if (pickMode === 'jump') {
+      setLoopStart(seconds);
+      setPickMode(null);
+      toast.success(`Đặt xuất phát ở ${seconds.toFixed(2)}s`);
+      return;
+    }
+    if (pickMode === 'segment') {
+      const idx = rawSegments.findIndex((seg) => {
+        const timed = seg.words.filter((w) => w.start !== null);
+        if (!timed.length) return false;
+        const s = timed[0].start ?? 0;
+        const e = timed[timed.length - 1].end ?? 0;
+        return seconds >= s - 0.01 && seconds <= e + 0.01;
+      });
+      if (idx >= 0) {
+        setLoopSegmentIdx(idx);
+        toast.success(`Lặp câu #${idx + 1}`);
+      } else {
+        toast.error('Không tìm thấy câu chứa từ này.');
+      }
+      setPickMode(null);
+      return;
+    }
     seekRef.current?.(seconds);
-  }, [pickMode, loopStart, loopEnd]);
+  }, [pickMode, loopStart, loopEnd, rawSegments]);
 
   const handleToggleAll = () => {
     const next = !allRevealed;
