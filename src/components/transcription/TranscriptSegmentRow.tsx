@@ -103,7 +103,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
       {blanks}
     </span>
   );
-}
+});
 
 /**
  * One transcript segment row with all words + a "tokenize sentence"
