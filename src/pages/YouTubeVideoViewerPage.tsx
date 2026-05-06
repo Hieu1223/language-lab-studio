@@ -725,21 +725,24 @@ export default function YouTubeVideoViewerPage() {
 
       {status === 'ready' && rawSegments.length > 0 && (
         <div className="space-y-3 max-w-3xl mx-auto">
-          {clozeSegments.map((cs, si) => (
-            <TranscriptSegmentRow
-              key={si}
-              cs={cs}
-              isActive={si === activeSegIdx}
-              showClozeMode={settings.showClozeMode}
-              highlightMode={settings.highlightMode}
-              currentTime={currentTime}
-              onSeek={handleSeek}
-              rowRef={si === activeSegIdx ? activeSegRef : undefined}
-              loopStart={loopStart}
-              loopEnd={loopEnd}
-              pickMode={pickMode}
-            />
-          ))}
+          {clozeSegments.map((cs, si) => {
+            const isActive = si === activeSegIdx;
+            return (
+              <TranscriptSegmentRow
+                key={si}
+                cs={cs}
+                isActive={isActive}
+                showClozeMode={settings.showClozeMode}
+                highlightMode={settings.highlightMode}
+                currentTime={isActive ? currentTime : 0}
+                onSeek={handleSeek}
+                rowRef={isActive ? activeSegRef : undefined}
+                loopStart={loopStart}
+                loopEnd={loopEnd}
+                pickMode={pickMode}
+              />
+            );
+          })}
           <div className="h-32" />
         </div>
       )}
