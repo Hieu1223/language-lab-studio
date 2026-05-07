@@ -55,6 +55,7 @@ import {
 import { APIError } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
+import { getMangaSettings } from '@/lib/settings-storage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -727,8 +728,6 @@ function loadSettings(): ReaderSettings {
   // Pull defaults from global app settings, then overlay reader-specific local saved.
   let base: ReaderSettings = { ...DEFAULT_SETTINGS };
   try {
-    // Lazy require to avoid circular concerns
-    const { getMangaSettings } = require('@/lib/settings-storage');
     const g = getMangaSettings();
     base = {
       ...base,
