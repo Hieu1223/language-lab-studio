@@ -21,6 +21,12 @@ export interface TranscriptionSettings {
 export interface MangaSettings {
   showOCR: boolean;
   ocrPages: number[];
+  /** Auto-open right drawer when an OCR block is clicked */
+  autoOpenPanelOnBlock: boolean;
+  /** Show OCR boxes overlay by default */
+  showOCRBoxes: boolean;
+  /** Default zoom percent for reader */
+  zoom: number;
 }
 
 export interface AppSettings {
@@ -40,12 +46,17 @@ const DEFAULT_TRANSCRIPTION: TranscriptionSettings = {
 };
 
 
+const DEFAULT_MANGA: MangaSettings = {
+  showOCR: false,
+  ocrPages: [],
+  autoOpenPanelOnBlock: true,
+  showOCRBoxes: true,
+  zoom: 100,
+};
+
 const DEFAULT_SETTINGS: AppSettings = {
   transcription: { ...DEFAULT_TRANSCRIPTION },
-  manga: {
-    showOCR: false,
-    ocrPages: [],
-  },
+  manga: { ...DEFAULT_MANGA },
 };
 
 function loadSettings(): AppSettings {
@@ -93,7 +104,7 @@ export function setTranscriptionSettings(
 export function getMangaSettings(): MangaSettings {
   const settings = loadSettings();
   return {
-    ...DEFAULT_SETTINGS.manga,
+    ...DEFAULT_MANGA,
     ...(settings.manga || {}),
   } as MangaSettings;
 }
