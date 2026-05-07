@@ -68,7 +68,7 @@ const POLL_INTERVAL_MS = 4000;
 const POLL_MAX_ATTEMPTS = 60;
 
 type PageStatus = 'checking' | 'not_found' | 'processing' | 'ready' | 'error';
-type PanelTab = 'settings' | 'dictionary';
+type PanelTab = 'settings' | 'loop' | 'dictionary';
 
 // ─── Resizable right drawer (desktop) ────────────────────────────────────
 
@@ -490,6 +490,7 @@ export default function YouTubeVideoViewerPage() {
       <div className="flex border-b border-border flex-shrink-0">
         {([
           { id: 'settings' as const, label: 'Settings', icon: SettingsIcon },
+          { id: 'loop' as const, label: 'Lặp', icon: Repeat },
           { id: 'dictionary' as const, label: 'Dict', icon: BookOpen },
         ]).map(({ id, label, icon: Icon }) => (
           <button
@@ -515,6 +516,142 @@ export default function YouTubeVideoViewerPage() {
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Loop tab */}
+      {panelTab === 'loop' && (
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="loop-enabled" className="text-sm cursor-pointer flex items-center gap-2">
+                <Repeat className="w-4 h-4" /> Bật lặp
+              </Label>
+              <Switch
+                id="loop-enabled"
+                checked={loopEnabled}
+                onCheckedChange={() => handleToggleLoop()}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                Chế độ lặp
+              </Label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {([
+                  { v: 'range' as LoopMode, label: 'Khoảng' },
+                  { v: 'jump' as LoopMode, label: 'Xuất phát' },
+                  { v: 'segment' as LoopMode, label: 'Câu' },
+                ]).map((opt) => (
+                  <button
+                    key={opt.v}
+                    onClick={() => { setLoopMode(opt.v); setPickMode(null); }}
+                    className={`p-2 rounded-md border text-xs font-medium transition-colors ${
+                      loopMode === opt.v
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {loopMode === 'range' && (
+              <div className="space-y-2">
+                <Button
+                  variant={pickMode === 'start' ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full h-9 gap-2 justify-between"
+                  onClick={handleSetLoopStart}
+                  disabled={!loopEnabled}
+                >
+                  <span className="flex items-center gap-2">
+                    <Flag className="w-3.5 h-3.5 text-emerald-500" />
+                    Bắt đầu
+                  </span>
+                  <span className="font-mono text-xs">
+                    {loopStart != null ? `${loopStart.toFixed(2)}s` : '—'}
+                  </span>
+                </Button>
+                <Button
+                  variant={pickMode === 'end' ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full h-9 gap-2 justify-between"
+                  onClick={handleSetLoopEnd}
+                  disabled={!loopEnabled}
+                >
+                  <span className="flex items-center gap-2">
+                    <FlagOff className="w-3.5 h-3.5 text-rose-500" />
+                    Kết thúc
+                  </span>
+                  <span className="font-mono text-xs">
+                    {loopEnd != null ? `${loopEnd.toFixed(2)}s` : '—'}
+                  </span>
+                </Button>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Bấm vào nút rồi bấm vào một từ trong transcript để đặt mốc.
+                </p>
+              </div>
+            )}
+
+            {loopMode === 'jump' && (
+              <div className="space-y-2">
+                <Button
+                  variant={pickMode === 'jump' ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full h-9 gap-2 justify-between"
+                  onClick={handleSetJumpAnchor}
+                >
+                  <span className="flex items-center gap-2">
+                    <Crosshair className="w-3.5 h-3.5 text-emerald-500" />
+                    Điểm xuất phát
+                  </span>
+                  <span className="font-mono text-xs">
+                    {loopStart != null ? `${loopStart.toFixed(2)}s` : '—'}
+                  </span>
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full h-9 gap-2"
+                  onClick={handleJumpNow}
+                  disabled={loopStart == null}
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                  Nhảy đến điểm xuất phát
+                </Button>
+              </div>
+            )}
+
+            {loopMode === 'segment' && (
+              <div className="space-y-2">
+                <Button
+                  variant={pickMode === 'segment' ? 'default' : 'outline'}
+                  size="sm"
+                  className="w-full h-9 gap-2 justify-between"
+                  onClick={handleSetLoopSegment}
+                  disabled={!loopEnabled}
+                >
+                  <span className="flex items-center gap-2">
+                    <Repeat className="w-3.5 h-3.5 text-emerald-500" />
+                    Câu lặp
+                  </span>
+                  <span className="font-mono text-xs">
+                    {loopSegmentIdx != null ? `#${loopSegmentIdx + 1}` : '—'}
+                  </span>
+                </Button>
+                <p className="text-[10px] text-muted-foreground leading-snug">
+                  Bấm vào nút rồi chọn từ thuộc câu muốn lặp.
+                </p>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      )}
+
 
       {/* Settings tab */}
       {panelTab === 'settings' && (
