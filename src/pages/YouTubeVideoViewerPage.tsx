@@ -1013,117 +1013,16 @@ export default function YouTubeVideoViewerPage() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {/* Loop mode selector */}
-          <div className="flex items-center rounded-md border border-border overflow-hidden mr-1">
-            {(
-              [
-                { v: 'range' as LoopMode, label: 'Khoảng' },
-                { v: 'jump' as LoopMode, label: 'Xuất phát' },
-                { v: 'segment' as LoopMode, label: 'Câu' },
-              ]
-            ).map((opt) => (
-              <button
-                key={opt.v}
-                onClick={() => { setLoopMode(opt.v); setPickMode(null); }}
-                className={`px-1.5 sm:px-2 h-8 text-[10px] sm:text-[11px] font-medium transition-colors ${
-                  loopMode === opt.v
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-transparent text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
           <Button
             variant={loopEnabled ? 'default' : 'ghost'}
             size="sm"
             className="h-8 gap-1.5 text-xs"
-            onClick={handleToggleLoop}
-            title={loopEnabled ? 'Tắt lặp' : 'Bật lặp'}
+            onClick={() => { setPanelOpen(true); setPanelTab('loop'); }}
+            title="Cài đặt lặp"
           >
             <Repeat className={`w-3.5 h-3.5 ${loopEnabled ? '' : 'opacity-70'}`} />
             <span className="hidden sm:inline">{loopEnabled ? 'Đang lặp' : 'Lặp'}</span>
           </Button>
-
-          {/* RANGE mode controls */}
-          {loopMode === 'range' && (
-            <>
-              <Button
-                variant={pickMode === 'start' ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 gap-1 text-[11px]"
-                onClick={handleSetLoopStart}
-                disabled={!loopEnabled}
-                title="Đặt điểm bắt đầu"
-              >
-                <Flag className="w-3 h-3 text-emerald-500" />
-                <span className="font-mono">
-                  {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
-                </span>
-              </Button>
-              <Button
-                variant={pickMode === 'end' ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 gap-1 text-[11px]"
-                onClick={handleSetLoopEnd}
-                disabled={!loopEnabled}
-                title="Đặt điểm kết thúc"
-              >
-                <FlagOff className="w-3 h-3 text-rose-500" />
-                <span className="font-mono">
-                  {loopEnd != null ? `${loopEnd.toFixed(1)}s` : '—'}
-                </span>
-              </Button>
-            </>
-          )}
-
-          {/* JUMP mode controls */}
-          {loopMode === 'jump' && (
-            <>
-              <Button
-                variant={pickMode === 'jump' ? 'default' : 'outline'}
-                size="sm"
-                className="h-8 gap-1 text-[11px]"
-                onClick={handleSetJumpAnchor}
-                title="Đặt điểm xuất phát"
-              >
-                <Crosshair className="w-3 h-3 text-emerald-500" />
-                <span className="font-mono">
-                  {loopStart != null ? `${loopStart.toFixed(1)}s` : '—'}
-                </span>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 gap-1 text-[11px]"
-                onClick={handleJumpNow}
-                disabled={loopStart == null}
-                title="Nhảy đến điểm xuất phát"
-              >
-                <SkipForward className="w-3 h-3 text-primary" />
-                <span className="hidden sm:inline">Nhảy</span>
-              </Button>
-            </>
-          )}
-
-          {/* SEGMENT mode controls */}
-          {loopMode === 'segment' && (
-            <Button
-              variant={pickMode === 'segment' ? 'default' : 'outline'}
-              size="sm"
-              className="h-8 gap-1 text-[11px]"
-              onClick={handleSetLoopSegment}
-              disabled={!loopEnabled}
-              title="Chọn câu để lặp"
-            >
-              <Repeat className="w-3 h-3 text-emerald-500" />
-              <span className="font-mono">
-                {loopSegmentIdx != null ? `#${loopSegmentIdx + 1}` : '—'}
-              </span>
-            </Button>
-          )}
           <Button
             variant="ghost"
             size="icon"
