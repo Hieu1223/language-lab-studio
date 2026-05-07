@@ -724,11 +724,24 @@ const DEFAULT_SETTINGS: ReaderSettings = {
 };
 
 function loadSettings(): ReaderSettings {
+  // Pull defaults from global app settings, then overlay reader-specific local saved.
+  let base: ReaderSettings = { ...DEFAULT_SETTINGS };
+  try {
+    // Lazy require to avoid circular concerns
+    const { getMangaSettings } = require('@/lib/settings-storage');
+    const g = getMangaSettings();
+    base = {
+      ...base,
+      autoOpenPanelOnBlock: g.autoOpenPanelOnBlock,
+      showOCRBoxes: g.showOCRBoxes,
+      zoom: g.zoom,
+    };
+  } catch { /* ignore */ }
   try {
     const s = localStorage.getItem(SETTINGS_KEY);
-    if (s) return { ...DEFAULT_SETTINGS, ...JSON.parse(s) };
+    if (s) return { ...base, ...JSON.parse(s) };
   } catch { /* ignore */ }
-  return DEFAULT_SETTINGS;
+  return base;
 }
 
 function clampIdx(i: number, len: number) {
