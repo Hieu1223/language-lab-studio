@@ -30,6 +30,7 @@ import {
 import { VideoPlayer } from '@/components/video/VideoPlayer';
 import { Button } from '@/components/ui/button';
 import { RangeSlider } from '@/components/ui/range-slider';
+import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { ResizableSplit, VerticalResizableSplit } from '@/components/ResizableSplit';
 import { Label } from '@/components/ui/label';
@@ -933,7 +934,7 @@ export default function YouTubeVideoViewerPage() {
                       {settings.segmentLoopCount}
                     </span>
                   </div>
-                  <RangeSlider
+                  <Slider
                     min={1}
                     max={5}
                     step={1}
@@ -951,7 +952,7 @@ export default function YouTubeVideoViewerPage() {
                       {settings.segmentLoopPadding.toFixed(2)}s
                     </span>
                   </div>
-                  <RangeSlider
+                  <Slider
                     min={0}
                     max={3}
                     step={0.1}
@@ -972,7 +973,7 @@ export default function YouTubeVideoViewerPage() {
                       {settings.segmentLoopGap.toFixed(2)}s
                     </span>
                   </div>
-                  <RangeSlider
+                  <Slider
                     min={0}
                     max={2}
                     step={0.1}
