@@ -35,6 +35,13 @@ import { ResizableSplit, VerticalResizableSplit } from '@/components/ResizableSp
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DictionaryPanel } from '@/components/dictionary/DictionaryPanel';
 import {
@@ -59,6 +66,7 @@ import {
   setTranscriptionSettings,
   type TranscriptionSettings,
   type HighlightMode,
+  type TranscriptionMode,
 } from '@/lib/settings-storage';
 import { TranscriptSegmentRow } from '@/components/transcription/TranscriptSegmentRow';
 
@@ -212,6 +220,41 @@ export default function YouTubeVideoViewerPage() {
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
 
+  // ── Segment loop mode state ──────────────────────────────────────────────
+  const [segmentLoopStartIdx, setSegmentLoopStartIdx] = useState<number>(0);
+  const segmentLoopEndIdx = Math.min(
+    segmentLoopStartIdx + settings.segmentLoopCount - 1,
+    rawSegments.length - 1,
+  );
+
+  // Calculate segment loop boundaries: include padding before first and after last
+  const segmentLoopBounds = useMemo(() => {
+    if (settings.transcriptionMode !== 'segment-loop' || rawSegments.length === 0) {
+      return null;
+    }
+    const firstSeg = rawSegments[segmentLoopStartIdx];
+    const lastSeg = rawSegments[segmentLoopEndIdx];
+    if (!firstSeg || !lastSeg) return null;
+
+    const firstWords = firstSeg.words.filter((w) => w.start !== null);
+    const lastWords = lastSeg.words.filter((w) => w.start !== null);
+    if (firstWords.length === 0 || lastWords.length === 0) return null;
+
+    const loopStart = (firstWords[0].start ?? 0) - settings.segmentLoopPadding;
+    const loopEnd = (lastWords[lastWords.length - 1].end ?? 0) + settings.segmentLoopPadding;
+    const silentGapEnd = loopEnd + settings.segmentLoopGap;
+
+    return { loopStart, loopEnd, silentGapEnd };
+  }, [
+    settings.transcriptionMode,
+    settings.segmentLoopPadding,
+    settings.segmentLoopGap,
+    settings.segmentLoopCount,
+    rawSegments,
+    segmentLoopStartIdx,
+    segmentLoopEndIdx,
+  ]);
+
   // ── Find transcript on mount ─────────────────────────────────────────────
   useEffect(() => {
     if (!videoId) return;
@@ -331,7 +374,7 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [activeSegIdx, settings.autoScroll]);
 
-  // ── Loop logic — three modes ────────────────────────────────────────────
+  // ── Loop logic — three modes + segment-loop mode ─────────────────────────
   useEffect(() => {
     if (!loopEnabled) return;
     if (loopMode === 'range') {
@@ -350,6 +393,19 @@ export default function YouTubeVideoViewerPage() {
       }
     }
   }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments]);
+
+  // ── Segment loop mode: auto-loop and auto-advance on next segment ────────
+  useEffect(() => {
+    if (settings.transcriptionMode !== 'segment-loop') return;
+    if (!segmentLoopBounds) return;
+
+    const { loopStart, loopEnd, silentGapEnd } = segmentLoopBounds;
+
+    // When we reach the silent gap end (loop restart point), loop back
+    if (currentTime >= silentGapEnd) {
+      seekRef.current?.(loopStart);
+    }
+  }, [currentTime, settings.transcriptionMode, segmentLoopBounds]);
 
   const handleSetLoopStart = () => {
     setPickMode((m) => (m === 'start' ? null : 'start'));
@@ -662,18 +718,19 @@ export default function YouTubeVideoViewerPage() {
               <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                 Chế độ
               </Label>
-              <div className="grid grid-cols-2 gap-1.5">
+              <div className="grid grid-cols-3 gap-1.5">
                 {(
                   [
-                    { value: true, label: 'Study (Cloze)' },
-                    { value: false, label: 'Read (Plain)' },
+                    { value: 'study' as TranscriptionMode, label: 'Study' },
+                    { value: 'read' as TranscriptionMode, label: 'Read' },
+                    { value: 'segment-loop' as TranscriptionMode, label: 'Loop' },
                   ] as const
                 ).map((opt) => (
                   <button
-                    key={String(opt.value)}
-                    onClick={() => updateSettings({ showClozeMode: opt.value })}
+                    key={opt.value}
+                    onClick={() => updateSettings({ transcriptionMode: opt.value })}
                     className={`p-2 rounded-md border text-xs font-medium transition-colors ${
-                      settings.showClozeMode === opt.value
+                      settings.transcriptionMode === opt.value
                         ? 'border-primary bg-primary/10 text-primary'
                         : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
                     }`}
@@ -765,7 +822,7 @@ export default function YouTubeVideoViewerPage() {
             <Separator />
 
             {/* Cloze range sliders — draft + Apply (no auto-regen on drag) */}
-            {settings.showClozeMode && (
+            {settings.transcriptionMode === 'study' && (
               <>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -835,6 +892,96 @@ export default function YouTubeVideoViewerPage() {
                     )}
                     {allRevealed ? 'Ẩn lại' : 'Hiện hết'}
                   </Button>
+                </div>
+              </>
+            )}
+
+            {/* Segment loop settings */}
+            {settings.transcriptionMode === 'segment-loop' && (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Nhảy đến segment
+                  </Label>
+                  <Select
+                    value={String(segmentLoopStartIdx)}
+                    onValueChange={(val) => setSegmentLoopStartIdx(parseInt(val, 10))}
+                  >
+                    <SelectTrigger className="w-full h-8 text-xs">
+                      <SelectValue placeholder="Chọn segment..." />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-56">
+                      {rawSegments.map((seg, idx) => {
+                        const preview = seg.words.slice(0, 4).map((w) => w.token).join(' ');
+                        const label = `#${idx + 1} ${preview}${preview.length > 0 && seg.words.length > 4 ? '...' : ''}`;
+                        return (
+                          <SelectItem key={idx} value={String(idx)}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                      Số segment hiện (n)
+                    </Label>
+                    <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded">
+                      {settings.segmentLoopCount}
+                    </span>
+                  </div>
+                  <RangeSlider
+                    min={1}
+                    max={5}
+                    step={1}
+                    value={[settings.segmentLoopCount]}
+                    onValueChange={(v) => updateSettings({ segmentLoopCount: v[0] })}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                      Padding (âm thanh) – giây
+                    </Label>
+                    <span className="text-xs font-mono bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded">
+                      {settings.segmentLoopPadding.toFixed(2)}s
+                    </span>
+                  </div>
+                  <RangeSlider
+                    min={0}
+                    max={3}
+                    step={0.1}
+                    value={[settings.segmentLoopPadding]}
+                    onValueChange={(v) => updateSettings({ segmentLoopPadding: parseFloat(v[0].toFixed(2)) })}
+                  />
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Thời gian thêm vào trước và sau segment (có âm thanh).
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                      Silent gap (câm) – giây
+                    </Label>
+                    <span className="text-xs font-mono bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded">
+                      {settings.segmentLoopGap.toFixed(2)}s
+                    </span>
+                  </div>
+                  <RangeSlider
+                    min={0}
+                    max={2}
+                    step={0.1}
+                    value={[settings.segmentLoopGap]}
+                    onValueChange={(v) => updateSettings({ segmentLoopGap: parseFloat(v[0].toFixed(2)) })}
+                  />
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    Khoảng câm để người dùng biết segment kết thúc và sắp lặp lại.
+                  </p>
                 </div>
               </>
             )}
@@ -916,34 +1063,94 @@ export default function YouTubeVideoViewerPage() {
       )}
 
       {status === 'ready' && rawSegments.length > 0 && (
-        <div
-          className={`space-y-3 max-w-3xl mx-auto ${pickMode ? 'cursor-crosshair [&_span]:hover:!ring-2 [&_span]:hover:!ring-primary/50' : ''}`}
-        >
-          {clozeSegments.map((cs, si) => {
-            const isActive = si === activeSegIdx;
-            const segHasStart = loopStart != null && cs.tokens.some(
-              (t) => t.word.start != null && Math.abs(t.word.start - loopStart) < 0.01,
-            );
-            const segHasEnd = loopEnd != null && cs.tokens.some(
-              (t) => t.word.start != null && Math.abs(t.word.start - loopEnd) < 0.01,
-            );
-            return (
-              <TranscriptSegmentRow
-                key={si}
-                cs={cs}
-                isActive={isActive}
-                showClozeMode={settings.showClozeMode}
-                highlightMode={settings.highlightMode}
-                currentTime={isActive ? currentTime : 0}
-                onSeek={handleSeek}
-                rowRef={isActive ? activeSegRef : undefined}
-                loopStart={segHasStart ? loopStart : null}
-                loopEnd={segHasEnd ? loopEnd : null}
-                pickMode={null}
-              />
-            );
-          })}
-          <div className="h-32" />
+        <div className="space-y-4 max-w-3xl mx-auto">
+          {settings.transcriptionMode === 'segment-loop' ? (
+            // Segment loop mode: show N segments with next/prev buttons
+            <>
+              <div className="space-y-3">
+                {clozeSegments
+                  .slice(segmentLoopStartIdx, segmentLoopEndIdx + 1)
+                  .map((cs, localIdx) => {
+                    const globalIdx = segmentLoopStartIdx + localIdx;
+                    const isActive = globalIdx === activeSegIdx;
+                    return (
+                      <TranscriptSegmentRow
+                        key={globalIdx}
+                        cs={cs}
+                        isActive={isActive}
+                        showClozeMode={false}
+                        highlightMode={settings.highlightMode}
+                        currentTime={isActive ? currentTime : 0}
+                        onSeek={handleSeek}
+                        rowRef={isActive ? activeSegRef : undefined}
+                      />
+                    );
+                  })}
+              </div>
+
+              {/* Next/Previous navigation buttons */}
+              <div className="flex gap-2 justify-between sticky bottom-0 bg-background/90 backdrop-blur-sm py-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (segmentLoopStartIdx > 0) {
+                      setSegmentLoopStartIdx(segmentLoopStartIdx - 1);
+                    }
+                  }}
+                  disabled={segmentLoopStartIdx === 0}
+                >
+                  ← Trước
+                </Button>
+
+                <div className="flex items-center text-sm text-muted-foreground">
+                  Segment {segmentLoopStartIdx + 1} – {segmentLoopEndIdx + 1} / {rawSegments.length}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (segmentLoopEndIdx < rawSegments.length - 1) {
+                      setSegmentLoopStartIdx(segmentLoopStartIdx + 1);
+                    }
+                  }}
+                  disabled={segmentLoopEndIdx >= rawSegments.length - 1}
+                >
+                  Tiếp →
+                </Button>
+              </div>
+            </>
+          ) : (
+            // Normal study/read mode: show all segments
+            <>
+              {clozeSegments.map((cs, si) => {
+                const isActive = si === activeSegIdx;
+                const segHasStart = loopStart != null && cs.tokens.some(
+                  (t) => t.word.start != null && Math.abs(t.word.start - loopStart) < 0.01,
+                );
+                const segHasEnd = loopEnd != null && cs.tokens.some(
+                  (t) => t.word.start != null && Math.abs(t.word.start - loopEnd) < 0.01,
+                );
+                return (
+                  <TranscriptSegmentRow
+                    key={si}
+                    cs={cs}
+                    isActive={isActive}
+                    showClozeMode={settings.transcriptionMode === 'study'}
+                    highlightMode={settings.highlightMode}
+                    currentTime={isActive ? currentTime : 0}
+                    onSeek={handleSeek}
+                    rowRef={isActive ? activeSegRef : undefined}
+                    loopStart={segHasStart ? loopStart : null}
+                    loopEnd={segHasEnd ? loopEnd : null}
+                    pickMode={null}
+                  />
+                );
+              })}
+              <div className="h-32" />
+            </>
+          )}
         </div>
       )}
 

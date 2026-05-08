@@ -17,6 +17,7 @@ import {
   type MangaSettings,
   type HighlightMode,
   type ViewerLayout,
+  type TranscriptionMode,
 } from '@/lib/settings-storage';
 import {
   getStoredTheme,
@@ -107,16 +108,17 @@ export default function SettingsPage() {
           <Label className="text-xs uppercase tracking-wider text-muted-foreground">
             Chế độ
           </Label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {([
-              { value: true, label: 'Study (Cloze)' },
-              { value: false, label: 'Read (Plain)' },
+              { value: 'study' as TranscriptionMode, label: 'Study' },
+              { value: 'read' as TranscriptionMode, label: 'Read' },
+              { value: 'segment-loop' as TranscriptionMode, label: 'Loop' },
             ] as const).map((opt) => (
               <button
-                key={String(opt.value)}
-                onClick={() => updateTrans({ showClozeMode: opt.value })}
+                key={opt.value}
+                onClick={() => updateTrans({ transcriptionMode: opt.value })}
                 className={`p-2 rounded-md border text-xs font-medium ${
-                  trans.showClozeMode === opt.value
+                  trans.transcriptionMode === opt.value
                     ? 'border-primary bg-primary/10 text-primary'
                     : 'border-border bg-muted/30 text-muted-foreground hover:bg-muted/60'
                 }`}

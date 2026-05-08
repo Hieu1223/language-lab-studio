@@ -2,6 +2,7 @@
 
 export type HighlightMode = 'token' | 'sentence' | 'none';
 export type ViewerLayout = 'split-h' | 'split-v' | 'video' | 'transcript';
+export type TranscriptionMode = 'study' | 'read' | 'segment-loop';
 
 export interface TranscriptionSettings {
   /** Hide block range [min, max] */
@@ -12,10 +13,16 @@ export interface TranscriptionSettings {
   autoScroll: boolean;
   /** Highlight mode for currently-spoken content */
   highlightMode: HighlightMode;
-  /** Show cloze (Study) vs raw text (Read) */
-  showClozeMode: boolean;
+  /** Show cloze (Study) vs raw text (Read) vs segment-loop */
+  transcriptionMode: TranscriptionMode;
   /** Layout of the viewer */
   layout: ViewerLayout;
+  /** Segment loop mode: padding time (seconds) with audio between segments */
+  segmentLoopPadding: number;
+  /** Segment loop mode: silent gap (seconds) to indicate loop restart */
+  segmentLoopGap: number;
+  /** Segment loop mode: number of consecutive segments to display */
+  segmentLoopCount: number;
 }
 
 export interface MangaSettings {
@@ -41,8 +48,11 @@ const DEFAULT_TRANSCRIPTION: TranscriptionSettings = {
   visibleRange: [2, 5],
   autoScroll: true,
   highlightMode: 'token',
-  showClozeMode: true,
+  transcriptionMode: 'study',
   layout: 'split-v',
+  segmentLoopPadding: 0.5,
+  segmentLoopGap: 0.8,
+  segmentLoopCount: 2,
 };
 
 
