@@ -931,14 +931,14 @@ export default function YouTubeVideoViewerPage() {
                       Số segment hiện (n)
                     </Label>
                     <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded">
-                      {settings.segmentLoopCount}
+                      {settings.segmentLoopCount ?? 2}
                     </span>
                   </div>
                   <Slider
                     min={1}
                     max={5}
                     step={1}
-                    value={[settings.segmentLoopCount]}
+                    value={[settings.segmentLoopCount ?? 2]}
                     onValueChange={(v) => updateSettings({ segmentLoopCount: v[0] })}
                   />
                 </div>
@@ -949,14 +949,14 @@ export default function YouTubeVideoViewerPage() {
                       Padding (âm thanh) – giây
                     </Label>
                     <span className="text-xs font-mono bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded">
-                      {settings.segmentLoopPadding.toFixed(2)}s
+                      {(settings.segmentLoopPadding ?? 0).toFixed(2)}s
                     </span>
                   </div>
                   <Slider
                     min={0}
                     max={3}
                     step={0.1}
-                    value={[settings.segmentLoopPadding]}
+                    value={[settings.segmentLoopPadding ?? 0]}
                     onValueChange={(v) => updateSettings({ segmentLoopPadding: parseFloat(v[0].toFixed(2)) })}
                   />
                   <p className="text-[10px] text-muted-foreground leading-snug">
@@ -970,14 +970,14 @@ export default function YouTubeVideoViewerPage() {
                       Silent gap (câm) – giây
                     </Label>
                     <span className="text-xs font-mono bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded">
-                      {settings.segmentLoopGap.toFixed(2)}s
+                      {(settings.segmentLoopGap ?? 0).toFixed(2)}s
                     </span>
                   </div>
                   <Slider
                     min={0}
                     max={2}
                     step={0.1}
-                    value={[settings.segmentLoopGap]}
+                    value={[settings.segmentLoopGap ?? 0]}
                     onValueChange={(v) => updateSettings({ segmentLoopGap: parseFloat(v[0].toFixed(2)) })}
                   />
                   <p className="text-[10px] text-muted-foreground leading-snug">
