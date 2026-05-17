@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { MangaImage } from '@/components/manga/MangaImage';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { getMangaDetail, type MangaDetail } from '@/lib/api/manga';
@@ -97,7 +98,7 @@ export default function MangaDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-6 mb-6">
         <div className="aspect-[3/4] rounded-lg overflow-hidden bg-muted border shadow-sm">
           {detail.cover ? (
-            <img
+            <MangaImage
               src={detail.cover}
               alt={detail.title}
               className="w-full h-full object-cover"

@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Search, Loader2, X, Sparkles, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { MangaImage } from '@/components/manga/MangaImage';
 import { searchManga, type MangaPreview } from '@/lib/api/manga';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────
@@ -183,7 +184,7 @@ export default function MangaBrowse() {
               >
                 <div className="aspect-[3/4] bg-muted overflow-hidden relative">
                   {manga.cover ? (
-                    <img
+                    <MangaImage
                       src={manga.cover}
                       alt={manga.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"

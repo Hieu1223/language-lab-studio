@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { Loader2, BookOpen, Clock, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { MangaImage } from '@/components/manga/MangaImage';
 import { getMangaHistory, type ReadHistoryResponse } from '@/lib/api/manga';
 import { useAuth } from '@/lib/auth-context';
 
@@ -79,7 +80,7 @@ export default function MangaHistoryPage() {
               <div className="flex gap-3 p-4">
                 {/* Cover image */}
                 {item.manga_cover ? (
-                  <img
+                  <MangaImage
                     src={item.manga_cover}
                     alt={item.manga_title}
                     className="w-16 h-24 object-cover rounded shrink-0"

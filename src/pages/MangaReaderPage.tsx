@@ -56,6 +56,7 @@ import { APIError } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
 import { getMangaSettings } from '@/lib/settings-storage';
+import { MangaImage } from '@/components/manga/MangaImage';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -320,7 +321,7 @@ function MangaPage({
         ref={wrapRef}
         style={{ width: containerW, height: containerH, position: 'relative', flexShrink: 0 }}
       >
-        <img
+        <MangaImage
           ref={imgRef}
           src={src}
           alt={`Page ${pageIndex + 1}`}
@@ -356,7 +357,7 @@ function MangaPage({
 
   return (
     <div ref={wrapRef} style={{ position: 'relative', width: '100%' }}>
-      <img
+      <MangaImage
         ref={imgRef}
         src={src}
         alt={`Page ${pageIndex + 1}`}
