@@ -52,6 +52,7 @@ import {
   findTranscriptByVideoId,
   isTranscriptError,
   isTranscriptReady,
+  getYouTubeVideo,
   type TranscriptInfo,
   type TranscriptSegment,
   type VideoPreview,
@@ -146,8 +147,13 @@ export default function YouTubeVideoViewerPage() {
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
-  // Selected video metadata (from browse page sessionStorage, else minimal)
-  const [video] = useState<VideoPreview | null>(() => {
+  // Track whether we came from a direct URL (for smart back button)
+  const [fromDirectUrl, setFromDirectUrl] = useState(() => {
+    return !sessionStorage.getItem('selectedVideo');
+  });
+
+  // Selected video metadata (from browse page sessionStorage, or fetched on direct load)
+  const [video, setVideo] = useState<VideoPreview | null>(() => {
     const raw = sessionStorage.getItem('selectedVideo');
     try {
       return raw ? JSON.parse(raw) : null;
@@ -155,6 +161,39 @@ export default function YouTubeVideoViewerPage() {
       return null;
     }
   });
+
+  // Fetch video data on direct URL access
+  useEffect(() => {
+    if (!videoId || video) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const info = await getYouTubeVideo(videoId);
+        if (cancelled) return;
+
+        setVideo({
+          id: info.id,
+          title: info.title,
+          thumbnail_url: info.thumbnail_url,
+          channel: {
+            id: info.channel.id,
+            name: info.channel.name,
+            url: info.channel.url,
+          },
+          duration: null,
+          description: info.description,
+          view_count: info.view_count,
+        });
+      } catch (error) {
+        console.error('Failed to fetch YouTube video data:', error);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [videoId, video]);
 
   // Transcript state
   const [status, setStatus] = useState<PageStatus>('checking');
@@ -1207,7 +1246,12 @@ export default function YouTubeVideoViewerPage() {
       {/* Header */}
       <header className="h-14 border-b flex items-center justify-between px-3 sm:px-4 bg-card shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="flex-shrink-0">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => fromDirectUrl ? navigate('/youtube') : navigate(-1)}
+              className="flex-shrink-0"
+            >
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex flex-col min-w-0">
