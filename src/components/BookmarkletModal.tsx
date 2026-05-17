@@ -1,8 +1,6 @@
-import { useState } from 'react';
-import { Copy, Check, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { generateBookmarkletCode, getCurrentAppUrl } from '@/lib/bookmarklet';
-import { toast } from 'sonner';
 
 interface BookmarkletModalProps {
   isOpen: boolean;
@@ -10,33 +8,20 @@ interface BookmarkletModalProps {
 }
 
 export function BookmarkletModal({ isOpen, onClose }: BookmarkletModalProps) {
-  const [copied, setCopied] = useState(false);
-
   if (!isOpen) return null;
 
   const appUrl = getCurrentAppUrl();
   const bookmarkletCode = generateBookmarkletCode({ appUrl });
 
-  const handleCopyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(bookmarkletCode);
-      setCopied(true);
-      toast.success('Copied to clipboard!');
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('Failed to copy');
-    }
-  };
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-card border rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div className="bg-card border rounded-2xl max-w-2xl w-full shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 bg-card border-b px-6 py-4 flex items-center justify-between">
+        <div className="bg-card border-b px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="font-bold text-lg">Add Bookmarklet</h2>
             <p className="text-xs text-muted-foreground mt-1">
-              Quick access from YouTube videos to this app
+              Drag to your bookmarks bar for quick access
             </p>
           </div>
           <button
@@ -49,116 +34,50 @@ export function BookmarkletModal({ isOpen, onClose }: BookmarkletModalProps) {
 
         {/* Content */}
         <div className="p-6 space-y-6">
-          {/* Step 1: Copy */}
+          {/* Draggable bookmarklet */}
           <div className="space-y-3">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                1
-              </span>
-              Copy the Bookmarklet Code
-            </h3>
+            <h3 className="font-semibold text-sm">Step 1: Drag to Bookmarks</h3>
             <p className="text-sm text-muted-foreground">
-              Click the button below to copy the bookmarklet code to your clipboard.
+              Drag the button below directly to your browser's bookmarks bar.
             </p>
-            <div className="bg-muted/50 border rounded-lg p-4">
-              <code className="text-xs text-muted-foreground break-all font-mono">
-                {bookmarkletCode.substring(0, 100)}...
-              </code>
+            <div className="bg-gradient-to-r from-primary/20 to-primary/10 border border-primary/30 rounded-xl p-4 flex items-center justify-center">
+              <a
+                href={bookmarkletCode}
+                draggable
+                className="select-none cursor-move px-6 py-3 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary/90 transition-colors shadow-lg hover:shadow-xl active:scale-95 inline-block"
+                title="Drag this to your bookmarks bar"
+              >
+                📖 YouTube → Learning Lab
+              </a>
             </div>
-            <Button
-              onClick={handleCopyCode}
-              className="w-full gap-2"
-              variant={copied ? 'default' : 'outline'}
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy className="w-4 h-4" />
-                  Copy Bookmarklet Code
-                </>
-              )}
-            </Button>
+            <p className="text-xs text-muted-foreground bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+              💡 <strong>Tip:</strong> If dragging doesn't work, right-click the button and select "Bookmark This Link"
+            </p>
           </div>
 
-          <div className="border-t" />
-
-          {/* Step 2: Add to Bookmarks */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                2
-              </span>
-              Add to Your Bookmarks
-            </h3>
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 space-y-3">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Chrome / Edge:</p>
-                <ol className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>1. Press <kbd className="px-2 py-1 bg-muted rounded text-xs">Ctrl+Shift+B</kbd> (Windows) or <kbd className="px-2 py-1 bg-muted rounded text-xs">Cmd+Shift+B</kbd> (Mac) to open Bookmark Manager</li>
-                  <li>2. Click the menu icon (⋮) and select "Add new bookmark"</li>
-                  <li>3. Give it a name like "YouTube → Learning Lab"</li>
-                  <li>4. In the URL field, paste the copied bookmarklet code</li>
-                  <li>5. Click Save</li>
-                </ol>
-              </div>
-
-              <div className="border-t border-blue-500/20 pt-3 space-y-2">
-                <p className="text-sm font-medium text-foreground">Firefox:</p>
-                <ol className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>1. Right-click on your bookmarks toolbar (or press <kbd className="px-2 py-1 bg-muted rounded text-xs">Ctrl+B</kbd>)</li>
-                  <li>2. Select "Add Bookmark"</li>
-                  <li>3. Name it "YouTube → Learning Lab"</li>
-                  <li>4. Paste the bookmarklet code in the Location field</li>
-                  <li>5. Click Add</li>
-                </ol>
-              </div>
-
-              <div className="border-t border-blue-500/20 pt-3 space-y-2">
-                <p className="text-sm font-medium text-foreground">Safari:</p>
-                <ol className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li>1. From menu, select Bookmarks → Edit Bookmarks</li>
-                  <li>2. Click the "+" button to add a new bookmark</li>
-                  <li>3. Name it "YouTube → Learning Lab"</li>
-                  <li>4. Paste the bookmarklet code in the Address field</li>
-                  <li>5. Save to Favorites</li>
-                </ol>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t" />
-
-          {/* Step 3: Use */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm flex items-center gap-2">
-              <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold">
-                3
-              </span>
-              Use It on Any YouTube Video
-            </h3>
+          {/* How to use */}
+          <div className="border-t pt-4 space-y-3">
+            <h3 className="font-semibold text-sm">Step 2: Use on YouTube</h3>
             <p className="text-sm text-muted-foreground">
-              Visit any YouTube video page and click the "YouTube → Learning Lab" bookmarklet. It will open the video in our app so you can:
+              Visit any YouTube video and click your new bookmarklet. It will open the video in Learning Lab so you can:
             </p>
             <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-              <li>Request a transcript with timestamps</li>
-              <li>Practice with interactive cloze deletion</li>
-              <li>Study Japanese vocabulary from real videos</li>
+              <li>Request transcripts with timestamps</li>
+              <li>Practice interactive cloze deletion</li>
+              <li>Study Japanese from real videos</li>
             </ul>
           </div>
 
+          {/* Success message */}
           <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
             <p className="text-sm text-green-700 dark:text-green-400">
-              ✓ You're all set! The bookmarklet is now available whenever you're watching YouTube.
+              ✓ Once added, click the bookmarklet on any YouTube video page!
             </p>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-card border-t px-6 py-4 flex justify-end">
+        <div className="bg-card border-t px-6 py-4 flex justify-end">
           <Button onClick={onClose} variant="default">
             Done
           </Button>
