@@ -104,11 +104,22 @@ export default function YouTubeBrowsePage() {
 
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto animate-fade-in">
-      <div className="mb-6">
-        <h2 className="font-display font-bold text-2xl text-foreground mb-2">Phiên dịch</h2>
-        <p className="text-sm text-muted-foreground">
-          Tìm và phiên dịch các video YouTube để ôn tập tiếng Nhật
-        </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6">
+        <div>
+          <h2 className="font-display font-bold text-2xl text-foreground mb-2">Phiên dịch</h2>
+          <p className="text-sm text-muted-foreground">
+            Tìm và phiên dịch các video YouTube để ôn tập tiếng Nhật
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setBookmarkletModalOpen(true)}
+          className="w-full md:w-auto"
+        >
+          <Bookmark className="w-4 h-4 mr-2" />
+          Bookmarklet
+        </Button>
       </div>
 
       {/* Search Form */}
@@ -245,6 +256,11 @@ export default function YouTubeBrowsePage() {
           <p>Không có video nào. Thử từ khoá khác.</p>
         </div>
       )}
+
+      <BookmarkletModal
+        isOpen={bookmarkletModalOpen}
+        onClose={() => setBookmarkletModalOpen(false)}
+      />
     </div>
   );
 }
