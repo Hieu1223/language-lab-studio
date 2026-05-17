@@ -1,4 +1,15 @@
-const API_BASE_URL = 'https://japlearningbackend.onrender.com';
+// ─── Single, unified backend base URL ────────────────────────────────────────
+// Used by every network call in the app (api-client, auth-context, streams).
+// When `VITE_API_BASE_URL` / `REACT_APP_BACKEND_URL` is provided via env, it
+// takes priority; otherwise we fall back to the production backend.
+const ENV_BASE_URL =
+  (typeof import.meta !== 'undefined' &&
+    (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_API_BASE_URL) ||
+  (typeof import.meta !== 'undefined' &&
+    (import.meta as unknown as { env?: Record<string, string> }).env?.REACT_APP_BACKEND_URL) ||
+  '';
+
+export const API_BASE_URL = (ENV_BASE_URL || 'https://japlearningbackend.onrender.com').replace(/\/+$/, '');
 
 export class APIError extends Error {
   constructor(
@@ -12,19 +23,38 @@ export class APIError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   headers?: Record<string, string>;
   body?: unknown;
   token?: string;
   formData?: boolean;
-  query?: Record<string, string | number>;
+  query?: Record<string, string | number | boolean | undefined | null>;
+  /** Skip the global 401 interceptor (used by login/register flows). */
+  skipAuthInterceptor?: boolean;
+}
+
+/** Custom event name dispatched on the window when a request returns 401. */
+export const AUTH_UNAUTHORIZED_EVENT = 'auth:unauthorized';
+
+function emitUnauthorized() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));
+  }
 }
 
 export async function apiCall<T>(
   endpoint: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { method = 'GET', headers = {}, body, token, formData, query } = options;
+  const {
+    method = 'GET',
+    headers = {},
+    body,
+    token,
+    formData,
+    query,
+    skipAuthInterceptor = false,
+  } = options;
 
   let url = `${API_BASE_URL}${endpoint}`;
 
@@ -32,9 +62,11 @@ export async function apiCall<T>(
   if (query) {
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
       params.append(key, String(value));
     });
-    url += `?${params.toString()}`;
+    const qs = params.toString();
+    if (qs) url += `?${qs}`;
   }
   const requestHeaders: Record<string, string> = {
     ...headers,
@@ -45,8 +77,10 @@ export async function apiCall<T>(
     requestHeaders['Content-Type'] = 'application/json';
   }
 
-  if (token) {
-    requestHeaders['Authorization'] = `Bearer ${token}`;
+  // Auto-attach bearer token from localStorage if not explicitly set
+  const effectiveToken = token ?? getStoredToken();
+  if (effectiveToken) {
+    requestHeaders['Authorization'] = `Bearer ${effectiveToken}`;
   }
 
   const requestConfig: RequestInit = {
@@ -54,7 +88,7 @@ export async function apiCall<T>(
     headers: requestHeaders,
   };
 
-  if (body) {
+  if (body !== undefined && body !== null) {
     if (formData && body instanceof URLSearchParams) {
       requestConfig.body = body;
     } else {
@@ -65,20 +99,37 @@ export async function apiCall<T>(
   try {
     const response = await fetch(url, requestConfig);
 
+    if (response.status === 401 && !skipAuthInterceptor) {
+      emitUnauthorized();
+    }
+
     if (!response.ok) {
       let errorDetails: unknown;
       try {
         errorDetails = await response.json();
       } catch {
-        errorDetails = await response.text();
+        try {
+          errorDetails = await response.text();
+        } catch {
+          errorDetails = null;
+        }
       }
       throw new APIError(response.status, `API Error: ${response.statusText}`, errorDetails);
     }
 
-    const data = await response.json();
-    return data as T;
+    // Some endpoints (DELETE) may have empty bodies
+    const text = await response.text();
+    if (!text) return undefined as T;
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      return text as unknown as T;
+    }
   } catch (error) {
     if (error instanceof APIError) throw error;
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new APIError(0, 'Network error: Could not connect to server. Please check your connection and try again.', error);
+    }
     throw new APIError(0, error instanceof Error ? error.message : 'Unknown error');
   }
 }
@@ -88,6 +139,7 @@ export async function registerUser(username: string, password: string, displayNa
   return apiCall('/register', {
     method: 'POST',
     body: { username, password, display_name: displayName },
+    skipAuthInterceptor: true,
   });
 }
 
@@ -100,6 +152,7 @@ export async function loginUser(username: string, password: string) {
       password,
       grant_type: 'password',
     }).toString(),
+    skipAuthInterceptor: true,
   });
   return response;
 }
@@ -117,4 +170,45 @@ export function storeToken(token: string): void {
 // Utility to clear token
 export function clearToken(): void {
   localStorage.removeItem('nihongo-token');
+}
+
+// ─── App-wide background ping ───────────────────────────────────────────────
+/**
+ * Starts a background ping loop. Pings /ping every `intervalMs`.
+ * If the server is unreachable for too long or returns 5xx, we just log;
+ * 401 is *not* expected on /ping but if it happens we fall through to the interceptor.
+ *
+ * Returns a stop function.
+ */
+export function startBackgroundPing(intervalMs: number = 3 * 60 * 1000) {
+  let stopped = false;
+  let timer: number | null = null;
+
+  const tick = async () => {
+    if (stopped) return;
+    try {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), 10_000);
+      await fetch(`${API_BASE_URL}/ping`, {
+        method: 'GET',
+        signal: ctl.signal,
+        cache: 'no-store',
+      });
+      clearTimeout(to);
+    } catch {
+      /* ignore — server may be cold/sleeping */
+    } finally {
+      if (!stopped) {
+        timer = window.setTimeout(tick, intervalMs);
+      }
+    }
+  };
+
+  // Schedule first tick after the interval (initial /ping is handled by SplashScreen)
+  timer = window.setTimeout(tick, intervalMs);
+
+  return () => {
+    stopped = true;
+    if (timer != null) clearTimeout(timer);
+  };
 }

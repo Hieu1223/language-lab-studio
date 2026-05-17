@@ -1,5 +1,18 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { clearToken, getStoredToken, storeToken } from './api-client';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  type ReactNode,
+} from "react";
+import {
+  API_BASE_URL,
+  AUTH_UNAUTHORIZED_EVENT,
+  clearToken,
+  getStoredToken,
+  storeToken,
+} from "./api-client";
 
 export interface User {
   id: string;
@@ -14,65 +27,146 @@ interface AuthContextType {
   token: string | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (username: string, password: string, displayName?: string) => Promise<void>;
+  register: (
+    username: string,
+    password: string,
+    displayName?: string
+  ) => Promise<void>;
   logout: () => void;
   setUser: (user: User | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const USER_KEY = "nihongo-user";
+// NOTE: use the single, unified API_BASE_URL. All `BASE_URL` references below
+// are kept for readability but point to the same value.
+const BASE_URL = API_BASE_URL;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // 🔹 Load from storage
   useEffect(() => {
     const storedToken = getStoredToken();
-    const storedUser = localStorage.getItem('nihongo-user');
-    if (storedToken) {
-      setToken(storedToken);
-    }
+    const storedUser = localStorage.getItem(USER_KEY);
+
+    if (storedToken) setToken(storedToken);
+
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem(USER_KEY);
+      }
     }
+
     setIsLoading(false);
   }, []);
 
+  const logout = useCallback(() => {
+    setUser(null);
+    setToken(null);
+    clearToken();
+    localStorage.removeItem(USER_KEY);
+  }, []);
+
+  // 🔹 Global 401 handler (kept from improved version)
+  useEffect(() => {
+    let lastForce = 0;
+
+    const handler = () => {
+      const now = Date.now();
+      if (now - lastForce < 1500) return;
+      lastForce = now;
+
+      const wasLoggedIn = !!getStoredToken();
+      logout();
+
+      if (wasLoggedIn && typeof window !== "undefined") {
+        const next = encodeURIComponent(
+          window.location.pathname + window.location.search
+        );
+
+        if (!window.location.pathname.startsWith("/login")) {
+          window.location.assign(`/login?expired=1&next=${next}`);
+        }
+      }
+    };
+
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
+    return () =>
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
+  }, [logout]);
+
   const login = async (username: string, password: string) => {
-    const response = await fetch('https://japlearningbackend.onrender.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    // 🔹 YOUR working login (unchanged)
+    const response = await fetch(`${BASE_URL}/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         username,
         password,
-        grant_type: 'password',
+        grant_type: "password",
       }).toString(),
     });
 
     if (!response.ok) {
-      throw new Error('Login failed');
+      throw new Error("Login failed");
     }
 
     const data = await response.json();
     const newToken = data.access_token;
+
     setToken(newToken);
     storeToken(newToken);
 
-    // Extract user info (in a real app, you'd fetch the user info separately)
-    const mockUser: User = {
-      id: '8d0d3722-3169-4fe8-aa3b-5d41f06ba1d0',
-      name: username,
-      email: `${username}@example.com`,
-      createdAt: new Date().toISOString(),
-    };
-    setUser(mockUser);
-    localStorage.setItem('nihongo-user', JSON.stringify(mockUser));
+    // 🔹 Try real user fetch (SAFE fallback)
+    let finalUser: User;
+
+    try {
+      const res = await fetch(`${BASE_URL}/check`, {
+        headers: {
+          Authorization: `Bearer ${newToken}`,
+        },
+      });
+
+      if (!res.ok) throw new Error();
+
+      const checked = await res.json();
+
+      finalUser = {
+        id: checked.id || "4d3e160b-1e2c-48f1-81ae-c570943f846c", //pydantic check on the backend check for the id to be in uuid4 format,
+        name: checked.display_name || checked.name || username,
+        email: checked.email,
+      };
+    } catch {
+      // ✅ fallback (same as your working behavior)
+      finalUser = {
+        id: "8d0d3722-3169-4fe8-aa3b-5d41f06ba1d0",
+        name: username,
+        email: `${username}@example.com`,
+        createdAt: new Date().toISOString(),
+      };
+    }
+
+    setUser(finalUser);
+    localStorage.setItem(USER_KEY, JSON.stringify(finalUser));
   };
 
-  const register = async (username: string, password: string, displayName?: string) => {
-    const response = await fetch('https://japlearningbackend.onrender.com/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+  const register = async (
+    username: string,
+    password: string,
+    displayName?: string
+  ) => {
+    // 🔹 YOUR working register (unchanged)
+    const response = await fetch(`${BASE_URL}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         username,
         password,
@@ -81,18 +175,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     if (!response.ok) {
-      throw new Error('Registration failed');
+      throw new Error("Registration failed");
     }
 
-    // After successful registration, auto-login
     await login(username, password);
-  };
-
-  const logout = () => {
-    setUser(null);
-    setToken(null);
-    clearToken();
-    localStorage.removeItem('nihongo-user');
   };
 
   return (
@@ -106,6 +192,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be inside AuthProvider');
+  if (!ctx) throw new Error("useAuth must be inside AuthProvider");
   return ctx;
 }

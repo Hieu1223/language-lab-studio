@@ -20,7 +20,7 @@ import {
   requestTranscription,
   type TranscriptSegment,
   type TranscriptInfo,
-} from '@/lib/api/transcription-real';
+} from '@/lib/api/transcription';
 
 import { useAuth } from '@/lib/auth-context';
 

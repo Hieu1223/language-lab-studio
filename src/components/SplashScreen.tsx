@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import { API_BASE_URL } from '@/lib/api-client';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -14,42 +15,56 @@ const stages = [
 
 export function SplashScreen({ onComplete }: SplashScreenProps) {
   const [stageIdx, setStageIdx] = useState(0);
-  const [serverConnected, setServerConnected] = useState(false);
+  const [serverReady, setServerReady] = useState(false);
+  const [attempts, setAttempts] = useState(0);
 
-  // Ping server on mount
+  // Ping /ping repeatedly until the server responds 2xx.
+  // Never unblocks unless the server is actually up.
   useEffect(() => {
-    const pingServer = async () => {
-      try {
-        const response = await fetch('https://japlearningbackend.onrender.com/ping', {
-          method: 'GET',
-        });
-        if (response.ok) {
-          setServerConnected(true);
+    let cancelled = false;
+
+    const ping = async (): Promise<void> => {
+      while (!cancelled) {
+        setAttempts((a) => a + 1);
+        try {
+          const ctl = new AbortController();
+          const to = setTimeout(() => ctl.abort(), 5000);
+          const res = await fetch(`${API_BASE_URL}/ping`, {
+            method: 'GET',
+            signal: ctl.signal,
+            cache: 'no-store',
+          });
+          clearTimeout(to);
+          if (res.ok) {
+            if (!cancelled) setServerReady(true);
+            return;
+          }
+        } catch {
+          /* retry */
         }
-      } catch (error) {
-        console.error('Server ping failed:', error);
-        // Still continue even if ping fails
-        setServerConnected(true);
+        // Wait 2s before retrying
+        await new Promise((r) => setTimeout(r, 2000));
       }
     };
 
-    pingServer();
+    ping();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    // Wait for server to connect before moving to next stage
-    if (stageIdx === 0 && !serverConnected) {
-      return;
-    }
+    // Block on first stage until server is up
+    if (!serverReady && stageIdx === 0) return;
 
     if (stageIdx < stages.length - 1) {
-      const timer = setTimeout(() => setStageIdx(stageIdx + 1), 800);
+      const timer = setTimeout(() => setStageIdx(stageIdx + 1), 600);
       return () => clearTimeout(timer);
     } else {
-      const timer = setTimeout(onComplete, 600);
+      const timer = setTimeout(onComplete, 500);
       return () => clearTimeout(timer);
     }
-  }, [stageIdx, onComplete, serverConnected]);
+  }, [stageIdx, onComplete, serverReady]);
 
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-background">
@@ -81,10 +96,20 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
           <motion.div
             className="h-full bg-primary rounded-full"
             initial={{ width: '0%' }}
-            animate={{ width: `${((stageIdx + 1) / stages.length) * 100}%` }}
+            animate={{
+              width: serverReady
+                ? `${((stageIdx + 1) / stages.length) * 100}%`
+                : '15%',
+            }}
             transition={{ duration: 0.5 }}
           />
         </div>
+
+        {!serverReady && attempts > 2 && (
+          <p className="text-[10px] text-muted-foreground mt-4">
+            Máy chủ đang khởi động… (lần thử {attempts})
+          </p>
+        )}
       </motion.div>
     </div>
   );
