@@ -4,8 +4,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Search, Loader2, Play, X, Sparkles } from 'lucide-react';
+import { Search, Loader2, Play, X, Sparkles, Bookmark } from 'lucide-react';
 import { searchYouTube, type VideoPreview } from '@/lib/api/transcription';
+import { BookmarkletModal } from '@/components/BookmarkletModal';
 
 // Default query used for the YouTube "mainpage" list.
 // Per spec: mainpage reuses the /youtube/search endpoint with a default query.
@@ -40,6 +41,7 @@ export default function YouTubeBrowsePage() {
   });
   const [mode, setMode] = useState<BrowseMode>(initialMode);
   const [searching, setSearching] = useState(false);
+  const [bookmarkletModalOpen, setBookmarkletModalOpen] = useState(false);
 
   // Persist query/mode/results
   useEffect(() => {
@@ -102,6 +104,24 @@ export default function YouTubeBrowsePage() {
 
   return (
     <>
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h2 className="font-display font-bold text-2xl text-foreground mb-2">Phiên dịch</h2>
+          <p className="text-sm text-muted-foreground">
+            Tìm và phiên dịch các video YouTube để ôn tập tiếng Nhật
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => setBookmarkletModalOpen(true)}
+          className="w-full md:w-auto"
+        >
+          <Bookmark className="w-4 h-4 mr-2" />
+          Bookmarklet
+        </Button>
+      </div>
+
       {/* Search Form */}
       <form onSubmit={handleSubmit} className="mb-6">
         <div className="flex gap-2">
@@ -236,6 +256,11 @@ export default function YouTubeBrowsePage() {
           <p>Không có video nào. Thử từ khoá khác.</p>
         </div>
       )}
+
+      <BookmarkletModal
+        isOpen={bookmarkletModalOpen}
+        onClose={() => setBookmarkletModalOpen(false)}
+      />
     </>
   );
 }
