@@ -10,11 +10,13 @@ import {
   Settings as SettingsIcon,
   ChevronRight,
   Sparkles,
+  Bookmark,
 } from 'lucide-react';
 import { VideoPlayer } from '@/components/video/VideoPlayer';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { ResizableSplit } from '@/components/ResizableSplit';
+import { BookmarkletModal } from '@/components/BookmarkletModal';
 import {
   getTranscriptInfo,
   getTranscriptData,
@@ -155,6 +157,7 @@ export default function TranscribeViewPage() {
   const [allRevealed, setAllRevealed] = useState(false);
   const [autoScroll, setAutoScroll] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [bookmarkletModalOpen, setBookmarkletModalOpen] = useState(false);
 
   const activeSegRef = useRef<HTMLDivElement>(null);
 
@@ -418,6 +421,16 @@ export default function TranscribeViewPage() {
             </span>
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setBookmarkletModalOpen(true)}
+          className="gap-2"
+          title="Add a bookmarklet to quickly open YouTube videos in this app"
+        >
+          <Bookmark className="w-4 h-4" />
+          Bookmarklet
+        </Button>
       </header>
 
       <main className="flex-1 min-h-0 relative overflow-hidden">
@@ -430,6 +443,8 @@ export default function TranscribeViewPage() {
           maxPercent={75}
         />
       </main>
+
+      <BookmarkletModal isOpen={bookmarkletModalOpen} onClose={() => setBookmarkletModalOpen(false)} />
     </div>
   );
 }
