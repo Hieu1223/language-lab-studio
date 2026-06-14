@@ -18,7 +18,7 @@ export default function LandingPage() {
             <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-sm">日</span>
             </div>
-            <h1 className="font-display font-bold text-lg text-foreground">NihonGo</h1>
+            <h1 className="font-display font-bold text-lg text-foreground">ArisuGo</h1>
           </div>
           <Link to="/login">
             <Button size="sm" className="font-bold rounded-xl">Đăng nhập</Button>

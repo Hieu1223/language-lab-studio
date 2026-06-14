@@ -40,7 +40,7 @@ export default function LoginPage() {
           <div className="w-20 h-20 rounded-3xl bg-primary flex items-center justify-center mx-auto mb-4 shadow-lg">
             <span className="text-primary-foreground font-bold text-3xl">日</span>
           </div>
-          <h1 className="font-display font-extrabold text-3xl text-foreground mb-2">NihonGo</h1>
+          <h1 className="font-display font-extrabold text-3xl text-foreground mb-2">ArisuGo</h1>
           <p className="text-muted-foreground text-sm">Học tiếng Nhật cùng Duolingo phiên bản tiếng Việt</p>
         </div>
 
