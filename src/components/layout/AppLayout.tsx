@@ -42,7 +42,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-primary-foreground font-bold text-sm">日</span>
               </div>
               <div className="min-w-0">
-                <h1 className="font-display font-bold text-lg text-primary tracking-tight truncate">NihonGo</h1>
+                <h1 className="font-display font-bold text-lg text-primary tracking-tight truncate">ArisuGo</h1>
                 <p className="text-[10px] text-muted-foreground font-mono truncate">日本語 · Học tiếng Nhật</p>
               </div>
             </div>
@@ -114,7 +114,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
               <span className="text-primary-foreground font-bold text-xs">日</span>
             </div>
-            <h1 className="font-display font-bold text-primary">NihonGo</h1>
+            <h1 className="font-display font-bold text-primary">ArisuGo</h1>
           </div>
           <button onClick={() => setMobileOpen(!mobileOpen)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
