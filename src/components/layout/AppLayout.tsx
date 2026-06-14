@@ -38,8 +38,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className={`p-4 border-b border-border flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!sidebarCollapsed && (
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
-                <span className="text-primary-foreground font-bold text-sm">日</span>
+              <div className="w-8 h-8 rounded-xl bg-primary overflow-hidden flex-shrink-0">
+                <img src="/icon-512.png" alt="Arisu" className="w-full h-full object-cover" />
               </div>
               <div className="min-w-0">
                 <h1 className="font-display font-bold text-lg text-primary tracking-tight truncate">ArisuGo</h1>
@@ -48,8 +48,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
           {sidebarCollapsed && (
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">日</span>
+            <div className="w-8 h-8 rounded-xl bg-primary overflow-hidden">
+              <img src="/icon-512.png" alt="Arisu" className="w-full h-full object-cover" />
             </div>
           )}
         </div>
@@ -111,8 +111,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-col flex-1 min-w-0">
         <header className="md:hidden flex items-center justify-between p-3 border-b border-border bg-card">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xs">日</span>
+            <div className="w-7 h-7 rounded-lg bg-primary overflow-hidden">
+              <img src="/icon-512.png" alt="Arisu" className="w-full h-full object-cover" />
             </div>
             <h1 className="font-display font-bold text-primary">ArisuGo</h1>
           </div>

@@ -74,8 +74,8 @@ export function SplashScreen({ onComplete }: SplashScreenProps) {
         transition={{ duration: 0.4 }}
         className="text-center"
       >
-        <div className="w-20 h-20 rounded-3xl bg-primary flex items-center justify-center mx-auto mb-6 shadow-lg">
-          <span className="text-primary-foreground font-bold text-3xl">日</span>
+        <div className="w-20 h-20 rounded-3xl bg-primary overflow-hidden mx-auto mb-6 shadow-lg">
+          <img src="/icon-512.png" alt="Arisu" className="w-full h-full object-cover" />
         </div>
         <h1 className="font-display font-extrabold text-3xl text-foreground mb-2">ArisuGo</h1>
         <p className="text-muted-foreground text-sm mb-8">日本語 · Học tiếng Nhật</p>

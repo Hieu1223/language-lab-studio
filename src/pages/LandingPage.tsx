@@ -15,8 +15,8 @@ export default function LandingPage() {
       <header className="border-b border-border bg-card">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">日</span>
+            <div className="w-8 h-8 rounded-xl bg-primary overflow-hidden">
+              <img src="/icon-512.png" alt="Arisu" className="w-full h-full object-cover" />
             </div>
             <h1 className="font-display font-bold text-lg text-foreground">ArisuGo</h1>
           </div>
