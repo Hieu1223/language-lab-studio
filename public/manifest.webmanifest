@@ -1,7 +1,7 @@
 {
-  "name": "NihonGo — Học tiếng Nhật",
-  "short_name": "NihonGo",
-  "description": "Phiên dịch YouTube, đọc manga và học tiếng Nhật.",
+  "name": "ArisuGo — Học tiếng Nhật cùng Arisu",
+  "short_name": "ArisuGo",
+  "description": "Học tiếng Nhật vui vẻ qua YouTube, manga và flashcard cùng cô gia sư Arisu.",
   "start_url": "/youtube",
   "scope": "/",
   "display": "standalone",
