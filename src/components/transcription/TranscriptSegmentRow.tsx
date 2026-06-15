@@ -56,6 +56,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
     return (
       <span
         onClick={handleClick}
+        data-active-word={isCurrent ? 'true' : undefined}
         className={`${base} ${active} ${loopRing} ${pickPulse} hover:bg-white/20 text-foreground`}
         title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
       >
@@ -72,6 +73,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
         onClick={handleClick}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        data-active-word={isCurrent ? 'true' : undefined}
         className={`${base} ${
           revealed
             ? 'bg-green-900/40 text-green-300/90 border border-green-700/50'
@@ -96,6 +98,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
       onClick={handleClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      data-active-word={isCurrent ? 'true' : undefined}
       className={`${base} bg-primary/20 text-transparent border-b border-primary/50
         hover:bg-primary/30 hover:border-primary/70 font-mono ${active} ${loopRing} ${pickPulse}`}
       title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}

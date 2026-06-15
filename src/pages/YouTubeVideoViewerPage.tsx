@@ -408,11 +408,40 @@ export default function YouTubeVideoViewerPage() {
     });
   }, [rawSegments, currentTime]);
 
+  // Track the active word's key (segIdx-tokenIdx) so scrolling re-runs only
+  // when the current word changes, not on every currentTime tick.
+  const activeWordKey = useMemo(() => {
+    if (activeSegIdx < 0) return null;
+    // Search forward from activeSegIdx, skipping tokens with invalid timestamps.
+    for (let si = activeSegIdx; si < rawSegments.length; si++) {
+      const seg = rawSegments[si];
+      if (!seg) continue;
+      const ti = seg.words.findIndex(
+        (w) =>
+          w.start !== null &&
+          w.end !== null &&
+          currentTime >= w.start &&
+          currentTime <= w.end,
+      );
+      if (ti >= 0) return `${si}-${ti}`;
+    }
+    return null;
+  }, [rawSegments, activeSegIdx, currentTime]);
+
   useEffect(() => {
-    if (settings.autoScroll && activeSegRef.current) {
+    if (!settings.autoScroll) return;
+    // Prefer scrolling to the current word when in token highlight mode.
+    if (settings.highlightMode === 'token' && activeWordKey) {
+      const el = document.querySelector<HTMLElement>('[data-active-word="true"]');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+    }
+    if (activeSegRef.current) {
       activeSegRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [activeSegIdx, settings.autoScroll]);
+  }, [activeWordKey, activeSegIdx, settings.autoScroll, settings.highlightMode]);
 
   // ── Loop logic — three modes + segment-loop mode ─────────────────────────
   useEffect(() => {
