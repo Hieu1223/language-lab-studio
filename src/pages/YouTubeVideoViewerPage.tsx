@@ -412,17 +412,20 @@ export default function YouTubeVideoViewerPage() {
   // when the current word changes, not on every currentTime tick.
   const activeWordKey = useMemo(() => {
     if (activeSegIdx < 0) return null;
-    const seg = rawSegments[activeSegIdx];
-    if (!seg) return null;
-    const ti = seg.words.findIndex(
-      (w) =>
-        w.start !== null &&
-        w.end !== null &&
-        currentTime >= w.start &&
-        currentTime <= w.end,
-    );
-    if (ti < 0) return null;
-    return `${activeSegIdx}-${ti}`;
+    // Search forward from activeSegIdx, skipping tokens with invalid timestamps.
+    for (let si = activeSegIdx; si < rawSegments.length; si++) {
+      const seg = rawSegments[si];
+      if (!seg) continue;
+      const ti = seg.words.findIndex(
+        (w) =>
+          w.start !== null &&
+          w.end !== null &&
+          currentTime >= w.start &&
+          currentTime <= w.end,
+      );
+      if (ti >= 0) return `${si}-${ti}`;
+    }
+    return null;
   }, [rawSegments, activeSegIdx, currentTime]);
 
   useEffect(() => {
