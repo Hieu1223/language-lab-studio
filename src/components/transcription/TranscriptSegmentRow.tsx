@@ -56,6 +56,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
     return (
       <span
         onClick={handleClick}
+        data-active-word={isCurrent ? 'true' : undefined}
         className={`${base} ${active} ${loopRing} ${pickPulse} hover:bg-white/20 text-foreground`}
         title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
       >
