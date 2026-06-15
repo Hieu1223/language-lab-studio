@@ -73,6 +73,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
         onClick={handleClick}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        data-active-word={isCurrent ? 'true' : undefined}
         className={`${base} ${
           revealed
             ? 'bg-green-900/40 text-green-300/90 border border-green-700/50'
