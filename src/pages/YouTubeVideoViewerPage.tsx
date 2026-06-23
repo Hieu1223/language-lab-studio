@@ -25,6 +25,7 @@ import {
   FlagOff,
   SkipForward,
   Crosshair,
+  Accessibility,
 } from 'lucide-react';
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
@@ -71,6 +72,7 @@ import {
   type TranscriptionMode,
 } from '@/lib/settings-storage';
 import { TranscriptSegmentRow } from '@/components/transcription/TranscriptSegmentRow';
+import { A11ySegmentViewer } from '@/components/transcription/A11ySegmentViewer';
 
 // ─── Config ───────────────────────────────────────────────────────────────
 
@@ -259,6 +261,14 @@ export default function YouTubeVideoViewerPage() {
 
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
+  const controlsRef = useRef<{
+    play: () => void;
+    pause: () => void;
+    toggle: () => void;
+    skipBy: (seconds: number) => void;
+    isPlaying: () => boolean;
+  } | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // ── Segment loop mode state ──────────────────────────────────────────────
   const [segmentLoopStartIdx, setSegmentLoopStartIdx] = useState<number>(0);
