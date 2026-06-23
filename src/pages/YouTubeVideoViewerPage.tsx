@@ -25,6 +25,7 @@ import {
   FlagOff,
   SkipForward,
   Crosshair,
+  Accessibility,
 } from 'lucide-react';
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
@@ -71,6 +72,7 @@ import {
   type TranscriptionMode,
 } from '@/lib/settings-storage';
 import { TranscriptSegmentRow } from '@/components/transcription/TranscriptSegmentRow';
+import { A11ySegmentViewer } from '@/components/transcription/A11ySegmentViewer';
 
 // ─── Config ───────────────────────────────────────────────────────────────
 
@@ -259,6 +261,14 @@ export default function YouTubeVideoViewerPage() {
 
   const activeSegRef = useRef<HTMLDivElement>(null);
   const seekRef = useRef<((seconds: number) => void) | null>(null);
+  const controlsRef = useRef<{
+    play: () => void;
+    pause: () => void;
+    toggle: () => void;
+    skipBy: (seconds: number) => void;
+    isPlaying: () => boolean;
+  } | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // ── Segment loop mode state ──────────────────────────────────────────────
   const [segmentLoopStartIdx, setSegmentLoopStartIdx] = useState<number>(0);
@@ -877,6 +887,25 @@ export default function YouTubeVideoViewerPage() {
 
             <Separator />
 
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="a11y-mode" className="text-sm cursor-pointer flex items-center gap-2">
+                <Accessibility className="w-4 h-4 text-primary" />
+                <span>
+                  Chế độ truy cập
+                  <span className="block text-[10px] text-muted-foreground font-normal">
+                    Cho người khiếm thị — ẩn video, nút cố định
+                  </span>
+                </span>
+              </Label>
+              <Switch
+                id="a11y-mode"
+                checked={settings.a11yMode}
+                onCheckedChange={(v) => updateSettings({ a11yMode: v })}
+              />
+            </div>
+
+            <Separator />
+
             <div className="flex items-center justify-between">
               <Label htmlFor="autoscroll" className="text-sm cursor-pointer">
                 Tự động cuộn
@@ -887,6 +916,7 @@ export default function YouTubeVideoViewerPage() {
                 onCheckedChange={(v) => updateSettings({ autoScroll: v })}
               />
             </div>
+
 
             <Separator />
 
@@ -1079,9 +1109,12 @@ export default function YouTubeVideoViewerPage() {
         url={`https://www.youtube.com/watch?v=${videoId}`}
         onTimeUpdate={setCurrentTime}
         seekRef={seekRef}
+        controlsRef={controlsRef}
+        onPlayingChange={setIsPlaying}
       />
     </div>
   );
+
 
   const transcriptNode = (
     <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 bg-background h-full">
@@ -1270,8 +1303,35 @@ export default function YouTubeVideoViewerPage() {
     );
   })();
 
+  // ── Accessibility (blind / low-vision) handlers ─────────────────────────
+  const a11ySkip = useCallback((sec: number) => {
+    controlsRef.current?.skipBy(sec);
+  }, []);
+  const a11yTogglePlay = useCallback(() => {
+    controlsRef.current?.toggle();
+  }, []);
+  const a11yPrevSeg = useCallback(() => {
+    setSegmentLoopStartIdx((i) => Math.max(0, i - 1));
+  }, []);
+  const a11yNextSeg = useCallback(() => {
+    setSegmentLoopStartIdx((i) =>
+      Math.min(rawSegments.length - 1, i + settings.segmentLoopCount),
+    );
+  }, [rawSegments.length, settings.segmentLoopCount]);
+  const a11yReplayLoop = useCallback(() => {
+    if (segmentLoopBounds) seekRef.current?.(segmentLoopBounds.loopStart);
+  }, [segmentLoopBounds]);
+
+  // When a11y mode is on, force segment-loop transcription mode.
+  useEffect(() => {
+    if (settings.a11yMode && settings.transcriptionMode !== 'segment-loop') {
+      updateSettings({ transcriptionMode: 'segment-loop' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settings.a11yMode]);
+
   return (
-    <div className="h-screen flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="h-dvh flex flex-col bg-background text-foreground overflow-hidden">
       {/* Header */}
       <header className="h-14 border-b flex items-center justify-between px-3 sm:px-4 bg-card shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -1280,6 +1340,7 @@ export default function YouTubeVideoViewerPage() {
               size="icon"
               onClick={() => fromDirectUrl ? navigate('/youtube') : navigate(-1)}
               className="flex-shrink-0"
+              aria-label="Quay lại"
             >
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -1294,22 +1355,32 @@ export default function YouTubeVideoViewerPage() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          <Button
-            variant={loopEnabled ? 'default' : 'ghost'}
-            size="sm"
-            className="h-8 gap-1.5 text-xs"
-            onClick={() => { setPanelOpen(true); setPanelTab('loop'); }}
-            title="Cài đặt lặp"
-          >
-            <Repeat className={`w-3.5 h-3.5 ${loopEnabled ? '' : 'opacity-70'}`} />
-            <span className="hidden sm:inline">{loopEnabled ? 'Đang lặp' : 'Lặp'}</span>
-          </Button>
+          {!settings.a11yMode && (
+            <Button
+              variant={loopEnabled ? 'default' : 'ghost'}
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => { setPanelOpen(true); setPanelTab('loop'); }}
+              title="Cài đặt lặp"
+            >
+              <Repeat className={`w-3.5 h-3.5 ${loopEnabled ? '' : 'opacity-70'}`} />
+              <span className="hidden sm:inline">{loopEnabled ? 'Đang lặp' : 'Lặp'}</span>
+            </Button>
+          )}
+          {settings.a11yMode && (
+            <span
+              className="hidden sm:inline-flex items-center gap-1 text-xs text-primary font-medium px-2"
+              aria-hidden="true"
+            >
+              <Accessibility className="w-3.5 h-3.5" /> Truy cập
+            </span>
+          )}
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9"
-            onClick={() => setPanelOpen((v) => !v)}
-            aria-label="Toggle panel"
+            className="h-11 w-11"
+            onClick={() => { setPanelOpen((v) => !v); setPanelTab('settings'); }}
+            aria-label={panelOpen ? 'Đóng bảng cài đặt' : 'Mở bảng cài đặt'}
           >
             {panelOpen ? <PanelRightClose className="w-5 h-5" /> : <PanelRightOpen className="w-5 h-5" />}
           </Button>
@@ -1320,8 +1391,33 @@ export default function YouTubeVideoViewerPage() {
       <main className="flex-1 min-h-0 relative flex overflow-hidden">
         {/* Main */}
         <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-          {mainContent}
+          {settings.a11yMode ? (
+            <>
+              {/* Video kept mounted for audio + seek, hidden from view */}
+              <div
+                className="absolute w-px h-px overflow-hidden pointer-events-none opacity-0"
+                aria-hidden="true"
+              >
+                {videoNode}
+              </div>
+              <A11ySegmentViewer
+                rawSegments={rawSegments}
+                clozeSegments={clozeSegments}
+                segmentLoopStartIdx={segmentLoopStartIdx}
+                segmentLoopCount={settings.segmentLoopCount}
+                isPlaying={isPlaying}
+                onTogglePlay={a11yTogglePlay}
+                onSkipSeconds={a11ySkip}
+                onPrevSegment={a11yPrevSeg}
+                onNextSegment={a11yNextSeg}
+                onReplayLoop={a11yReplayLoop}
+              />
+            </>
+          ) : (
+            mainContent
+          )}
         </div>
+
 
         {/* Drawer */}
         {panelOpen && (
