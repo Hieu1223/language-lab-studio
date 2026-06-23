@@ -17,6 +17,16 @@ interface VideoPlayerProps {
   onPause?: () => void;
   /** Receives a seek function; useful for clicking transcript tokens. */
   seekRef?: React.MutableRefObject<((seconds: number) => void) | null>;
+  /** Receives imperative playback controls (play/pause/toggle/skip + isPlaying getter). */
+  controlsRef?: React.MutableRefObject<{
+    play: () => void;
+    pause: () => void;
+    toggle: () => void;
+    skipBy: (seconds: number) => void;
+    isPlaying: () => boolean;
+  } | null>;
+  /** Notified when playback state changes (true=playing). */
+  onPlayingChange?: (playing: boolean) => void;
 }
 
 export function VideoPlayer({
