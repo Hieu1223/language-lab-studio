@@ -887,6 +887,25 @@ export default function YouTubeVideoViewerPage() {
 
             <Separator />
 
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="a11y-mode" className="text-sm cursor-pointer flex items-center gap-2">
+                <Accessibility className="w-4 h-4 text-primary" />
+                <span>
+                  Chế độ truy cập
+                  <span className="block text-[10px] text-muted-foreground font-normal">
+                    Cho người khiếm thị — ẩn video, nút cố định
+                  </span>
+                </span>
+              </Label>
+              <Switch
+                id="a11y-mode"
+                checked={settings.a11yMode}
+                onCheckedChange={(v) => updateSettings({ a11yMode: v })}
+              />
+            </div>
+
+            <Separator />
+
             <div className="flex items-center justify-between">
               <Label htmlFor="autoscroll" className="text-sm cursor-pointer">
                 Tự động cuộn
@@ -897,6 +916,7 @@ export default function YouTubeVideoViewerPage() {
                 onCheckedChange={(v) => updateSettings({ autoScroll: v })}
               />
             </div>
+
 
             <Separator />
 
