@@ -35,6 +35,8 @@ export function VideoPlayer({
   onPlay,
   onPause,
   seekRef,
+  controlsRef,
+  onPlayingChange,
 }: VideoPlayerProps) {
   const playerRef = useRef<any>(null);
   const timerRef = useRef<number | null>(null);
@@ -45,6 +47,11 @@ export function VideoPlayer({
   const [volume, setVolume] = useState(1);
   const [speed, setSpeed] = useState(1);
   const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+
+  useEffect(() => {
+    onPlayingChange?.(isPlaying);
+  }, [isPlaying, onPlayingChange]);
+
 
   const getYouTubeID = (url: string) => {
     const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -170,6 +177,37 @@ export function VideoPlayer({
       if (seekRef) seekRef.current = null;
     };
   }, [seekRef]);
+
+  // Expose imperative playback controls to parent (used by a11y bar)
+  useEffect(() => {
+    if (!controlsRef) return;
+    controlsRef.current = {
+      play: () => { try { playerRef.current?.playVideo?.(); } catch { /* ignore */ } },
+      pause: () => { try { playerRef.current?.pauseVideo?.(); } catch { /* ignore */ } },
+      toggle: () => {
+        try {
+          const state = playerRef.current?.getPlayerState?.();
+          if (state === window.YT?.PlayerState?.PLAYING) {
+            playerRef.current?.pauseVideo?.();
+          } else {
+            playerRef.current?.playVideo?.();
+          }
+        } catch { /* ignore */ }
+      },
+      skipBy: (seconds: number) => {
+        if (!playerRef.current?.seekTo) return;
+        const t = (playerRef.current.getCurrentTime?.() ?? 0) + seconds;
+        const next = Math.max(0, Math.min(duration || Number.MAX_SAFE_INTEGER, t));
+        playerRef.current.seekTo(next, true);
+        setCurrentTime(next);
+      },
+      isPlaying: () => isPlaying,
+    };
+    return () => {
+      if (controlsRef) controlsRef.current = null;
+    };
+  }, [controlsRef, duration, isPlaying]);
+
 
   const handleSkip = (amount: number) => {
     const newTime = Math.max(0, Math.min(duration, currentTime + amount));
