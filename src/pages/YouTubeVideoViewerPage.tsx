@@ -473,18 +473,31 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments]);
 
-  // ── Segment loop mode: auto-loop and auto-advance on next segment ────────
+  // ── A11y mode: auto-loop N-segment block with silent gap ─────────────────
   useEffect(() => {
-    if (settings.transcriptionMode !== 'segment-loop') return;
+    if (!settings.a11yMode) return;
     if (!segmentLoopBounds) return;
 
-    const { loopStart, loopEnd, silentGapEnd } = segmentLoopBounds;
+    const { loopStart, silentGapEnd } = segmentLoopBounds;
 
     // When we reach the silent gap end (loop restart point), loop back
     if (currentTime >= silentGapEnd) {
       seekRef.current?.(loopStart);
     }
-  }, [currentTime, settings.transcriptionMode, segmentLoopBounds]);
+  }, [currentTime, settings.a11yMode, segmentLoopBounds]);
+
+  // ── Anki mode: auto-pause at end of current segment (no auto-repeat) ─────
+  useEffect(() => {
+    if (settings.transcriptionMode !== 'anki' || settings.a11yMode) return;
+    const seg = rawSegments[segmentLoopStartIdx];
+    if (!seg) return;
+    const timed = seg.words.filter((w) => w.start !== null);
+    if (!timed.length) return;
+    const segEnd = timed[timed.length - 1].end ?? 0;
+    if (currentTime >= segEnd - 0.02 && isPlaying) {
+      controlsRef.current?.pause();
+    }
+  }, [currentTime, settings.transcriptionMode, settings.a11yMode, rawSegments, segmentLoopStartIdx, isPlaying]);
 
   const handleSetLoopStart = () => {
     setPickMode((m) => (m === 'start' ? null : 'start'));
