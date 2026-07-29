@@ -93,6 +93,10 @@ function saveSettings(settings: AppSettings): void {
 export function getTranscriptionSettings(): TranscriptionSettings {
   const settings = loadSettings();
   const merged = { ...DEFAULT_TRANSCRIPTION, ...(settings.transcription || {}) };
+  // Migration: old 'segment-loop' → 'anki'
+  if ((merged.transcriptionMode as string) === 'segment-loop') {
+    merged.transcriptionMode = 'anki';
+  }
   // Defensive: ensure tuples
   if (!Array.isArray(merged.hiddenRange) || merged.hiddenRange.length !== 2) {
     merged.hiddenRange = DEFAULT_TRANSCRIPTION.hiddenRange;
