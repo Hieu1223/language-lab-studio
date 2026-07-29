@@ -2,7 +2,7 @@
 
 export type HighlightMode = 'token' | 'sentence' | 'none';
 export type ViewerLayout = 'split-h' | 'split-v' | 'video' | 'transcript';
-export type TranscriptionMode = 'study' | 'read' | 'segment-loop';
+export type TranscriptionMode = 'study' | 'read' | 'anki';
 
 export interface TranscriptionSettings {
   /** Hide block range [min, max] */
