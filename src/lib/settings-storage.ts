@@ -2,7 +2,7 @@
 
 export type HighlightMode = 'token' | 'sentence' | 'none';
 export type ViewerLayout = 'split-h' | 'split-v' | 'video' | 'transcript';
-export type TranscriptionMode = 'study' | 'read' | 'segment-loop';
+export type TranscriptionMode = 'study' | 'read' | 'anki';
 
 export interface TranscriptionSettings {
   /** Hide block range [min, max] */
@@ -93,6 +93,10 @@ function saveSettings(settings: AppSettings): void {
 export function getTranscriptionSettings(): TranscriptionSettings {
   const settings = loadSettings();
   const merged = { ...DEFAULT_TRANSCRIPTION, ...(settings.transcription || {}) };
+  // Migration: old 'segment-loop' → 'anki'
+  if ((merged.transcriptionMode as string) === 'segment-loop') {
+    merged.transcriptionMode = 'anki';
+  }
   // Defensive: ensure tuples
   if (!Array.isArray(merged.hiddenRange) || merged.hiddenRange.length !== 2) {
     merged.hiddenRange = DEFAULT_TRANSCRIPTION.hiddenRange;

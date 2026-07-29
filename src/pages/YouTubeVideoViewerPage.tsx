@@ -279,7 +279,7 @@ export default function YouTubeVideoViewerPage() {
 
   // Calculate segment loop boundaries: include padding before first and after last
   const segmentLoopBounds = useMemo(() => {
-    if (settings.transcriptionMode !== 'segment-loop' || rawSegments.length === 0) {
+    if (!settings.a11yMode || rawSegments.length === 0) {
       return null;
     }
     const firstSeg = rawSegments[segmentLoopStartIdx];
@@ -296,7 +296,7 @@ export default function YouTubeVideoViewerPage() {
 
     return { loopStart, loopEnd, silentGapEnd };
   }, [
-    settings.transcriptionMode,
+    settings.a11yMode,
     settings.segmentLoopPadding,
     settings.segmentLoopGap,
     settings.segmentLoopCount,
@@ -473,18 +473,31 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments]);
 
-  // ── Segment loop mode: auto-loop and auto-advance on next segment ────────
+  // ── A11y mode: auto-loop N-segment block with silent gap ─────────────────
   useEffect(() => {
-    if (settings.transcriptionMode !== 'segment-loop') return;
+    if (!settings.a11yMode) return;
     if (!segmentLoopBounds) return;
 
-    const { loopStart, loopEnd, silentGapEnd } = segmentLoopBounds;
+    const { loopStart, silentGapEnd } = segmentLoopBounds;
 
     // When we reach the silent gap end (loop restart point), loop back
     if (currentTime >= silentGapEnd) {
       seekRef.current?.(loopStart);
     }
-  }, [currentTime, settings.transcriptionMode, segmentLoopBounds]);
+  }, [currentTime, settings.a11yMode, segmentLoopBounds]);
+
+  // ── Anki mode: auto-pause at end of current segment (no auto-repeat) ─────
+  useEffect(() => {
+    if (settings.transcriptionMode !== 'anki' || settings.a11yMode) return;
+    const seg = rawSegments[segmentLoopStartIdx];
+    if (!seg) return;
+    const timed = seg.words.filter((w) => w.start !== null);
+    if (!timed.length) return;
+    const segEnd = timed[timed.length - 1].end ?? 0;
+    if (currentTime >= segEnd - 0.02 && isPlaying) {
+      controlsRef.current?.pause();
+    }
+  }, [currentTime, settings.transcriptionMode, settings.a11yMode, rawSegments, segmentLoopStartIdx, isPlaying]);
 
   const handleSetLoopStart = () => {
     setPickMode((m) => (m === 'start' ? null : 'start'));
@@ -802,7 +815,7 @@ export default function YouTubeVideoViewerPage() {
                   [
                     { value: 'study' as TranscriptionMode, label: 'Study' },
                     { value: 'read' as TranscriptionMode, label: 'Read' },
-                    { value: 'segment-loop' as TranscriptionMode, label: 'Loop' },
+                    { value: 'anki' as TranscriptionMode, label: 'Anki' },
                   ] as const
                 ).map((opt) => (
                   <button
@@ -995,8 +1008,8 @@ export default function YouTubeVideoViewerPage() {
               </>
             )}
 
-            {/* Segment loop settings */}
-            {settings.transcriptionMode === 'segment-loop' && (
+            {/* Segment loop settings (used in a11y block-loop mode) */}
+            {settings.a11yMode && (
               <>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -1166,63 +1179,88 @@ export default function YouTubeVideoViewerPage() {
 
       {status === 'ready' && rawSegments.length > 0 && (
         <div className="space-y-4 max-w-3xl mx-auto">
-          {settings.transcriptionMode === 'segment-loop' ? (
-            // Segment loop mode: show N segments with next/prev buttons
-            <>
-              <div className="space-y-3">
-                {clozeSegments
-                  .slice(segmentLoopStartIdx, segmentLoopEndIdx + 1)
-                  .map((cs, localIdx) => {
-                    const globalIdx = segmentLoopStartIdx + localIdx;
-                    const isActive = globalIdx === activeSegIdx;
-                    return (
-                      <TranscriptSegmentRow
-                        key={globalIdx}
-                        cs={cs}
-                        isActive={isActive}
-                        showClozeMode={false}
-                        highlightMode={settings.highlightMode}
-                        currentTime={isActive ? currentTime : 0}
-                        onSeek={handleSeek}
-                        rowRef={isActive ? activeSegRef : undefined}
-                      />
-                    );
-                  })}
-              </div>
+          {settings.transcriptionMode === 'anki' ? (
+            // Anki mode: one segment as a card with fixed Repeat / Next buttons
+            (() => {
+              const cs = clozeSegments[segmentLoopStartIdx];
+              const seg = rawSegments[segmentLoopStartIdx];
+              const timed = seg?.words.filter((w) => w.start !== null) ?? [];
+              const segStart = timed.length ? (timed[0].start ?? 0) : 0;
+              const isActive = segmentLoopStartIdx === activeSegIdx;
+              const goTo = (idx: number) => {
+                const clamped = Math.max(0, Math.min(rawSegments.length - 1, idx));
+                setSegmentLoopStartIdx(clamped);
+                const s = rawSegments[clamped]?.words.find((w) => w.start !== null);
+                if (s?.start != null) {
+                  seekRef.current?.(s.start);
+                  setTimeout(() => controlsRef.current?.play(), 50);
+                }
+              };
+              const handleRepeat = () => {
+                seekRef.current?.(segStart);
+                setTimeout(() => controlsRef.current?.play(), 50);
+              };
+              return (
+                <div className="flex flex-col gap-4">
+                  {cs ? (
+                    <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-sm min-h-[40vh] flex items-center justify-center">
+                      <div className="w-full" lang="ja">
+                        <TranscriptSegmentRow
+                          cs={cs}
+                          isActive={isActive}
+                          showClozeMode={false}
+                          highlightMode={settings.highlightMode}
+                          currentTime={isActive ? currentTime : 0}
+                          onSeek={handleSeek}
+                          rowRef={isActive ? activeSegRef : undefined}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">Không có câu.</div>
+                  )}
 
-              {/* Next/Previous navigation buttons */}
-              <div className="flex gap-2 justify-between sticky bottom-0 bg-background/90 backdrop-blur-sm py-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (segmentLoopStartIdx > 0) {
-                      setSegmentLoopStartIdx(segmentLoopStartIdx - 1);
-                    }
-                  }}
-                  disabled={segmentLoopStartIdx === 0}
-                >
-                  ← Trước
-                </Button>
-
-                <div className="flex items-center text-sm text-muted-foreground">
-                  Segment {segmentLoopStartIdx + 1} – {segmentLoopEndIdx + 1} / {rawSegments.length}
+                  {/* Fixed 3-column bar so button positions never shift */}
+                  <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] border-t border-border">
+                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="min-h-14 text-sm sm:text-base gap-2"
+                        onClick={() => goTo(segmentLoopStartIdx - 1)}
+                        disabled={segmentLoopStartIdx === 0}
+                        aria-label="Câu trước"
+                      >
+                        ← Trước
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="lg"
+                        className="min-h-14 text-sm sm:text-base gap-2"
+                        onClick={handleRepeat}
+                        aria-label="Lặp lại câu"
+                      >
+                        <Repeat className="w-5 h-5" />
+                        Lặp lại
+                      </Button>
+                      <Button
+                        variant="default"
+                        size="lg"
+                        className="min-h-14 text-sm sm:text-base gap-2"
+                        onClick={() => goTo(segmentLoopStartIdx + 1)}
+                        disabled={segmentLoopStartIdx >= rawSegments.length - 1}
+                        aria-label="Câu tiếp theo"
+                      >
+                        Tiếp →
+                      </Button>
+                    </div>
+                    <div className="text-center text-xs text-muted-foreground mt-2" aria-live="polite">
+                      Câu {segmentLoopStartIdx + 1} / {rawSegments.length}
+                    </div>
+                  </div>
                 </div>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (segmentLoopEndIdx < rawSegments.length - 1) {
-                      setSegmentLoopStartIdx(segmentLoopStartIdx + 1);
-                    }
-                  }}
-                  disabled={segmentLoopEndIdx >= rawSegments.length - 1}
-                >
-                  Tiếp →
-                </Button>
-              </div>
-            </>
+              );
+            })()
           ) : (
             // Normal study/read mode: show all segments
             <>
@@ -1322,10 +1360,10 @@ export default function YouTubeVideoViewerPage() {
     if (segmentLoopBounds) seekRef.current?.(segmentLoopBounds.loopStart);
   }, [segmentLoopBounds]);
 
-  // When a11y mode is on, force segment-loop transcription mode.
+  // When a11y mode is on, force anki (segment-based) transcription mode.
   useEffect(() => {
-    if (settings.a11yMode && settings.transcriptionMode !== 'segment-loop') {
-      updateSettings({ transcriptionMode: 'segment-loop' });
+    if (settings.a11yMode && settings.transcriptionMode !== 'anki') {
+      updateSettings({ transcriptionMode: 'anki' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.a11yMode]);

@@ -112,7 +112,7 @@ export default function SettingsPage() {
             {([
               { value: 'study' as TranscriptionMode, label: 'Study' },
               { value: 'read' as TranscriptionMode, label: 'Read' },
-              { value: 'segment-loop' as TranscriptionMode, label: 'Loop' },
+              { value: 'anki' as TranscriptionMode, label: 'Anki' },
             ] as const).map((opt) => (
               <button
                 key={opt.value}
