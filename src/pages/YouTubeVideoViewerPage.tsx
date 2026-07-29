@@ -268,6 +268,7 @@ export default function YouTubeVideoViewerPage() {
     skipBy: (seconds: number) => void;
     isPlaying: () => boolean;
   } | null>(null);
+  const lastSeekTimeRef = useRef<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
   // ── Segment loop mode state ──────────────────────────────────────────────
@@ -490,11 +491,18 @@ export default function YouTubeVideoViewerPage() {
   useEffect(() => {
     if (settings.transcriptionMode !== 'anki' || settings.a11yMode) return;
     const seg = rawSegments[segmentLoopStartIdx];
-    if (!seg) return;
-    const timed = seg.words.filter((w) => w.start !== null);
-    if (!timed.length) return;
-    const segEnd = timed[timed.length - 1].end ?? 0;
-    if (currentTime >= segEnd - 0.02 && isPlaying) {
+    if (!seg || !seg.words.length) return;
+    const firstWord = seg.words[0];
+    const lastWord = seg.words[seg.words.length - 1];
+    const segStart = firstWord.start ?? firstWord.end ?? 0;
+    const segEnd = lastWord.end ?? lastWord.start ?? 0;
+
+    // Skip pause check for 500ms after seeking (to avoid stale currentTime)
+    const timeSinceSeek = Date.now() - lastSeekTimeRef.current;
+    if (timeSinceSeek < 500) return;
+
+    // Only pause if we've reached the end and are within the segment
+    if (currentTime >= segEnd - 0.02 && currentTime >= segStart && isPlaying) {
       controlsRef.current?.pause();
     }
   }, [currentTime, settings.transcriptionMode, settings.a11yMode, rawSegments, segmentLoopStartIdx, isPlaying]);
@@ -1184,15 +1192,19 @@ export default function YouTubeVideoViewerPage() {
             (() => {
               const cs = clozeSegments[segmentLoopStartIdx];
               const seg = rawSegments[segmentLoopStartIdx];
-              const timed = seg?.words.filter((w) => w.start !== null) ?? [];
-              const segStart = timed.length ? (timed[0].start ?? 0) : 0;
+              const firstWord = seg?.words[0];
+              const segStart = firstWord?.start ?? firstWord?.end ?? 0;
               const isActive = segmentLoopStartIdx === activeSegIdx;
               const goTo = (idx: number) => {
                 const clamped = Math.max(0, Math.min(rawSegments.length - 1, idx));
                 setSegmentLoopStartIdx(clamped);
-                const s = rawSegments[clamped]?.words.find((w) => w.start !== null);
-                if (s?.start != null) {
-                  seekRef.current?.(s.start);
+                const seg = rawSegments[clamped];
+                if (!seg?.words.length) return;
+                const firstWord = seg.words[0];
+                const startTime = firstWord.start ?? firstWord.end ?? 0;
+                if (startTime != null) {
+                  lastSeekTimeRef.current = Date.now();
+                  seekRef.current?.(startTime);
                   setTimeout(() => controlsRef.current?.play(), 50);
                 }
               };
