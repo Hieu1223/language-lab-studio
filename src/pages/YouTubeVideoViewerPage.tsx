@@ -268,6 +268,7 @@ export default function YouTubeVideoViewerPage() {
     skipBy: (seconds: number) => void;
     isPlaying: () => boolean;
   } | null>(null);
+  const lastSeekTimeRef = useRef<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
 
   // ── Segment loop mode state ──────────────────────────────────────────────
@@ -495,6 +496,10 @@ export default function YouTubeVideoViewerPage() {
     const lastWord = seg.words[seg.words.length - 1];
     const segStart = firstWord.start ?? firstWord.end ?? 0;
     const segEnd = lastWord.end ?? lastWord.start ?? 0;
+
+    // Skip pause check for 500ms after seeking (to avoid stale currentTime)
+    const timeSinceSeek = Date.now() - lastSeekTimeRef.current;
+    if (timeSinceSeek < 500) return;
 
     // Only pause if we've reached the end and are within the segment
     if (currentTime >= segEnd - 0.02 && currentTime >= segStart && isPlaying) {
@@ -1198,6 +1203,7 @@ export default function YouTubeVideoViewerPage() {
                 const firstWord = seg.words[0];
                 const startTime = firstWord.start ?? firstWord.end ?? 0;
                 if (startTime != null) {
+                  lastSeekTimeRef.current = Date.now();
                   seekRef.current?.(startTime);
                   setTimeout(() => controlsRef.current?.play(), 50);
                 }
