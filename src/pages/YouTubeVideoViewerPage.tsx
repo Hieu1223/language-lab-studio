@@ -279,7 +279,7 @@ export default function YouTubeVideoViewerPage() {
 
   // Calculate segment loop boundaries: include padding before first and after last
   const segmentLoopBounds = useMemo(() => {
-    if (settings.transcriptionMode !== 'segment-loop' || rawSegments.length === 0) {
+    if (!settings.a11yMode || rawSegments.length === 0) {
       return null;
     }
     const firstSeg = rawSegments[segmentLoopStartIdx];
