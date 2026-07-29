@@ -1183,15 +1183,18 @@ export default function YouTubeVideoViewerPage() {
             (() => {
               const cs = clozeSegments[segmentLoopStartIdx];
               const seg = rawSegments[segmentLoopStartIdx];
-              const timed = seg?.words.filter((w) => w.start !== null) ?? [];
-              const segStart = timed.length ? (timed[0].start ?? 0) : 0;
+              const firstWord = seg?.words[0];
+              const segStart = firstWord?.start ?? firstWord?.end ?? 0;
               const isActive = segmentLoopStartIdx === activeSegIdx;
               const goTo = (idx: number) => {
                 const clamped = Math.max(0, Math.min(rawSegments.length - 1, idx));
                 setSegmentLoopStartIdx(clamped);
-                const s = rawSegments[clamped]?.words.find((w) => w.start !== null);
-                if (s?.start != null) {
-                  seekRef.current?.(s.start);
+                const seg = rawSegments[clamped];
+                if (!seg?.words.length) return;
+                const firstWord = seg.words[0];
+                const startTime = firstWord.start ?? firstWord.end ?? 0;
+                if (startTime != null) {
+                  seekRef.current?.(startTime);
                   setTimeout(() => controlsRef.current?.play(), 50);
                 }
               };
