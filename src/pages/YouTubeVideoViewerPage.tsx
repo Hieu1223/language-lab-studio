@@ -491,9 +491,13 @@ export default function YouTubeVideoViewerPage() {
     if (settings.transcriptionMode !== 'anki' || settings.a11yMode) return;
     const seg = rawSegments[segmentLoopStartIdx];
     if (!seg || !seg.words.length) return;
+    const firstWord = seg.words[0];
     const lastWord = seg.words[seg.words.length - 1];
+    const segStart = firstWord.start ?? firstWord.end ?? 0;
     const segEnd = lastWord.end ?? lastWord.start ?? 0;
-    if (currentTime >= segEnd - 0.02 && isPlaying) {
+
+    // Only pause if we've reached the end and are within the segment
+    if (currentTime >= segEnd - 0.02 && currentTime >= segStart && isPlaying) {
       controlsRef.current?.pause();
     }
   }, [currentTime, settings.transcriptionMode, settings.a11yMode, rawSegments, segmentLoopStartIdx, isPlaying]);
