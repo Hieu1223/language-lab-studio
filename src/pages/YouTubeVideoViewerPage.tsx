@@ -490,10 +490,9 @@ export default function YouTubeVideoViewerPage() {
   useEffect(() => {
     if (settings.transcriptionMode !== 'anki' || settings.a11yMode) return;
     const seg = rawSegments[segmentLoopStartIdx];
-    if (!seg) return;
-    const timed = seg.words.filter((w) => w.start !== null);
-    if (!timed.length) return;
-    const segEnd = timed[timed.length - 1].end ?? 0;
+    if (!seg || !seg.words.length) return;
+    const lastWord = seg.words[seg.words.length - 1];
+    const segEnd = lastWord.end ?? lastWord.start ?? 0;
     if (currentTime >= segEnd - 0.02 && isPlaying) {
       controlsRef.current?.pause();
     }
