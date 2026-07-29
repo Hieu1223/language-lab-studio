@@ -296,7 +296,7 @@ export default function YouTubeVideoViewerPage() {
 
     return { loopStart, loopEnd, silentGapEnd };
   }, [
-    settings.transcriptionMode,
+    settings.a11yMode,
     settings.segmentLoopPadding,
     settings.segmentLoopGap,
     settings.segmentLoopCount,
