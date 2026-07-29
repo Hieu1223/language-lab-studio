@@ -1360,10 +1360,10 @@ export default function YouTubeVideoViewerPage() {
     if (segmentLoopBounds) seekRef.current?.(segmentLoopBounds.loopStart);
   }, [segmentLoopBounds]);
 
-  // When a11y mode is on, force segment-loop transcription mode.
+  // When a11y mode is on, force anki (segment-based) transcription mode.
   useEffect(() => {
-    if (settings.a11yMode && settings.transcriptionMode !== 'segment-loop') {
-      updateSettings({ transcriptionMode: 'segment-loop' });
+    if (settings.a11yMode && settings.transcriptionMode !== 'anki') {
+      updateSettings({ transcriptionMode: 'anki' });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.a11yMode]);
