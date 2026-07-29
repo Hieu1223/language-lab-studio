@@ -1008,8 +1008,8 @@ export default function YouTubeVideoViewerPage() {
               </>
             )}
 
-            {/* Segment loop settings */}
-            {settings.transcriptionMode === 'segment-loop' && (
+            {/* Segment loop settings (used in a11y block-loop mode) */}
+            {settings.a11yMode && (
               <>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider">
