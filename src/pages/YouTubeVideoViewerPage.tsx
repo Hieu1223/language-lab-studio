@@ -1247,27 +1247,10 @@ export default function YouTubeVideoViewerPage() {
             // Anki mode: one segment as a card with fixed Repeat / Next buttons
             (() => {
               const cs = clozeSegments[segmentLoopStartIdx];
-              const seg = rawSegments[segmentLoopStartIdx];
-              const firstWord = seg?.words[0];
-              const segStart = firstWord?.start ?? firstWord?.end ?? 0;
               const isActive = segmentLoopStartIdx === activeSegIdx;
-              const goTo = (idx: number) => {
-                const clamped = Math.max(0, Math.min(rawSegments.length - 1, idx));
-                setSegmentLoopStartIdx(clamped);
-                const seg = rawSegments[clamped];
-                if (!seg?.words.length) return;
-                const firstWord = seg.words[0];
-                const startTime = firstWord.start ?? firstWord.end ?? 0;
-                if (startTime != null) {
-                  lastSeekTimeRef.current = Date.now();
-                  seekRef.current?.(startTime);
-                  setTimeout(() => controlsRef.current?.play(), 50);
-                }
-              };
-              const handleRepeat = () => {
-                seekRef.current?.(segStart);
-                setTimeout(() => controlsRef.current?.play(), 50);
-              };
+              const goTo = (idx: number) => playSegmentCard(idx);
+              const handleRepeat = () => playSegmentCard(segmentLoopStartIdx);
+
               return (
                 <div className="flex flex-col gap-4">
                   {cs ? (
