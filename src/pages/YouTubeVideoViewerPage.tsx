@@ -269,6 +269,9 @@ export default function YouTubeVideoViewerPage() {
     isPlaying: () => boolean;
   } | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
+  /** Target time of the most recent programmatic seek (anki mode). */
+  const pendingSeekTargetRef = useRef<number | null>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
 
   // ── Segment loop mode state ──────────────────────────────────────────────
