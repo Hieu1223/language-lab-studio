@@ -498,25 +498,70 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [currentTime, settings.a11yMode, segmentLoopBounds]);
 
+  // ── Anki mode helpers ────────────────────────────────────────────────────
+  /** Timed [start, end] bounds of a segment, ignoring tokens without timestamps. */
+  const getSegmentBounds = useCallback(
+    (idx: number): { start: number; end: number } | null => {
+      const seg = rawSegments[idx];
+      if (!seg?.words?.length) return null;
+      const timed = seg.words.filter((w) => w.start !== null || w.end !== null);
+      if (timed.length === 0) return null;
+      const first = timed[0];
+      const last = timed[timed.length - 1];
+      const start = first.start ?? first.end ?? 0;
+      const end = last.end ?? last.start ?? start;
+      if (!(end > start)) return null;
+      return { start, end };
+    },
+    [rawSegments],
+  );
+
+  /** Jump to a card index and start playback from its beginning. */
+  const playSegmentCard = useCallback(
+    (idx: number) => {
+      if (rawSegments.length === 0) return;
+      const clamped = Math.max(0, Math.min(rawSegments.length - 1, idx));
+      setSegmentLoopStartIdx(clamped);
+      const bounds = getSegmentBounds(clamped);
+      if (!bounds) return;
+      // Mark the seek and optimistically reset currentTime so the auto-pause
+      // effect never sees the stale end-of-segment timestamp.
+      lastSeekTimeRef.current = Date.now();
+      setCurrentTime(bounds.start);
+      seekRef.current?.(bounds.start);
+      controlsRef.current?.play();
+    },
+    [rawSegments, getSegmentBounds],
+  );
+
+  // Keep the card index valid when the transcript loads/changes.
+  useEffect(() => {
+    if (rawSegments.length === 0) return;
+    setSegmentLoopStartIdx((i) => Math.max(0, Math.min(rawSegments.length - 1, i)));
+  }, [rawSegments]);
+
   // ── Anki mode: auto-pause at end of current segment (no auto-repeat) ─────
   useEffect(() => {
     if (settings.transcriptionMode !== 'anki' || settings.a11yMode) return;
-    const seg = rawSegments[segmentLoopStartIdx];
-    if (!seg || !seg.words.length) return;
-    const firstWord = seg.words[0];
-    const lastWord = seg.words[seg.words.length - 1];
-    const segStart = firstWord.start ?? firstWord.end ?? 0;
-    const segEnd = lastWord.end ?? lastWord.start ?? 0;
+    if (!isPlaying) return;
+    const bounds = getSegmentBounds(segmentLoopStartIdx);
+    if (!bounds) return;
 
-    // Skip pause check for 500ms after seeking (to avoid stale currentTime)
-    const timeSinceSeek = Date.now() - lastSeekTimeRef.current;
-    if (timeSinceSeek < 500) return;
+    // Ignore stale time reports right after a seek.
+    if (Date.now() - lastSeekTimeRef.current < 400) return;
 
-    // Only pause if we've reached the end and are within the segment
-    if (currentTime >= segEnd - 0.02 && currentTime >= segStart && isPlaying) {
+    if (currentTime >= bounds.end - 0.05) {
       controlsRef.current?.pause();
     }
-  }, [currentTime, settings.transcriptionMode, settings.a11yMode, rawSegments, segmentLoopStartIdx, isPlaying]);
+  }, [
+    currentTime,
+    settings.transcriptionMode,
+    settings.a11yMode,
+    getSegmentBounds,
+    segmentLoopStartIdx,
+    isPlaying,
+  ]);
+
 
   const handleSetLoopStart = () => {
     setPickMode((m) => (m === 'start' ? null : 'start'));
