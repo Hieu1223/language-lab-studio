@@ -471,6 +471,9 @@ export default function YouTubeVideoViewerPage() {
   // ── Loop logic — three modes + segment-loop mode ─────────────────────────
   useEffect(() => {
     if (!loopEnabled) return;
+    // Anki mode drives playback itself (pause at end of card) — no looping.
+    if (settings.transcriptionMode === 'anki' && !settings.a11yMode) return;
+
     if (loopMode === 'range') {
       if (loopStart == null || loopEnd == null) return;
       if (currentTime >= loopEnd) seekRef.current?.(loopStart);
