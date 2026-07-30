@@ -441,6 +441,9 @@ export default function YouTubeVideoViewerPage() {
 
   useEffect(() => {
     if (!settings.autoScroll) return;
+    // Anki mode renders a single card — auto-scroll would fight the fixed layout.
+    if (settings.transcriptionMode === 'anki' && !settings.a11yMode) return;
+
     // Prefer scrolling to the current word when in token highlight mode.
     if (settings.highlightMode === 'token' && activeWordKey) {
       const el = document.querySelector<HTMLElement>('[data-active-word="true"]');
