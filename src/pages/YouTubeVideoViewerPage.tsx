@@ -527,6 +527,7 @@ export default function YouTubeVideoViewerPage() {
       // Mark the seek and optimistically reset currentTime so the auto-pause
       // effect never sees the stale end-of-segment timestamp.
       lastSeekTimeRef.current = Date.now();
+      pendingSeekTargetRef.current = bounds.start;
       setCurrentTime(bounds.start);
       seekRef.current?.(bounds.start);
       controlsRef.current?.play();
@@ -547,13 +548,25 @@ export default function YouTubeVideoViewerPage() {
     const bounds = getSegmentBounds(segmentLoopStartIdx);
     if (!bounds) return;
 
-    // Ignore stale time reports right after a seek.
-    if (Date.now() - lastSeekTimeRef.current < 400) return;
+    // Ignore stale time reports right after a seek: wait until the player
+    // actually reports a time at/after the requested position.
+    const target = pendingSeekTargetRef.current;
+    if (target != null) {
+      if (currentTime >= target - 0.3 && currentTime < bounds.end - 0.05) {
+        pendingSeekTargetRef.current = null;
+      } else {
+        if (Date.now() - lastSeekTimeRef.current > 2000) {
+          pendingSeekTargetRef.current = null;
+        }
+        return;
+      }
+    }
 
     if (currentTime >= bounds.end - 0.05) {
       controlsRef.current?.pause();
     }
   }, [
+
     currentTime,
     settings.transcriptionMode,
     settings.a11yMode,
