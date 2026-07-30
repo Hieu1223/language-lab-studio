@@ -1463,7 +1463,7 @@ export default function YouTubeVideoViewerPage() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {!settings.a11yMode && (
+          {!settings.a11yMode && settings.transcriptionMode !== 'anki' && (
             <Button
               variant={loopEnabled ? 'default' : 'ghost'}
               size="sm"
