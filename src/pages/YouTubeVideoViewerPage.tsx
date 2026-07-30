@@ -269,6 +269,9 @@ export default function YouTubeVideoViewerPage() {
     isPlaying: () => boolean;
   } | null>(null);
   const lastSeekTimeRef = useRef<number>(0);
+  /** Target time of the most recent programmatic seek (anki mode). */
+  const pendingSeekTargetRef = useRef<number | null>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
 
   // ── Segment loop mode state ──────────────────────────────────────────────
@@ -441,6 +444,9 @@ export default function YouTubeVideoViewerPage() {
 
   useEffect(() => {
     if (!settings.autoScroll) return;
+    // Anki mode renders a single card — auto-scroll would fight the fixed layout.
+    if (settings.transcriptionMode === 'anki' && !settings.a11yMode) return;
+
     // Prefer scrolling to the current word when in token highlight mode.
     if (settings.highlightMode === 'token' && activeWordKey) {
       const el = document.querySelector<HTMLElement>('[data-active-word="true"]');
@@ -452,11 +458,22 @@ export default function YouTubeVideoViewerPage() {
     if (activeSegRef.current) {
       activeSegRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [activeWordKey, activeSegIdx, settings.autoScroll, settings.highlightMode]);
+  }, [
+    activeWordKey,
+    activeSegIdx,
+    settings.autoScroll,
+    settings.highlightMode,
+    settings.transcriptionMode,
+    settings.a11yMode,
+  ]);
+
 
   // ── Loop logic — three modes + segment-loop mode ─────────────────────────
   useEffect(() => {
     if (!loopEnabled) return;
+    // Anki mode drives playback itself (pause at end of card) — no looping.
+    if (settings.transcriptionMode === 'anki' && !settings.a11yMode) return;
+
     if (loopMode === 'range') {
       if (loopStart == null || loopEnd == null) return;
       if (currentTime >= loopEnd) seekRef.current?.(loopStart);
@@ -472,7 +489,7 @@ export default function YouTubeVideoViewerPage() {
         seekRef.current?.(segStart);
       }
     }
-  }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments]);
+  }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments, settings.transcriptionMode, settings.a11yMode]);
 
   // ── A11y mode: auto-loop N-segment block with silent gap ─────────────────
   useEffect(() => {
@@ -487,25 +504,83 @@ export default function YouTubeVideoViewerPage() {
     }
   }, [currentTime, settings.a11yMode, segmentLoopBounds]);
 
+  // ── Anki mode helpers ────────────────────────────────────────────────────
+  /** Timed [start, end] bounds of a segment, ignoring tokens without timestamps. */
+  const getSegmentBounds = useCallback(
+    (idx: number): { start: number; end: number } | null => {
+      const seg = rawSegments[idx];
+      if (!seg?.words?.length) return null;
+      const timed = seg.words.filter((w) => w.start !== null || w.end !== null);
+      if (timed.length === 0) return null;
+      const first = timed[0];
+      const last = timed[timed.length - 1];
+      const start = first.start ?? first.end ?? 0;
+      const end = last.end ?? last.start ?? start;
+      if (!(end > start)) return null;
+      return { start, end };
+    },
+    [rawSegments],
+  );
+
+  /** Jump to a card index and start playback from its beginning. */
+  const playSegmentCard = useCallback(
+    (idx: number) => {
+      if (rawSegments.length === 0) return;
+      const clamped = Math.max(0, Math.min(rawSegments.length - 1, idx));
+      setSegmentLoopStartIdx(clamped);
+      const bounds = getSegmentBounds(clamped);
+      if (!bounds) return;
+      // Mark the seek and optimistically reset currentTime so the auto-pause
+      // effect never sees the stale end-of-segment timestamp.
+      lastSeekTimeRef.current = Date.now();
+      pendingSeekTargetRef.current = bounds.start;
+      setCurrentTime(bounds.start);
+      seekRef.current?.(bounds.start);
+      controlsRef.current?.play();
+    },
+    [rawSegments, getSegmentBounds],
+  );
+
+  // Keep the card index valid when the transcript loads/changes.
+  useEffect(() => {
+    if (rawSegments.length === 0) return;
+    setSegmentLoopStartIdx((i) => Math.max(0, Math.min(rawSegments.length - 1, i)));
+  }, [rawSegments]);
+
   // ── Anki mode: auto-pause at end of current segment (no auto-repeat) ─────
   useEffect(() => {
     if (settings.transcriptionMode !== 'anki' || settings.a11yMode) return;
-    const seg = rawSegments[segmentLoopStartIdx];
-    if (!seg || !seg.words.length) return;
-    const firstWord = seg.words[0];
-    const lastWord = seg.words[seg.words.length - 1];
-    const segStart = firstWord.start ?? firstWord.end ?? 0;
-    const segEnd = lastWord.end ?? lastWord.start ?? 0;
+    if (!isPlaying) return;
+    const bounds = getSegmentBounds(segmentLoopStartIdx);
+    if (!bounds) return;
 
-    // Skip pause check for 500ms after seeking (to avoid stale currentTime)
-    const timeSinceSeek = Date.now() - lastSeekTimeRef.current;
-    if (timeSinceSeek < 500) return;
+    // Ignore stale time reports right after a seek: wait until the player
+    // actually reports a time at/after the requested position.
+    const target = pendingSeekTargetRef.current;
+    if (target != null) {
+      if (currentTime >= target - 0.3 && currentTime < bounds.end - 0.05) {
+        pendingSeekTargetRef.current = null;
+      } else {
+        if (Date.now() - lastSeekTimeRef.current > 2000) {
+          pendingSeekTargetRef.current = null;
+        }
+        return;
+      }
+    }
 
-    // Only pause if we've reached the end and are within the segment
-    if (currentTime >= segEnd - 0.02 && currentTime >= segStart && isPlaying) {
+    if (currentTime >= bounds.end - 0.05) {
       controlsRef.current?.pause();
     }
-  }, [currentTime, settings.transcriptionMode, settings.a11yMode, rawSegments, segmentLoopStartIdx, isPlaying]);
+  }, [
+
+    currentTime,
+    settings.transcriptionMode,
+    settings.a11yMode,
+    getSegmentBounds,
+    segmentLoopStartIdx,
+    isPlaying,
+  ]);
+
 
   const handleSetLoopStart = () => {
     setPickMode((m) => (m === 'start' ? null : 'start'));
@@ -1191,27 +1266,10 @@ export default function YouTubeVideoViewerPage() {
             // Anki mode: one segment as a card with fixed Repeat / Next buttons
             (() => {
               const cs = clozeSegments[segmentLoopStartIdx];
-              const seg = rawSegments[segmentLoopStartIdx];
-              const firstWord = seg?.words[0];
-              const segStart = firstWord?.start ?? firstWord?.end ?? 0;
               const isActive = segmentLoopStartIdx === activeSegIdx;
-              const goTo = (idx: number) => {
-                const clamped = Math.max(0, Math.min(rawSegments.length - 1, idx));
-                setSegmentLoopStartIdx(clamped);
-                const seg = rawSegments[clamped];
-                if (!seg?.words.length) return;
-                const firstWord = seg.words[0];
-                const startTime = firstWord.start ?? firstWord.end ?? 0;
-                if (startTime != null) {
-                  lastSeekTimeRef.current = Date.now();
-                  seekRef.current?.(startTime);
-                  setTimeout(() => controlsRef.current?.play(), 50);
-                }
-              };
-              const handleRepeat = () => {
-                seekRef.current?.(segStart);
-                setTimeout(() => controlsRef.current?.play(), 50);
-              };
+              const goTo = (idx: number) => playSegmentCard(idx);
+              const handleRepeat = () => playSegmentCard(segmentLoopStartIdx);
+
               return (
                 <div className="flex flex-col gap-4">
                   {cs ? (
@@ -1405,7 +1463,7 @@ export default function YouTubeVideoViewerPage() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {!settings.a11yMode && (
+          {!settings.a11yMode && settings.transcriptionMode !== 'anki' && (
             <Button
               variant={loopEnabled ? 'default' : 'ghost'}
               size="sm"
