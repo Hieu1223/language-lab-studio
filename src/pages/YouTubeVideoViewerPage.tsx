@@ -489,7 +489,7 @@ export default function YouTubeVideoViewerPage() {
         seekRef.current?.(segStart);
       }
     }
-  }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments]);
+  }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments, settings.transcriptionMode, settings.a11yMode]);
 
   // ── A11y mode: auto-loop N-segment block with silent gap ─────────────────
   useEffect(() => {
