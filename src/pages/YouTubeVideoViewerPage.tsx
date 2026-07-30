@@ -455,7 +455,15 @@ export default function YouTubeVideoViewerPage() {
     if (activeSegRef.current) {
       activeSegRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  }, [activeWordKey, activeSegIdx, settings.autoScroll, settings.highlightMode]);
+  }, [
+    activeWordKey,
+    activeSegIdx,
+    settings.autoScroll,
+    settings.highlightMode,
+    settings.transcriptionMode,
+    settings.a11yMode,
+  ]);
+
 
   // ── Loop logic — three modes + segment-loop mode ─────────────────────────
   useEffect(() => {
