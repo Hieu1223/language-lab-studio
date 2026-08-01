@@ -13,6 +13,12 @@ import {
   getStoredToken,
   storeToken,
 } from "./api-client";
+import {
+  clearCredentials,
+  getCredentials,
+  saveCredentials,
+} from "./credential-store";
+
 
 export interface User {
   id: string;
