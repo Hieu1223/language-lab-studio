@@ -76,39 +76,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setToken(null);
     clearToken();
+    clearCredentials();
     localStorage.removeItem(USER_KEY);
   }, []);
 
-  // 🔹 Global 401 handler (kept from improved version)
-  useEffect(() => {
-    let lastForce = 0;
-
-    const handler = () => {
-      const now = Date.now();
-      if (now - lastForce < 1500) return;
-      lastForce = now;
-
-      const wasLoggedIn = !!getStoredToken();
-      logout();
-
-      if (wasLoggedIn && typeof window !== "undefined") {
-        const next = encodeURIComponent(
-          window.location.pathname + window.location.search
-        );
-
-        if (!window.location.pathname.startsWith("/login")) {
-          window.location.assign(`/login?expired=1&next=${next}`);
-        }
-      }
-    };
-
-    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
-    return () =>
-      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
-  }, [logout]);
-
-  const login = async (username: string, password: string) => {
-    // 🔹 YOUR working login (unchanged)
+  const login = useCallback(async (username: string, password: string) => {
     const response = await fetch(`${BASE_URL}/token`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -128,6 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setToken(newToken);
     storeToken(newToken);
+    // Remember credentials so the installed PWA can silently re-authenticate
+    // when this token expires.
+    saveCredentials(username, password);
 
     // 🔹 Try real user fetch (SAFE fallback)
     let finalUser: User;
@@ -160,7 +135,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setUser(finalUser);
     localStorage.setItem(USER_KEY, JSON.stringify(finalUser));
-  };
+  }, []);
+
+  // 🔹 Global 401 handler — try a silent re-login first, then fall back to logout
+  useEffect(() => {
+    let lastForce = 0;
+    let refreshing = false;
+
+    const handler = async () => {
+      const now = Date.now();
+      if (now - lastForce < 1500) return;
+      lastForce = now;
+      if (refreshing) return;
+
+      const wasLoggedIn = !!getStoredToken();
+      const creds = getCredentials();
+
+      // Attempt silent re-authentication with the saved credentials.
+      if (creds) {
+        refreshing = true;
+        try {
+          await login(creds.username, creds.password);
+          refreshing = false;
+          // Reload so in-flight/failed requests refetch with the fresh token.
+          if (typeof window !== "undefined") window.location.reload();
+          return;
+        } catch {
+          /* fall through to logout */
+        }
+        refreshing = false;
+      }
+
+      logout();
+
+      if (wasLoggedIn && typeof window !== "undefined") {
+        const next = encodeURIComponent(
+          window.location.pathname + window.location.search
+        );
+
+        if (!window.location.pathname.startsWith("/login")) {
+          window.location.assign(`/login?expired=1&next=${next}`);
+        }
+      }
+    };
+
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
+    return () =>
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
+  }, [logout, login]);
+
 
   const register = async (
     username: string,
