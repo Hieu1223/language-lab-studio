@@ -170,17 +170,90 @@ export async function getTranscriptInfo(
   );
 }
 
+/**
+ * Fill in missing (null) word timestamps by linear interpolation.
+ *
+ * The backend can return tokens without `start`/`end` (punctuation, merged
+ * tokens, ASR gaps). We flatten every word across all segments, then for each
+ * run of unknown timestamps we spread the gap evenly between the previous
+ * known end and the next known start. Leading/trailing unknowns are clamped
+ * to the first/last known value.
+ */
+export function interpolateTranscript(result: TranscriptResult): TranscriptResult {
+  const flat: Array<{ token: string; start: number | null; end: number | null }> = [];
+  for (const seg of result.segments ?? []) {
+    for (const w of seg.words ?? []) flat.push(w);
+  }
+  if (flat.length === 0) return result;
+
+  // Anchors: index -> known [start, end]
+  const known = flat.map((w) =>
+    w.start !== null || w.end !== null
+      ? { start: w.start ?? w.end!, end: w.end ?? w.start! }
+      : null,
+  );
+
+  const firstKnownIdx = known.findIndex((k) => k !== null);
+  if (firstKnownIdx === -1) return result;
+  const lastKnownIdx = known.length - 1 - [...known].reverse().findIndex((k) => k !== null);
+
+  for (let i = 0; i < known.length; i++) {
+    if (known[i]) continue;
+
+    if (i < firstKnownIdx) {
+      const t = known[firstKnownIdx]!.start;
+      known[i] = { start: t, end: t };
+      continue;
+    }
+    if (i > lastKnownIdx) {
+      const t = known[lastKnownIdx]!.end;
+      known[i] = { start: t, end: t };
+      continue;
+    }
+
+    // Find the run of unknowns [i, j)
+    let j = i;
+    while (j < known.length && !known[j]) j++;
+    const prevEnd = known[i - 1]!.end;
+    const nextStart = known[j]!.start;
+    const count = j - i;
+    const span = Math.max(0, nextStart - prevEnd);
+    const step = span / (count + 1);
+    for (let k = 0; k < count; k++) {
+      const start = prevEnd + step * k;
+      const end = prevEnd + step * (k + 1);
+      known[i + k] = { start, end };
+    }
+    i = j - 1;
+  }
+
+  let idx = 0;
+  return {
+    ...result,
+    segments: (result.segments ?? []).map((seg) => ({
+      ...seg,
+      words: (seg.words ?? []).map((w) => {
+        const k = known[idx++]!;
+        return { ...w, start: k.start, end: k.end };
+      }),
+    })),
+  };
+}
+
 // Get transcript data
 export async function getTranscriptData(
   transcriptId: string
 ): Promise<TranscriptResult | null> {
-  return apiCall<TranscriptResult | null>(
+  const data = await apiCall<TranscriptResult | null>(
     `/transcription/transcribe/${transcriptId}/data`,
     {
       method: 'GET',
     }
   );
+  if (!data || !Array.isArray(data.segments)) return data;
+  return interpolateTranscript(data);
 }
+
 
 // Get user's transcription history
 export async function getTranscriptionHistory(): Promise<UserHistoryItem[]> {
