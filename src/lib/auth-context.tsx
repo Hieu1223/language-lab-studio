@@ -184,6 +184,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
   }, [logout, login]);
 
+  // 🔹 Boot: no token but saved credentials → sign back in automatically.
+  useEffect(() => {
+    if (isLoading) return;
+    if (getStoredToken()) return;
+    const creds = getCredentials();
+    if (!creds) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await login(creds.username, creds.password);
+      } catch {
+        if (!cancelled) clearCredentials();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, login]);
+
 
   const register = async (
     username: string,
