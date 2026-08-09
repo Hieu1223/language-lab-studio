@@ -9,7 +9,7 @@ const ENV_BASE_URL =
     (import.meta as unknown as { env?: Record<string, string> }).env?.REACT_APP_BACKEND_URL) ||
   '';
 
-export const API_BASE_URL = (ENV_BASE_URL || 'https://japlearningbackend.onrender.com').replace(/\/+$/, '');
+export const API_BASE_URL = (ENV_BASE_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
 export class APIError extends Error {
   constructor(

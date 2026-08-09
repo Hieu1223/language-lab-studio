@@ -238,7 +238,7 @@ export default function YouTubeVideoViewerPage() {
 
   // Playback & cloze
   const [currentTime, setCurrentTime] = useState(0);
-  const [seed, setSeed] = useState(() => Date.now());
+  const [regenerateNonce, setRegenerateNonce] = useState(() => Date.now());
   const [allRevealed, setAllRevealed] = useState(false);
   const [clozeSegments, setClozeSegments] = useState<ClozeSegment[]>([]);
 
@@ -399,16 +399,16 @@ export default function YouTubeVideoViewerPage() {
     setTimeout(tick, POLL_INTERVAL_MS);
   }, []);
 
-  // ── Regenerate cloze when rawSegments / opts / seed change ────────────────
+  // ── Regenerate cloze when rawSegments / opts / nonce change ───────────────
   useEffect(() => {
     if (rawSegments.length === 0) {
       setClozeSegments([]);
       return;
     }
-    const next = generateBlockCloze(rawSegments, clozeOpts, seed);
+    const next = generateBlockCloze(rawSegments, clozeOpts);
     setClozeSegments(next);
     setAllRevealed(false);
-  }, [rawSegments, clozeOpts, seed]);
+  }, [rawSegments, clozeOpts, regenerateNonce]);
 
   // ── Active segment tracking ──────────────────────────────────────────────
   const activeSegIdx = useMemo(() => {
@@ -617,7 +617,7 @@ export default function YouTubeVideoViewerPage() {
 
   const applyClozeSettings = () => {
     updateSettings({ hiddenRange: draftHidden, visibleRange: draftVisible });
-    setSeed(Date.now());
+    setRegenerateNonce(Date.now());
     toast.success('Đã áp dụng cài đặt mới');
   };
 
@@ -1070,7 +1070,7 @@ export default function YouTubeVideoViewerPage() {
                   <Button
                     variant="outline"
                     className="h-8 text-xs gap-1.5"
-                    onClick={() => setSeed(Date.now())}
+                    onClick={() => setRegenerateNonce(Date.now())}
                   >
                     <RefreshCw className="w-3.5 h-3.5 text-blue-500" />
                     Tạo lại
