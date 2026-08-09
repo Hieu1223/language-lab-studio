@@ -25,7 +25,9 @@ import {
   Flag,
   FlagOff,
    SkipForward,
+  Crosshair,
 } from 'lucide-react';
+
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
 import { Button } from '@/components/ui/button';
