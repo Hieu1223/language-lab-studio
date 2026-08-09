@@ -1,0 +1,46 @@
+{
+  "title": "Cài đặt",
+  "subtitle": "Tuỳ chỉnh giao diện và giá trị mặc định cho các trang.",
+  "resetDefaults": "Khôi phục mặc định",
+  "resetSuccess": "Đã khôi phục cài đặt mặc định",
+  "appearance": {
+    "title": "Giao diện",
+    "desc": "Chọn chế độ sáng / tối",
+    "light": "Sáng",
+    "dark": "Tối",
+    "system": "Hệ thống"
+  },
+  "language": {
+    "title": "Ngôn ngữ",
+    "desc": "Chọn ngôn ngữ hiển thị của ứng dụng",
+    "vietnamese": "Tiếng Việt",
+    "english": "English"
+  },
+  "transcription": {
+    "title": "Mặc định phiên dịch (YouTube)",
+    "desc": "Áp dụng cho các video transcript.",
+    "mode": "Chế độ",
+    "modeStudy": "Study",
+    "modeRead": "Read",
+    "modeAnki": "Anki",
+    "highlight": "Highlight đang đọc",
+    "highlightToken": "Từ",
+    "highlightSentence": "Câu",
+    "highlightNone": "Tắt",
+    "layout": "Bố cục mặc định",
+    "layoutSplitV": "Trên/Dưới",
+    "layoutSplitH": "Trái/Phải",
+    "layoutVideo": "Video",
+    "layoutTranscript": "Text",
+    "autoScroll": "Tự động cuộn transcript",
+    "hiddenRange": "Khối ẩn (cloze)",
+    "visibleRange": "Khối hiện (cloze)"
+  },
+  "manga": {
+    "title": "Mặc định Manga",
+    "desc": "Áp dụng khi mở chương mới.",
+    "autoOpenPanel": "Tự mở drawer khi bấm OCR block",
+    "showOcrBoxes": "Hiện khung OCR",
+    "zoom": "Zoom mặc định"
+  }
+}

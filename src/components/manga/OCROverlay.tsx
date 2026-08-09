@@ -1,67 +1,158 @@
-import { useState } from 'react';
-import type { OCRPage } from '@/lib/api/manga';
+import { Copy } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
-interface OCROverlayProps {
-  ocrData: OCRPage | null;
-  imageWidth: number;
-  imageHeight: number;
-  showOCR: boolean;
-  selectedBlocks?: number[];
-  onBlockClick?: (blockIndex: number) => void;
+import type { OCRPage, SelectedBlock } from '@/components/manga/reader-types';
+import { copyToClipboard } from '@/lib/clipboard';
+
+export interface OCROverlayProps {
+  ocrData: OCRPage;
+  imgW: number;
+  imgH: number;
+  showBoxes: boolean;
+  boxPadding: number;
+  pageIdx: number;
+  selectedBlock: SelectedBlock | null;
+  onSelectBlock: (pageIdx: number, blockIdx: number) => void;
 }
 
+/**
+ * Transparent, selectable text layer rendered on top of a manga page image.
+ * Each OCR block is absolutely positioned over its source box (scaled from the
+ * OCR-native resolution to the rendered image size) with invisible text so the
+ * user can select/copy the original Japanese.
+ */
 export function OCROverlay({
   ocrData,
-  imageWidth,
-  imageHeight,
-  showOCR,
-  selectedBlocks = [],
-  onBlockClick,
+  imgW,
+  imgH,
+  showBoxes,
+  boxPadding,
+  pageIdx,
+  selectedBlock,
+  onSelectBlock,
 }: OCROverlayProps) {
-  if (!showOCR || !ocrData) return null;
-
-  const scaleX = imageWidth / ocrData.img_width;
-  const scaleY = imageHeight / ocrData.img_height;
+  const { t } = useTranslation('manga');
+  const scaleX = imgW / ocrData.img_width;
+  const scaleY = imgH / ocrData.img_height;
 
   return (
-    <svg
-      className="absolute inset-0 w-full h-full"
-      viewBox={`0 0 ${ocrData.img_width} ${ocrData.img_height}`}
-      style={{ cursor: onBlockClick ? 'pointer' : 'default' }}
+    <div
+      className="absolute inset-0 overflow-hidden"
+      style={{ userSelect: 'text', pointerEvents: 'none' }}
     >
       {ocrData.blocks.map((block, idx) => {
         const [x1, y1, x2, y2] = block.box;
-        const isSelected = selectedBlocks.includes(idx);
+        const left = x1 * scaleX - boxPadding;
+        const top = y1 * scaleY - boxPadding;
+        const width = (x2 - x1) * scaleX + boxPadding * 2;
+        const height = (y2 - y1) * scaleY + boxPadding * 2;
+        const scaledFont = Math.max(8, block.font_size * Math.min(scaleX, scaleY));
+        const text = block.lines.join('\n');
+        const isSelected =
+          selectedBlock?.pageIdx === pageIdx && selectedBlock?.blockIdx === idx;
+
+        const borderCls = isSelected
+          ? 'border-2 border-amber-400 bg-amber-400/20 rounded-sm shadow-lg'
+          : showBoxes
+            ? 'border-2 border-blue-400/70 bg-blue-400/10 rounded-sm hover:border-blue-400 hover:bg-blue-400/20'
+            : 'border-2 border-transparent';
 
         return (
-          <g key={idx}>
-            {/* Block box */}
-            <rect
-              x={x1}
-              y={y1}
-              width={x2 - x1}
-              height={y2 - y1}
-              fill={isSelected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(59, 130, 246, 0.1)'}
-              stroke={isSelected ? '#22c55e' : '#3b82f6'}
-              strokeWidth="2"
-              onClick={() => onBlockClick?.(idx)}
-              style={{ cursor: onBlockClick ? 'pointer' : 'default' }}
-            />
-
-            {/* Text label */}
-            <text
-              x={x1 + 2}
-              y={y1 + 16}
-              fontSize="12"
-              fontFamily="monospace"
-              fill={isSelected ? '#22c55e' : '#3b82f6'}
-              className="pointer-events-none select-none"
+          <div
+            key={idx}
+            className={`absolute group transition-colors ${borderCls}`}
+            style={{ left, top, width, height, pointerEvents: 'auto', cursor: 'pointer' }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectBlock(pageIdx, idx);
+            }}
+          >
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                copyToClipboard(text);
+              }}
+              className={`absolute -top-2 -right-2 z-10 rounded-full p-1 bg-black/70 text-white hover:bg-primary hover:text-primary-foreground transition-opacity ${
+                showBoxes || isSelected ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+              aria-label={t('reader.copyOcrText')}
+              title={t('reader.copyAllText')}
             >
-              {block.lines[0]?.substring(0, 20) || ''}
-            </text>
-          </g>
+              <Copy className="w-3 h-3" />
+            </button>
+
+            {block.vertical ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'row-reverse',
+                  overflow: 'hidden',
+                  cursor: 'text',
+                  userSelect: 'text',
+                  WebkitUserSelect: 'text',
+                }}
+              >
+                {block.lines.map((line, li) => (
+                  <div
+                    key={li}
+                    style={{
+                      flex: '1 1 0',
+                      writingMode: 'vertical-rl',
+                      textOrientation: 'mixed',
+                      fontSize: scaledFont,
+                      lineHeight: 1,
+                      color: 'transparent',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      userSelect: 'text',
+                      WebkitUserSelect: 'text',
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  cursor: 'text',
+                  userSelect: 'text',
+                  WebkitUserSelect: 'text',
+                }}
+              >
+                {block.lines.map((line, li) => (
+                  <div
+                    key={li}
+                    style={{
+                      flex: '1 1 0',
+                      fontSize: scaledFont,
+                      lineHeight: 1,
+                      color: 'transparent',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      userSelect: 'text',
+                      WebkitUserSelect: 'text',
+                    }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         );
       })}
-    </svg>
+    </div>
   );
 }
+
+export default OCROverlay;

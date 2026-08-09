@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { translate } from '@/lib/i18n-runtime';
+
 // ─── User-level settings schema (doc §5.7) ──────────────────────────────────
 // Every settings blob is versioned with `schemaVersion` and validated with zod.
 // The backend stores the blob opaquely, so the frontend owns the whole shape.
@@ -11,7 +13,12 @@ export const localeSchema = z.enum(['en', 'vi']);
 export const reviewUiSchema = z.enum(['cloze', 'anki']);
 
 /** FSRS step lists are duration strings like '1m' / '10m' / '1d'. */
-const stepSchema = z.string().regex(/^\d+(\.\d+)?[smhd]$/, 'Expected a duration like 10m');
+const stepSchema = z
+  .string()
+  .regex(
+    /^\d+(\.\d+)?[smhd]$/,
+    translate('common:errors.durationFormat', 'Expected a duration like 10m'),
+  );
 
 export const schedulerSettingsSchema = z.object({
   requestRetention: z.number().min(0.5).max(0.99).default(0.9),

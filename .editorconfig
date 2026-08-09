@@ -1,0 +1,22 @@
+# Editor defaults for this repo.
+# UTF-8 is mandatory: the UI copy is Vietnamese (and some Japanese), and saving in a
+# legacy codepage such as Windows-1252 silently destroys the diacritics.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.{json,jsonc}]
+indent_size = 2
+
+[*.{yml,yaml}]
+indent_size = 2

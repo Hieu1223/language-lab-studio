@@ -37,7 +37,23 @@ src/
       ThemeProvider.tsx         # Dark/light + accent color, applies CSS vars to :root
       QueryProvider.tsx         # TanStack Query client setup
 
-  pages/
+  components/                   # ALL React components live here — see the rule below
+    layout/AppLayout.tsx        # shared app chrome (sidebar, header) for authenticated routes
+    dictionary/                 # lookup panels, token popovers, AddToDeckDialog
+    manga/                      # MangaPage, OCROverlay, BlockTokenResult, DictionaryRightPanel
+    transcription/              # segment rows, StatusBadge, ClozeWord, ResizableDrawer
+    flashcard/                  # DecksPanel, PublicDecksPanel, AddWordsPanel
+      cards/
+        CardRenderer.tsx        # picks registered renderer by card_type (safe fallback)
+        registry.ts             # glob-based registry, mirrors transcription/ui/registry.ts
+        vocab/
+          meta.ts               # export const cardType = 'vocab'; export const labelKey
+          VocabCard.tsx         # default export: component; named export: `cardType = 'vocab'`
+        grammar/                # (future) meta.ts + GrammarCard.tsx
+        sentence/               # (future) meta.ts + SentenceCard.tsx
+    ui/                         # shadcn primitives (button, dialog, tabs, ...)
+
+  pages/                        # route entry points ONLY — compose components, never define them
     landing/
       LandingPage.tsx           # Pings /ping until success, then redirects to /login
       LandingPage.module.css
@@ -85,19 +101,6 @@ src/
       DeckDetailPage.tsx         # cards in a deck, add/remove
       ReviewSessionPage.tsx      # loads batch, hosts CardRenderer (via registry)
       PublicDeckBrowserPage.tsx  # browse + copy public decks
-      cards/
-        CardRenderer.tsx         # picks registered renderer by card_type (safe fallback)
-        Card.module.css
-        registry.ts              # glob-based registry, mirrors transcription/ui/registry.ts
-        vocab/
-          meta.ts                # export const cardType = 'vocab'; export const labelKey
-          VocabCard.tsx          # default export: component; named export: `cardType = 'vocab'`
-        grammar/
-          meta.ts                # export const cardType = 'grammar'
-          GrammarCard.tsx        # named export: `cardType = 'grammar'`
-        sentence/
-          meta.ts                # export const cardType = 'sentence'
-          SentenceCard.tsx       # named export: `cardType = 'sentence'`
 
   stores/                       # zustand cross-cutting UI state
     connectivityStore.ts        # status ('online' | 'offline'), checking, lastCheckedAt
@@ -174,7 +177,7 @@ Both "pluggable UI" needs — transcription review UI (`cloze`/`anki`) and flash
 export const uiType = 'cloze' as const;
 export default function ClozeUI(props: ReviewUIProps) { ... }
 
-// e.g. src/pages/flashcard/cards/vocab/VocabCard.tsx
+// e.g. src/components/flashcard/cards/vocab/VocabCard.tsx
 export const cardType = 'vocab' as const;
 export default function VocabCard(props: CardRendererProps) { ... }
 ```

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, ListChecks, BookmarkPlus, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/lib/api/dictionary';
 import { TokenPopover } from './TokenPopover';
 import { AddToDeckDialog } from './AddToDeckDialog';
+import { translate } from '@/lib/i18n-runtime';
 import { toast } from 'sonner';
 
 interface TokenizedSentenceProps {
@@ -44,6 +46,7 @@ export function TokenizedSentence({
   compact = false,
   onTokens,
 }: TokenizedSentenceProps) {
+  const { t } = useTranslation('dictionary');
   const [tokens, setTokens] = useState<Token[]>(tokensProp ?? []);
   const [loading, setLoading] = useState(!tokensProp && !!text);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +78,13 @@ export function TokenizedSentence({
         onTokens?.(res.tokens);
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : 'Tokenize thất bại');
+        // `translate` (not `t`) keeps the effect from re-tokenizing whenever
+        // the UI language changes.
+        setError(
+          e instanceof Error
+            ? e.message
+            : translate('dictionary:tokenize.failed', 'Tokenize thất bại'),
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -137,10 +146,10 @@ export function TokenizedSentence({
       const missing = queries.length - found.length;
 
       if (found.length === 0) {
-        toast.error('Không tìm thấy từ nào trong từ điển');
+        toast.error(t('tokenize.noneFound'));
         return;
       }
-      if (missing > 0) toast.warning(`Bỏ qua ${missing} từ không có trong từ điển`);
+      if (missing > 0) toast.warning(t('tokenize.skipped', { count: missing }));
 
       setResolvedWords(found);
       setAddOpen(true);
@@ -153,14 +162,14 @@ export function TokenizedSentence({
     return (
       <div className={`flex items-center gap-2 text-sm text-muted-foreground ${className}`}>
         <Loader2 className="w-4 h-4 animate-spin" />
-        Đang phân tích câu...
+        {t('tokenize.analyzing')}
       </div>
     );
   }
 
   if (error) {
     return (
-      <p className={`text-sm text-red-500 ${className}`}>Lỗi tokenize: {error}</p>
+      <p className={`text-sm text-red-500 ${className}`}>{t('tokenize.error')}{error}</p>
     );
   }
 
@@ -184,10 +193,13 @@ export function TokenizedSentence({
             ) : (
               <Square className="w-3.5 h-3.5" />
             )}
-            {allSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+            {allSelected ? t('tokenize.deselectAll') : t('tokenize.selectAll')}
           </Button>
           <span className="text-muted-foreground">
-            {selected.size} / {lookupIndices.length} từ đã chọn
+            {t('tokenize.selectionCount', {
+              selected: selected.size,
+              total: lookupIndices.length,
+            })}
           </span>
           <Button
             size="sm"
@@ -201,7 +213,7 @@ export function TokenizedSentence({
             ) : (
               <BookmarkPlus className="w-3.5 h-3.5" />
             )}
-            Thêm đã chọn ({selected.size})
+            {t('tokenize.addSelected', { count: selected.size })}
           </Button>
           <Button
             variant="secondary"
@@ -212,7 +224,7 @@ export function TokenizedSentence({
             data-testid="add-all-tokens-btn"
           >
             <ListChecks className="w-3.5 h-3.5" />
-            Thêm toàn bộ ({lookupIndices.length})
+            {t('tokenize.addAll', { count: lookupIndices.length })}
           </Button>
         </div>
       )}
@@ -260,7 +272,7 @@ export function TokenizedSentence({
 
       {showControls && (
         <p className="text-[10px] text-muted-foreground italic">
-          Mẹo: nhấp để xem nghĩa, Shift+click để chọn nhiều từ.
+          {t('tokenize.hint')}
         </p>
       )}
 
@@ -293,6 +305,7 @@ export function TokenizeSentencePanel({
   /** When true, the textarea cannot be edited (e.g. opened from manga / transcription). */
   readOnly?: boolean;
 }) {
+  const { t } = useTranslation('dictionary');
   const [text, setText] = useState(initialText);
   const [activeText, setActiveText] = useState(initialText);
   const [retokenizing, setRetokenizing] = useState(false);
@@ -309,7 +322,7 @@ export function TokenizeSentencePanel({
     setRetokenizing(true);
     setActiveText(text);
     setTimeout(() => setRetokenizing(false), 50);
-    if (!text.trim()) toast.error('Câu trống');
+    if (!text.trim()) toast.error(t('tokenize.emptySentence'));
   };
 
   return (
@@ -321,7 +334,7 @@ export function TokenizeSentencePanel({
             if (readOnly) return;
             setText(e.target.value);
           }}
-          placeholder={readOnly ? '' : 'Nhập câu tiếng Nhật...'}
+          placeholder={readOnly ? '' : t('tokenize.inputPlaceholder')}
           rows={3}
           readOnly={readOnly}
           aria-readonly={readOnly}
@@ -351,13 +364,13 @@ export function TokenizeSentencePanel({
         <div className="flex justify-between items-center">
           <p className="text-[10px] text-muted-foreground">
             {readOnly
-              ? `${text.length} ký tự · Chỉ đọc — chọn để sao chép`
-              : `${text.length} ký tự`}
+              ? t('tokenize.charCountReadOnly', { count: text.length })
+              : t('tokenize.charCount', { count: text.length })}
           </p>
           <div className="flex gap-2">
             {onClose && (
               <Button variant="ghost" size="sm" onClick={onClose}>
-                Đóng
+                {t('tokenize.close')}
               </Button>
             )}
             <Button
@@ -366,7 +379,7 @@ export function TokenizeSentencePanel({
               disabled={!text.trim() || retokenizing}
               data-testid="tokenize-btn"
             >
-              Phân tích
+              {t('tokenize.analyze')}
             </Button>
           </div>
         </div>

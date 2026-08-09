@@ -1,0 +1,27 @@
+/*
+ * Design tokens (doc §3 `styles/tokens.css`).
+ *
+ * Color scales / theme variables live in `index.css` (Tailwind layer) since
+ * this project skins with Tailwind + shadcn rather than the minimal-CSS
+ * approach the doc describes as the ideal. This file adds the cross-cutting
+ * tokens the rest of the app references that aren't color-themed: spacing
+ * scale, accent hue, and the Japanese font stack.
+ */
+:root {
+  /* Accent hue (driven by ThemeProvider / user settings) */
+  --accent-hue: 120;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Font stack */
+  --font-sans:
+    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  --font-japanese: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+}

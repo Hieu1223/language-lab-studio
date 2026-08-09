@@ -1,0 +1,124 @@
+{
+  "app": {
+    "name": "ArisuGo",
+    "tagline": "日本語 · Học tiếng Nhật",
+    "logoAlt": "Arisu"
+  },
+  "actions": {
+    "retry": "Thử lại",
+    "cancel": "Huỷ",
+    "save": "Lưu",
+    "close": "Đóng",
+    "delete": "Xoá",
+    "create": "Tạo",
+    "back": "Quay lại",
+    "refresh": "Làm mới",
+    "search": "Tìm kiếm",
+    "searching": "Đang tìm...",
+    "clear": "Xoá",
+    "copy": "Sao chép",
+    "analyze": "Phân tích",
+    "reset": "Reset",
+    "prev": "Trước",
+    "next": "Sau",
+    "exit": "Thoát",
+    "continue": "Tiếp tục",
+    "done": "Xong"
+  },
+  "states": {
+    "loading": "Đang tải…",
+    "loadingShort": "Đang tải...",
+    "processing": "Đang xử lý...",
+    "offline": "Không thể kết nối máy chủ",
+    "offlineHint": "Bạn vẫn có thể đọc nội dung đã tải. Các yêu cầu mới sẽ thất bại cho đến khi kết nối trở lại.",
+    "emptyState": "Không có dữ liệu"
+  },
+  "nav": {
+    "transcription": "Phiên dịch",
+    "manga": "Manga",
+    "dictionary": "Từ điển",
+    "vocabulary": "Từ vựng",
+    "settings": "Cài đặt",
+    "logout": "Đăng xuất",
+    "expand": "Mở rộng",
+    "collapse": "Thu gọn",
+    "openMenu": "Mở menu",
+    "closeMenu": "Đóng menu",
+    "mainNavigation": "Điều hướng chính"
+  },
+  "splash": {
+    "connecting": "Đang kết nối máy chủ...",
+    "timeout": "Không thể kết nối máy chủ. Máy chủ có thể đang ngủ hoặc ngoại tuyến."
+  },
+  "landing": {
+    "heroPrefix": "Học tiếng Nhật ",
+    "heroHighlight": "thông minh hơn",
+    "subtitle": "Phiên dịch video, flashcard, manga và luyện tập — tất cả trong một nền tảng.",
+    "getStarted": "Bắt đầu miễn phí",
+    "features": {
+      "transcription": {
+        "title": "Phiên dịch YouTube",
+        "desc": "Xem video với transcript đồng bộ, cloze test, lặp đoạn"
+      },
+      "flashcard": {
+        "title": "Flashcard từ vựng",
+        "desc": "Học từ vựng với spaced repetition theo từ loại"
+      },
+      "manga": {
+        "title": "Đọc Manga",
+        "desc": "Đọc manga với OCR và tra cứu từ tích hợp"
+      },
+      "practice": {
+        "title": "Luyện tập",
+        "desc": "Tokenize văn bản, thêm từ vào flashcard"
+      }
+    }
+  },
+  "notFound": {
+    "title": "Không tìm thấy trang",
+    "backHome": "Về trang chủ"
+  },
+  "errors": {
+    "network": "Không thể kết nối máy chủ. Vui lòng kiểm tra kết nối và thử lại.",
+    "networkShort": "Không thể kết nối máy chủ.",
+    "requestFailed": "Yêu cầu thất bại với mã lỗi {{status}}",
+    "invalidValue": "Giá trị không hợp lệ",
+    "unsavedChanges": "Bạn có thay đổi chưa lưu. Vẫn rời khỏi trang?",
+    "durationFormat": "Cần định dạng thời lượng như 10m"
+  },
+  "bookmarklet": {
+    "title": "Thêm Bookmarklet",
+    "subtitle": "Kéo vào thanh bookmark để truy cập nhanh",
+    "step1Title": "Bước 1: Kéo vào thanh Bookmark",
+    "step1Desc": "Kéo nút bên dưới trực tiếp vào thanh bookmark của trình duyệt.",
+    "dragTitle": "Kéo nút này vào thanh bookmark",
+    "dragLabel": "📖 YouTube → ArisuGo",
+    "tipLabel": "Mẹo:",
+    "tipText": "Nếu kéo không được, nhấp chuột phải vào nút và chọn \"Bookmark This Link\"",
+    "step2Title": "Bước 2: Dùng trên YouTube",
+    "step2Desc": "Mở bất kỳ video YouTube nào và bấm bookmarklet vừa tạo. Video sẽ mở trong ArisuGo để bạn có thể:",
+    "bullet1": "Yêu cầu transcript kèm timestamp",
+    "bullet2": "Luyện tập cloze tương tác",
+    "bullet3": "Học tiếng Nhật từ video thật",
+    "success": "✓ Sau khi thêm, bấm bookmarklet trên bất kỳ trang video YouTube nào!",
+    "notYouTube": "Không phải trang video YouTube"
+  },
+  "resizable": {
+    "vertical": "Thay đổi kích thước theo chiều dọc",
+    "horizontal": "Thay đổi kích thước theo chiều ngang"
+  },
+  "ocr": {
+    "empty": "Chạy OCR để xem văn bản trích xuất"
+  },
+  "ui": {
+    "previous": "Trước",
+    "next": "Tiếp",
+    "morePages": "Thêm trang",
+    "pagination": "Phân trang",
+    "carouselPrevious": "Slide trước",
+    "carouselNext": "Slide tiếp",
+    "carousel": "Carousel",
+    "slide": "Slide",
+    "toggleSidebar": "Bật/tắt thanh bên"
+  }
+}

@@ -17,6 +17,7 @@ import {
   getStoredToken,
   onUnauthorized,
 } from '@/lib/api/client';
+import { translate } from '@/lib/i18n-runtime';
 
 export interface User {
   id: string;
@@ -152,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .checkValid()
       .then((res) => {
         if (cancelled) return;
-        const next = toUser(res, user?.name ?? 'me');
+        const next = toUser(res, user?.name ?? translate('auth:defaultUserName', 'me'));
         setUser(next);
         cacheUser(next);
       })

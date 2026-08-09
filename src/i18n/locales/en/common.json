@@ -1,0 +1,124 @@
+{
+  "app": {
+    "name": "ArisuGo",
+    "tagline": "日本語 · Learn Japanese",
+    "logoAlt": "Arisu"
+  },
+  "actions": {
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "close": "Close",
+    "delete": "Delete",
+    "create": "Create",
+    "back": "Back",
+    "refresh": "Refresh",
+    "search": "Search",
+    "searching": "Searching...",
+    "clear": "Clear",
+    "copy": "Copy",
+    "analyze": "Analyze",
+    "reset": "Reset",
+    "prev": "Previous",
+    "next": "Next",
+    "exit": "Exit",
+    "continue": "Continue",
+    "done": "Done"
+  },
+  "states": {
+    "loading": "Loading…",
+    "loadingShort": "Loading...",
+    "processing": "Processing...",
+    "offline": "Can't reach the server",
+    "offlineHint": "You can keep reading already-loaded content. New requests will fail until the connection returns.",
+    "emptyState": "No data"
+  },
+  "nav": {
+    "transcription": "Transcribe",
+    "manga": "Manga",
+    "dictionary": "Dictionary",
+    "vocabulary": "Vocabulary",
+    "settings": "Settings",
+    "logout": "Log out",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "mainNavigation": "Main navigation"
+  },
+  "splash": {
+    "connecting": "Connecting to server...",
+    "timeout": "Can't reach the server. It may be asleep or offline."
+  },
+  "landing": {
+    "heroPrefix": "Learn Japanese ",
+    "heroHighlight": "the smarter way",
+    "subtitle": "Video transcription, flashcards, manga and practice — all in one platform.",
+    "getStarted": "Get started free",
+    "features": {
+      "transcription": {
+        "title": "YouTube transcription",
+        "desc": "Watch videos with synced transcripts, cloze tests and loop playback"
+      },
+      "flashcard": {
+        "title": "Vocabulary flashcards",
+        "desc": "Learn vocabulary with spaced repetition, organised by word type"
+      },
+      "manga": {
+        "title": "Read manga",
+        "desc": "Read manga with built-in OCR and dictionary lookup"
+      },
+      "practice": {
+        "title": "Practice",
+        "desc": "Tokenize text and add words to your flashcards"
+      }
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "backHome": "Return to home"
+  },
+  "errors": {
+    "network": "Could not reach the server. Check your connection and try again.",
+    "networkShort": "Could not reach the server.",
+    "requestFailed": "Request failed with status {{status}}",
+    "invalidValue": "Invalid value",
+    "unsavedChanges": "You have unsaved changes. Leave anyway?",
+    "durationFormat": "Expected a duration like 10m"
+  },
+  "bookmarklet": {
+    "title": "Add bookmarklet",
+    "subtitle": "Drag to your bookmarks bar for quick access",
+    "step1Title": "Step 1: Drag to bookmarks",
+    "step1Desc": "Drag the button below directly to your browser's bookmarks bar.",
+    "dragTitle": "Drag this to your bookmarks bar",
+    "dragLabel": "📖 YouTube → ArisuGo",
+    "tipLabel": "Tip:",
+    "tipText": "If dragging doesn't work, right-click the button and select \"Bookmark This Link\"",
+    "step2Title": "Step 2: Use on YouTube",
+    "step2Desc": "Visit any YouTube video and click your new bookmarklet. It will open the video in ArisuGo so you can:",
+    "bullet1": "Request transcripts with timestamps",
+    "bullet2": "Practice interactive cloze deletion",
+    "bullet3": "Study Japanese from real videos",
+    "success": "✓ Once added, click the bookmarklet on any YouTube video page!",
+    "notYouTube": "Not a YouTube video page"
+  },
+  "resizable": {
+    "vertical": "Resize panes vertically",
+    "horizontal": "Resize panes horizontally"
+  },
+  "ocr": {
+    "empty": "Run OCR to see extracted text"
+  },
+  "ui": {
+    "previous": "Previous",
+    "next": "Next",
+    "morePages": "More pages",
+    "pagination": "Pagination",
+    "carouselPrevious": "Previous slide",
+    "carouselNext": "Next slide",
+    "carousel": "Carousel",
+    "slide": "Slide",
+    "toggleSidebar": "Toggle sidebar"
+  }
+}

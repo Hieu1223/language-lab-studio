@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +20,7 @@ import {
   getDecks,
   type DeckWithStatsResponse,
 } from '@/lib/api/flashcard';
+import { translate } from '@/lib/i18n-runtime';
 import type { WordLookupEntry } from '@/lib/api/dictionary';
 
 interface AddToDeckDialogProps {
@@ -43,6 +45,7 @@ export function AddToDeckDialog({
   words,
   title,
 }: AddToDeckDialogProps) {
+  const { t } = useTranslation('dictionary');
   const [decks, setDecks] = useState<DeckWithStatsResponse[]>([]);
   const [loadingDecks, setLoadingDecks] = useState(false);
   const [selectedDeckId, setSelectedDeckId] = useState<string>('');
@@ -65,7 +68,9 @@ export function AddToDeckDialog({
         setShowCreate(list.length === 0);
         if (list.length && !selectedDeckId) setSelectedDeckId(list[0].id);
       } catch {
-        toast.error('Không thể tải danh sách bộ thẻ');
+        // `translate` (not `t`) keeps this open-triggered effect free of an
+        // i18n dependency that would re-fetch the decks on a language change.
+        toast.error(translate('dictionary:deck.loadFailed', 'Không thể tải danh sách bộ thẻ'));
       } finally {
         if (!cancelled) setLoadingDecks(false);
       }
@@ -79,7 +84,7 @@ export function AddToDeckDialog({
   const handleCreate = async () => {
     const name = newDeckName.trim();
     if (!name) {
-      toast.error('Tên bộ không được trống');
+      toast.error(t('deck.nameRequired'));
       return;
     }
     try {
@@ -90,9 +95,9 @@ export function AddToDeckDialog({
       setNewDeckName('');
       setNewDeckPublic(false);
       setShowCreate(false);
-      toast.success(`Đã tạo bộ "${deck.name}"`);
+      toast.success(t('deck.created', { name: deck.name }));
     } catch {
-      toast.error('Tạo bộ thất bại');
+      toast.error(t('deck.createFailed'));
     } finally {
       setCreating(false);
     }
@@ -100,11 +105,11 @@ export function AddToDeckDialog({
 
   const handleAdd = async () => {
     if (!selectedDeckId) {
-      toast.error('Vui lòng chọn một bộ');
+      toast.error(t('deck.selectRequired'));
       return;
     }
     if (words.length === 0) {
-      toast.error('Không có từ nào để thêm');
+      toast.error(t('deck.noWords'));
       return;
     }
     setAdding(true);
@@ -119,8 +124,8 @@ export function AddToDeckDialog({
       }
     }
     setAdding(false);
-    if (success > 0) toast.success(`Đã thêm ${success} từ vào bộ`);
-    if (failed > 0) toast.warning(`Bỏ qua ${failed} từ (đã có hoặc lỗi)`);
+    if (success > 0) toast.success(t('deck.added', { count: success }));
+    if (failed > 0) toast.warning(t('deck.skipped', { count: failed }));
     onOpenChange(false);
   };
 
@@ -130,10 +135,10 @@ export function AddToDeckDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BookCopy className="w-4 h-4 text-primary" />
-            {title || `Thêm ${words.length} từ vào bộ`}
+            {title || t('deck.dialogTitle', { count: words.length })}
           </DialogTitle>
           <DialogDescription>
-            Chọn bộ flashcard hiện có hoặc tạo bộ mới.
+            {t('deck.dialogDesc')}
           </DialogDescription>
         </DialogHeader>
 
@@ -141,7 +146,7 @@ export function AddToDeckDialog({
         {words.length > 0 && (
           <div className="rounded-lg border bg-muted/30 p-3 max-h-32 overflow-y-auto">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1.5">
-              {words.length} từ
+              {t('deck.wordCount', { count: words.length })}
             </p>
             <div className="flex flex-wrap gap-1.5">
               {words.slice(0, 30).map((w, i) => (
@@ -154,7 +159,7 @@ export function AddToDeckDialog({
               ))}
               {words.length > 30 && (
                 <span className="text-xs text-muted-foreground">
-                  +{words.length - 30} khác
+                  {t('deck.overflow', { count: words.length - 30 })}
                 </span>
               )}
             </div>
@@ -185,8 +190,8 @@ export function AddToDeckDialog({
                       <div className="min-w-0">
                         <p className="text-sm font-medium truncate">{deck.name}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {deck.stats.due} due · {deck.stats.new} new ·{' '}
-                          {deck.stats.review} review
+                          {deck.stats.due} {t('deck.statDue')} · {deck.stats.new}{' '}
+                          {t('deck.statNew')} · {deck.stats.review} {t('deck.statReview')}
                         </p>
                       </div>
                       {active && <Check className="w-4 h-4 text-primary shrink-0" />}
@@ -203,25 +208,25 @@ export function AddToDeckDialog({
                 className="w-full justify-start gap-2"
                 data-testid="show-create-deck-btn"
               >
-                <Plus className="w-4 h-4" /> Tạo bộ mới
+                <Plus className="w-4 h-4" /> {t('deck.createNew')}
               </Button>
             ) : (
               <div className="space-y-3 rounded-lg border p-3 bg-muted/20">
                 <div className="space-y-1.5">
                   <Label htmlFor="new-deck-name" className="text-xs">
-                    Tên bộ mới
+                    {t('deck.newNameLabel')}
                   </Label>
                   <Input
                     id="new-deck-name"
                     value={newDeckName}
                     onChange={(e) => setNewDeckName(e.target.value)}
-                    placeholder="VD: N5 Vocab"
+                    placeholder={t('deck.newNamePlaceholder')}
                     data-testid="new-deck-name-input"
                   />
                 </div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="new-deck-public" className="text-xs">
-                    Công khai
+                    {t('deck.public')}
                   </Label>
                   <Switch
                     id="new-deck-public"
@@ -237,7 +242,7 @@ export function AddToDeckDialog({
                     className="flex-1"
                     data-testid="create-deck-confirm-btn"
                   >
-                    {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Tạo'}
+                    {creating ? <Loader2 className="w-3 h-3 animate-spin" /> : t('deck.create')}
                   </Button>
                   {decks.length > 0 && (
                     <Button
@@ -245,7 +250,7 @@ export function AddToDeckDialog({
                       variant="ghost"
                       onClick={() => setShowCreate(false)}
                     >
-                      Huỷ
+                      {t('deck.cancel')}
                     </Button>
                   )}
                 </div>
@@ -260,7 +265,7 @@ export function AddToDeckDialog({
             onClick={() => onOpenChange(false)}
             disabled={adding}
           >
-            Đóng
+            {t('deck.close')}
           </Button>
           <Button
             onClick={handleAdd}
@@ -270,10 +275,10 @@ export function AddToDeckDialog({
             {adding ? (
               <>
                 <Loader2 className="w-3 h-3 animate-spin mr-1.5" />
-                Đang thêm...
+                {t('deck.adding')}
               </>
             ) : (
-              <>Thêm {words.length} từ</>
+              <>{t('deck.addWords', { count: words.length })}</>
             )}
           </Button>
         </DialogFooter>

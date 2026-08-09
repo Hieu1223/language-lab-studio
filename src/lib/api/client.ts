@@ -11,6 +11,8 @@
 //
 // This module is the ONLY place that talks to `fetch` for JSON endpoints.
 
+import { translate } from '@/lib/i18n-runtime';
+
 // ─── Base URL ───────────────────────────────────────────────────────────────
 
 const ENV = (import.meta as unknown as { env?: Record<string, string> }).env ?? {};
@@ -81,7 +83,7 @@ function parseFieldErrors(detail: unknown): FieldError[] | undefined {
     .filter((d): d is Record<string, unknown> => !!d && typeof d === 'object' && 'loc' in d)
     .map((d) => ({
       loc: Array.isArray(d.loc) ? (d.loc as (string | number)[]) : [],
-      msg: typeof d.msg === 'string' ? d.msg : 'Invalid value',
+      msg: typeof d.msg === 'string' ? d.msg : translate('errors.invalidValue', 'Invalid value'),
       type: typeof d.type === 'string' ? d.type : '',
     }));
   return fields.length > 0 ? fields : undefined;
@@ -95,7 +97,9 @@ function parseMessage(parsed: unknown, status: number): string {
     const first = detail.find((d) => d && typeof d === 'object' && 'msg' in d);
     if (first) return String((first as { msg: unknown }).msg);
   }
-  return `Request failed with status ${status}`;
+  return translate('errors.requestFailed', `Request failed with status ${status}`, {
+    status,
+  });
 }
 
 // ─── Connectivity signalling (§6.7.2) ───────────────────────────────────────
@@ -223,7 +227,10 @@ export async function apiCall<T>(endpoint: string, options: RequestOptions = {})
     notifyNetwork(false);
     throw new ApiError(
       0,
-      'Could not reach the server. Check your connection and try again.',
+      translate(
+        'errors.network',
+        'Could not reach the server. Check your connection and try again.',
+      ),
       undefined,
       true,
     );
@@ -238,7 +245,12 @@ export async function apiCall<T>(endpoint: string, options: RequestOptions = {})
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') throw err;
         notifyNetwork(false);
-        throw new ApiError(0, 'Could not reach the server.', undefined, true);
+        throw new ApiError(
+          0,
+          translate('errors.networkShort', 'Could not reach the server.'),
+          undefined,
+          true,
+        );
       }
     } else {
       clearToken();

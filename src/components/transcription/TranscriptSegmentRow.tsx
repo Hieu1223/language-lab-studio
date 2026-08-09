@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Wand2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
@@ -29,6 +30,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
   onSeek?: (seconds: number) => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const { t } = useTranslation('transcription');
   const { word, isCloze, revealed } = ct;
 
   const base =
@@ -58,7 +60,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
         onClick={handleClick}
         data-active-word={isCurrent ? 'true' : undefined}
         className={`${base} ${active} ${loopRing} ${pickPulse} hover:bg-white/20 text-foreground`}
-        title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
+        title={word.start != null ? t('transcript.seekTo', { seconds: word.start.toFixed(1) }) : undefined}
       >
         {word.token}
       </span>
@@ -79,7 +81,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
             ? 'bg-green-900/40 text-green-300/90 border border-green-700/50'
             : 'bg-amber-900/40 text-amber-300/90 border border-amber-700/50'
         } ${active} ${loopRing} ${pickPulse}`}
-        title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
+        title={word.start != null ? t('transcript.seekTo', { seconds: word.start.toFixed(1) }) : undefined}
       >
         {word.token}
       </span>
@@ -101,7 +103,7 @@ export const TranscriptClozeWord = memo(function TranscriptClozeWord({
       data-active-word={isCurrent ? 'true' : undefined}
       className={`${base} bg-primary/20 text-transparent border-b border-primary/50
         hover:bg-primary/30 hover:border-primary/70 font-mono ${active} ${loopRing} ${pickPulse}`}
-      title={word.start != null ? `→ ${word.start.toFixed(1)}s` : undefined}
+      title={word.start != null ? t('transcript.seekTo', { seconds: word.start.toFixed(1) }) : undefined}
     >
       {blanks}
     </span>
@@ -137,6 +139,7 @@ export const TranscriptSegmentRow = memo(function TranscriptSegmentRow({
   pickMode?: 'start' | 'end' | 'jump' | 'segment' | null;
 }) {
   const [tokenizeOpen, setTokenizeOpen] = useState(false);
+  const { t } = useTranslation('transcription');
 
   const sentence = cs.tokens.map((t) => t.word.token).join('');
 
@@ -188,7 +191,7 @@ export const TranscriptSegmentRow = memo(function TranscriptSegmentRow({
         size="icon"
         variant="ghost"
         className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Phân tích câu này thành từ"
+        title={t('transcript.tokenizeSentence')}
         onClick={(e) => {
           e.stopPropagation();
           setTokenizeOpen(true);

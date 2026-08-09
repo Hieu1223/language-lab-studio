@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -25,6 +26,7 @@ export function SentenceTokenizeDialog({
   onOpenChange,
   text,
 }: SentenceTokenizeDialogProps) {
+  const { t } = useTranslation('dictionary');
   // Reset key when dialog opens with new text
   const [opened, setOpened] = useState(0);
   return (
@@ -38,10 +40,10 @@ export function SentenceTokenizeDialog({
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" data-testid="sentence-tokenize-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Wand2 className="w-4 h-4 text-primary" /> Phân tích câu
+            <Wand2 className="w-4 h-4 text-primary" /> {t('tokenize.dialogTitle')}
           </DialogTitle>
           <DialogDescription>
-            Tách câu thành từng từ, tra từ điển và lưu vào bộ flashcard.
+            {t('tokenize.dialogDesc')}
           </DialogDescription>
         </DialogHeader>
 

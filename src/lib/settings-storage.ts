@@ -23,8 +23,6 @@ export interface TranscriptionSettings {
   segmentLoopGap: number;
   /** Segment loop mode: number of consecutive segments to display */
   segmentLoopCount: number;
-  /** Accessibility mode for blind / low-vision users (mobile-first) */
-  a11yMode: boolean;
 }
 
 export interface MangaSettings {
@@ -55,7 +53,6 @@ const DEFAULT_TRANSCRIPTION: TranscriptionSettings = {
   segmentLoopPadding: 0.5,
   segmentLoopGap: 0.8,
   segmentLoopCount: 2,
-  a11yMode: false,
 };
 
 

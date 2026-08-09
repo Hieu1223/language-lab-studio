@@ -228,23 +228,6 @@ export default function SettingsPage() {
           />
         </div>
 
-        <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="a11y-mode-default" className="text-sm cursor-pointer">
-            {t('transcription.a11yMode')}
-            <span className="block text-[11px] text-muted-foreground font-normal">
-              {t('transcription.a11yModeHint')}
-            </span>
-          </Label>
-          <Switch
-            id="a11y-mode-default"
-            checked={trans.a11yMode}
-            onCheckedChange={(v) => updateTrans({ a11yMode: v })}
-          />
-        </div>
-
-        <Separator />
-
-
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">

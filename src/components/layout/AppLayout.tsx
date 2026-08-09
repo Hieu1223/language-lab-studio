@@ -1,36 +1,35 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/lib/auth-context';
 import {
-  BookOpen,
-  Video,
   BookMarked,
-  Menu,
-  X,
+  BookOpen,
   LogOut,
-  Settings,
-  Wand2,
-  History,
-  ScrollText,
+  Menu,
   PanelLeftClose,
   PanelLeftOpen,
+  ScrollText,
+  Settings,
+  Video,
+  X
 } from 'lucide-react';
 import { useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
-import { Button } from '@/components/ui/button';
+import { useTranslation } from 'react-i18next';
+import { Link, useLocation } from 'react-router-dom';
 
+/** Paths + icons are static; labels are resolved per-render so locale changes apply. */
 const navItems = [
-  { path: '/youtube', label: 'Phiên dịch', icon: Video },
-  { path: '/manga', label: 'Manga', icon: BookMarked },
-  { path: '/tokenize', label: 'Phân tích câu', icon: Wand2 },
-  { path: '/dictionary', label: 'Từ điển', icon: ScrollText },
-  { path: '/vocabulary', label: 'Từ vựng', icon: BookOpen },
-  { path: '/settings', label: 'Cài đặt', icon: Settings },
-];
+  { path: '/youtube', labelKey: 'nav.transcription', icon: Video },
+  { path: '/manga', labelKey: 'nav.manga', icon: BookMarked },
+  { path: '/dictionary', labelKey: 'nav.dictionary', icon: ScrollText },
+  { path: '/flashcard', labelKey: 'nav.vocabulary', icon: BookOpen },
+  { path: '/settings', labelKey: 'nav.settings', icon: Settings },
+] as const;
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user, logout } = useAuth();
+  const { t } = useTranslation('common');
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -39,25 +38,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           {!sidebarCollapsed && (
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-8 h-8 rounded-xl bg-primary overflow-hidden flex-shrink-0">
-                <img src="/icon-512.png" alt="Arisu" className="w-full h-full object-cover" />
+                <img src="/icon-512.png" alt={t('app.logoAlt')} className="w-full h-full object-cover" />
               </div>
               <div className="min-w-0">
-                <h1 className="font-display font-bold text-lg text-primary tracking-tight truncate">ArisuGo</h1>
-                <p className="text-[10px] text-muted-foreground font-mono truncate">日本語 · Học tiếng Nhật</p>
+                <h1 className="font-display font-bold text-lg text-primary tracking-tight truncate">{t('app.name')}</h1>
               </div>
             </div>
           )}
           {sidebarCollapsed && (
             <div className="w-8 h-8 rounded-xl bg-primary overflow-hidden">
-              <img src="/icon-512.png" alt="Arisu" className="w-full h-full object-cover" />
+              <img src="/icon-512.png" alt={t('app.logoAlt')} className="w-full h-full object-cover" />
             </div>
           )}
         </div>
         
         <div className="flex-1 py-2 overflow-y-auto">
-          <nav className="space-y-0.5">
+          <nav className="space-y-0.5" aria-label={t('nav.mainNavigation')}>
             {navItems.map(item => {
               const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/');
+              const label = t(item.labelKey);
               return (
                 <Link 
                   key={item.path} 
@@ -67,10 +66,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       ? 'bg-primary/10 text-primary font-bold border-l-4 border-primary' 
                       : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                   }`}
-                  title={sidebarCollapsed ? item.label : ''}
+                  title={sidebarCollapsed ? label : ''}
                 >
                   <item.icon className="w-4 h-4 flex-shrink-0" />
-                  {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                  {!sidebarCollapsed && <span className="truncate">{label}</span>}
                 </Link>
               );
             })}
@@ -81,7 +80,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className="w-full p-3 flex items-center justify-center hover:bg-muted/50 transition-colors"
-            title={sidebarCollapsed ? 'Mở rộng' : 'Thu gọn'}
+            title={sidebarCollapsed ? t('nav.expand') : t('nav.collapse')}
+            aria-label={sidebarCollapsed ? t('nav.expand') : t('nav.collapse')}
+            aria-expanded={!sidebarCollapsed}
           >
             {sidebarCollapsed ? (
               <PanelLeftOpen className="w-4 h-4 text-muted-foreground" />
@@ -95,13 +96,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="p-3 border-t border-border">
             <div className="flex items-center justify-between">
               <p className="text-xs text-muted-foreground truncate font-bold">{user.name}</p>
-              <button onClick={logout} className="p-1 text-muted-foreground hover:text-foreground"><LogOut className="w-3.5 h-3.5" /></button>
+              <button onClick={logout} className="p-1 text-muted-foreground hover:text-foreground" title={t('nav.logout')} aria-label={t('nav.logout')}><LogOut className="w-3.5 h-3.5" /></button>
             </div>
           </div>
         )}
         {user && sidebarCollapsed && (
           <div className="p-3 border-t border-border flex justify-center">
-            <button onClick={logout} className="p-1 text-muted-foreground hover:text-foreground" title="Đăng xuất">
+            <button onClick={logout} className="p-1 text-muted-foreground hover:text-foreground" title={t('nav.logout')} aria-label={t('nav.logout')}>
               <LogOut className="w-4 h-4" />
             </button>
           </div>
@@ -112,11 +113,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <header className="md:hidden flex items-center justify-between p-3 border-b border-border bg-card">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-primary overflow-hidden">
-              <img src="/icon-512.png" alt="Arisu" className="w-full h-full object-cover" />
+              <img src="/icon-512.png" alt={t('app.logoAlt')} className="w-full h-full object-cover" />
             </div>
-            <h1 className="font-display font-bold text-primary">ArisuGo</h1>
+            <h1 className="font-display font-bold text-primary">{t('app.name')}</h1>
           </div>
-          <button onClick={() => setMobileOpen(!mobileOpen)} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground">
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground"
+            aria-label={mobileOpen ? t('nav.closeMenu') : t('nav.openMenu')}
+            aria-expanded={mobileOpen}
+          >
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </header>
@@ -127,13 +133,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               const active = location.pathname === item.path;
               return (
                 <Link key={item.path} to={item.path} onClick={() => setMobileOpen(false)} className={`flex items-center gap-3 px-4 py-2.5 text-sm ${active ? 'bg-primary/10 text-primary font-bold' : 'text-muted-foreground'}`}>
-                  <item.icon className="w-4 h-4" />{item.label}
+                  <item.icon className="w-4 h-4" />{t(item.labelKey)}
                 </Link>
               );
             })}
             {user && (
               <button onClick={logout} className="flex items-center gap-3 px-4 py-2.5 text-sm text-muted-foreground w-full">
-                <LogOut className="w-4 h-4" /> Đăng xuất
+                <LogOut className="w-4 h-4" /> {t('nav.logout')}
               </button>
             )}
           </div>

@@ -1,0 +1,92 @@
+{
+  "page": {
+    "title": "Dictionary",
+    "subtitle": "Look up single words, or paste a whole sentence to split and look up each token.",
+    "tabVocab": "Vocabulary",
+    "tabSentence": "Sentence analysis"
+  },
+  "search": {
+    "placeholder": "Enter a word, kana or meaning...",
+    "submit": "Look up",
+    "notFound": "No matching words found",
+    "resultCount": "{{count}} results",
+    "addAll": "Add all",
+    "empty": "No dictionary entries found.",
+    "hint": "Look up a Japanese word and save it straight to your flashcard deck.",
+    "addToDeckTitle": "Add {{count}} words to a deck"
+  },
+  "panel": {
+    "modeVocab": "Vocabulary",
+    "modeSentence": "Sentence",
+    "searchPlaceholder": "Word, kana or meaning...",
+    "hint": "Look up Japanese words right here — results can be saved to a flashcard deck.",
+    "notFound": "No words found.",
+    "saveToDeck": "Save to deck",
+    "sentencePlaceholder": "Paste a Japanese sentence...",
+    "analyze": "Analyze",
+    "sentenceHint": "Split the sentence into words, then click a word to see its meaning.",
+    "emptySentence": "Sentence is empty"
+  },
+  "token": {
+    "dictionaryForm": "Dictionary form:",
+    "lookingUp": "Looking up...",
+    "moreMeanings": "+{{count}} more meanings",
+    "saveToDeck": "Save to deck",
+    "notInDictionary": "Not in the dictionary",
+    "addToDeckTitle": "Add \"{{word}}\" to a deck"
+  },
+  "tokenize": {
+    "dialogTitle": "Sentence analysis",
+    "dialogDesc": "Split the sentence into words, look them up and save them to a flashcard deck.",
+    "failed": "Tokenization failed",
+    "noneFound": "No words found in the dictionary",
+    "skipped": "Skipped {{count}} words not in the dictionary",
+    "analyzing": "Analyzing sentence...",
+    "error": "Tokenization error: ",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "selectionCount": "{{selected}} / {{total}} words selected",
+    "addSelected": "Add selected ({{count}})",
+    "addAll": "Add all ({{count}})",
+    "hint": "Tip: click to see the meaning, Shift+click to select multiple words.",
+    "emptySentence": "Sentence is empty",
+    "inputPlaceholder": "Enter a Japanese sentence...",
+    "charCount": "{{count}} characters",
+    "charCountReadOnly": "{{count}} characters · Read-only — select to copy",
+    "close": "Close",
+    "analyze": "Analyze"
+  },
+  "deck": {
+    "loadFailed": "Could not load deck list",
+    "nameRequired": "Deck name cannot be empty",
+    "created": "Created deck \"{{name}}\"",
+    "createFailed": "Could not create deck",
+    "selectRequired": "Please select a deck",
+    "noWords": "No words to add",
+    "added": "Added {{count}} words to the deck",
+    "skipped": "Skipped {{count}} words (already present or failed)",
+    "dialogTitle": "Add {{count}} words to a deck",
+    "dialogDesc": "Choose an existing flashcard deck or create a new one.",
+    "wordCount": "{{count}} words",
+    "overflow": "+{{count}} more",
+    "statDue": "due",
+    "statNew": "new",
+    "statReview": "review",
+    "createNew": "Create a new deck",
+    "newNameLabel": "New deck name",
+    "newNamePlaceholder": "e.g. N5 Vocab",
+    "public": "Public",
+    "create": "Create",
+    "cancel": "Cancel",
+    "close": "Close",
+    "adding": "Adding...",
+    "addWords": "Add {{count}} words",
+    "addToDeck": "Save to deck"
+  },
+  "overlay": {
+    "loading": "Loading…",
+    "empty": "No dictionary entries found",
+    "addToDeck": "Add to deck",
+    "addAllToDeck": "Add all to deck"
+  }
+}

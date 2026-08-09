@@ -9,11 +9,6 @@ export default function DictionaryPage() {
   const { t } = useTranslation('dictionary');
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto animate-fade-in" data-testid="dictionary-page">
-      <header className="mb-6">
-        <h1 className="font-display font-bold text-2xl md:text-3xl text-foreground flex items-center gap-2">
-          <BookOpen className="w-6 h-6 text-primary" /> {t('page.title')}
-        </h1>
-      </header>
 
       <Tabs defaultValue="words">
         <TabsList className="mb-4">

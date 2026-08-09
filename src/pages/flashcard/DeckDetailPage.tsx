@@ -86,7 +86,7 @@ export default function DeckDetailPage() {
       // `translate` (not `t`) keeps `load` out of the effect's dependency set,
       // which would otherwise re-fetch the deck on every language change.
       toast.error(translate('flashcard:detail.loadFailed', 'Không tải được bộ'));
-      navigate('/vocabulary');
+      navigate('/flashcard');
     } finally {
       setLoading(false);
     }
@@ -172,7 +172,7 @@ export default function DeckDetailPage() {
         variant="ghost"
         size="sm"
         className="mb-4 gap-2"
-        onClick={() => navigate('/vocabulary')}
+        onClick={() => navigate('/flashcard')}
       >
         <ArrowLeft className="w-4 h-4" /> {t('detail.backToList')}
       </Button>
@@ -218,7 +218,7 @@ export default function DeckDetailPage() {
         </div>
 
         <Button
-          onClick={() => navigate(`/vocabulary/review/${deck.id}`)}
+          onClick={() => navigate(`/flashcard/review/${deck.id}`)}
           disabled={cards.length === 0}
           className="gap-2"
           data-testid="start-review-btn"

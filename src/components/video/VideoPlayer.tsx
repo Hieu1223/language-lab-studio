@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Play, Pause, Volume2, RotateCcw, RotateCw, Settings, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -38,6 +39,7 @@ export function VideoPlayer({
   controlsRef,
   onPlayingChange,
 }: VideoPlayerProps) {
+  const { t } = useTranslation('transcription');
   const playerRef = useRef<any>(null);
   const timerRef = useRef<number | null>(null);
 
@@ -273,6 +275,7 @@ export function VideoPlayer({
                 variant="ghost" 
                 size="icon" 
                 className="text-white hover:bg-white/20 rounded-full h-10 w-10"
+                aria-label={isPlaying ? t('player.pause') : t('player.play')}
               >
                 {isPlaying ? <Pause className="fill-white" /> : <Play className="fill-white" />}
               </Button>
@@ -316,7 +319,7 @@ export function VideoPlayer({
                   size="sm" 
                   className="text-xs font-bold text-white border border-white/30 hover:bg-white/20 h-8"
                 >
-                  {speed}x
+                  {t('player.speedValue', { speed })}
                 </Button>
                 
                 {showSpeedMenu && (
@@ -329,7 +332,7 @@ export function VideoPlayer({
                           speed === s ? 'bg-white/20 text-blue-400' : 'text-white'
                         }`}
                       >
-                        {s}x
+                        {t('player.speedValue', { speed: s })}
                       </button>
                     ))}
                   </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo, useCallback } from 'react';
+import { Suspense, useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
@@ -24,9 +24,7 @@ import {
   Check,
   Flag,
   FlagOff,
-  SkipForward,
-  Crosshair,
-  Accessibility,
+   SkipForward,
 } from 'lucide-react';
 
 import { VideoPlayer } from '@/components/video/VideoPlayer';
@@ -38,13 +36,6 @@ import { ResizableSplit, VerticalResizableSplit } from '@/components/ResizableSp
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DictionaryPanel } from '@/components/dictionary/DictionaryPanel';
 import {
@@ -71,9 +62,8 @@ import {
   type HighlightMode,
   type TranscriptionMode,
 } from '@/lib/settings-storage';
-import { TranscriptSegmentRow } from '@/components/transcription/TranscriptSegmentRow';
-import { A11ySegmentViewer } from '@/components/transcription/A11ySegmentViewer';
 import { ResizableDrawer } from '@/components/transcription/ResizableDrawer';
+import { transcriptModeRegistry } from '@/components/transcription/ui-modes/registry';
 
 // ─── Config ───────────────────────────────────────────────────────────────
 
@@ -219,38 +209,6 @@ export default function YouTubeVideoViewerPage() {
 
   // ── Segment loop mode state ──────────────────────────────────────────────
   const [segmentLoopStartIdx, setSegmentLoopStartIdx] = useState<number>(0);
-  const segmentLoopEndIdx = Math.min(
-    segmentLoopStartIdx + settings.segmentLoopCount - 1,
-    rawSegments.length - 1,
-  );
-
-  // Calculate segment loop boundaries: include padding before first and after last
-  const segmentLoopBounds = useMemo(() => {
-    if (!settings.a11yMode || rawSegments.length === 0) {
-      return null;
-    }
-    const firstSeg = rawSegments[segmentLoopStartIdx];
-    const lastSeg = rawSegments[segmentLoopEndIdx];
-    if (!firstSeg || !lastSeg) return null;
-
-    const firstWords = firstSeg.words.filter((w) => w.start !== null);
-    const lastWords = lastSeg.words.filter((w) => w.start !== null);
-    if (firstWords.length === 0 || lastWords.length === 0) return null;
-
-    const loopStart = (firstWords[0].start ?? 0) - settings.segmentLoopPadding;
-    const loopEnd = (lastWords[lastWords.length - 1].end ?? 0) + settings.segmentLoopPadding;
-    const silentGapEnd = loopEnd + settings.segmentLoopGap;
-
-    return { loopStart, loopEnd, silentGapEnd };
-  }, [
-    settings.a11yMode,
-    settings.segmentLoopPadding,
-    settings.segmentLoopGap,
-    settings.segmentLoopCount,
-    rawSegments,
-    segmentLoopStartIdx,
-    segmentLoopEndIdx,
-  ]);
 
   // ── Find transcript on mount ─────────────────────────────────────────────
   useEffect(() => {
@@ -401,7 +359,7 @@ export default function YouTubeVideoViewerPage() {
   useEffect(() => {
     if (!settings.autoScroll) return;
     // Anki mode renders a single card — auto-scroll would fight the fixed layout.
-    if (settings.transcriptionMode === 'anki' && !settings.a11yMode) return;
+    if (settings.transcriptionMode === 'anki') return;
 
     // Prefer scrolling to the current word when in token highlight mode.
     if (settings.highlightMode === 'token' && activeWordKey) {
@@ -420,7 +378,6 @@ export default function YouTubeVideoViewerPage() {
     settings.autoScroll,
     settings.highlightMode,
     settings.transcriptionMode,
-    settings.a11yMode,
   ]);
 
 
@@ -428,7 +385,7 @@ export default function YouTubeVideoViewerPage() {
   useEffect(() => {
     if (!loopEnabled) return;
     // Anki mode drives playback itself (pause at end of card) — no looping.
-    if (settings.transcriptionMode === 'anki' && !settings.a11yMode) return;
+    if (settings.transcriptionMode === 'anki') return;
 
     if (loopMode === 'range') {
       if (loopStart == null || loopEnd == null) return;
@@ -445,20 +402,7 @@ export default function YouTubeVideoViewerPage() {
         seekRef.current?.(segStart);
       }
     }
-  }, [currentTime, loopEnabled, loopMode, loopStart, loopEnd, loopSegmentIdx, rawSegments, settings.transcriptionMode, settings.a11yMode]);
-
-  // ── A11y mode: auto-loop N-segment block with silent gap ─────────────────
-  useEffect(() => {
-    if (!settings.a11yMode) return;
-    if (!segmentLoopBounds) return;
-
-    const { loopStart, silentGapEnd } = segmentLoopBounds;
-
-    // When we reach the silent gap end (loop restart point), loop back
-    if (currentTime >= silentGapEnd) {
-      seekRef.current?.(loopStart);
-    }
-  }, [currentTime, settings.a11yMode, segmentLoopBounds]);
+  });
 
   // ── Anki mode helpers ────────────────────────────────────────────────────
   /** Timed [start, end] bounds of a segment, ignoring tokens without timestamps. */
@@ -505,7 +449,7 @@ export default function YouTubeVideoViewerPage() {
 
   // ── Anki mode: auto-pause at end of current segment (no auto-repeat) ─────
   useEffect(() => {
-    if (settings.transcriptionMode !== 'anki' || settings.a11yMode) return;
+    if (settings.transcriptionMode !== 'anki') return;
     if (!isPlaying) return;
     const bounds = getSegmentBounds(segmentLoopStartIdx);
     if (!bounds) return;
@@ -531,7 +475,6 @@ export default function YouTubeVideoViewerPage() {
 
     currentTime,
     settings.transcriptionMode,
-    settings.a11yMode,
     getSegmentBounds,
     segmentLoopStartIdx,
     isPlaying,
@@ -933,26 +876,7 @@ export default function YouTubeVideoViewerPage() {
               </p>
             </div>
 
-            <Separator />
-
-            <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="a11y-mode" className="text-sm cursor-pointer flex items-center gap-2">
-                <Accessibility className="w-4 h-4 text-primary" />
-                <span>
-                  {t('settings.a11yMode')}
-                  <span className="block text-[10px] text-muted-foreground font-normal">
-                    {t('settings.a11yHint')}
-                  </span>
-                </span>
-              </Label>
-              <Switch
-                id="a11y-mode"
-                checked={settings.a11yMode}
-                onCheckedChange={(v) => updateSettings({ a11yMode: v })}
-              />
-            </div>
-
-            <Separator />
+             <Separator />
 
             <div className="flex items-center justify-between">
               <Label htmlFor="autoscroll" className="text-sm cursor-pointer">
@@ -1043,99 +967,6 @@ export default function YouTubeVideoViewerPage() {
               </>
             )}
 
-            {/* Segment loop settings (used in a11y block-loop mode) */}
-            {settings.a11yMode && (
-              <>
-                <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                    {t('settings.jumpToSegment')}
-                  </Label>
-                  <Select
-                    value={String(segmentLoopStartIdx)}
-                    onValueChange={(val) => setSegmentLoopStartIdx(parseInt(val, 10))}
-                  >
-                    <SelectTrigger className="w-full h-8 text-xs">
-                      <SelectValue placeholder={t('settings.selectSegment')} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-56">
-                      {rawSegments.map((seg, idx) => {
-                        const preview = seg.words.slice(0, 4).map((w) => w.token).join(' ');
-                        const label = t('settings.segmentOption', {
-                          index: idx + 1,
-                          preview: `${preview}${preview.length > 0 && seg.words.length > 4 ? '...' : ''}`,
-                        });
-                        return (
-                          <SelectItem key={idx} value={String(idx)}>
-                            {label}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                      {t('settings.segmentCount')}
-                    </Label>
-                    <span className="text-xs font-mono bg-primary/10 text-primary px-2 py-0.5 rounded">
-                      {settings.segmentLoopCount ?? 2}
-                    </span>
-                  </div>
-                  <Slider
-                    min={1}
-                    max={5}
-                    step={1}
-                    value={[settings.segmentLoopCount ?? 2]}
-                    onValueChange={(v) => updateSettings({ segmentLoopCount: v[0] })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                      {t('settings.padding')}
-                    </Label>
-                    <span className="text-xs font-mono bg-blue-500/10 text-blue-500 px-2 py-0.5 rounded">
-                      {(settings.segmentLoopPadding ?? 0).toFixed(2)}s
-                    </span>
-                  </div>
-                  <Slider
-                    min={0}
-                    max={3}
-                    step={0.1}
-                    value={[settings.segmentLoopPadding ?? 0]}
-                    onValueChange={(v) => updateSettings({ segmentLoopPadding: parseFloat(v[0].toFixed(2)) })}
-                  />
-                  <p className="text-[10px] text-muted-foreground leading-snug">
-                    {t('settings.paddingHint')}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                      {t('settings.silentGap')}
-                    </Label>
-                    <span className="text-xs font-mono bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded">
-                      {(settings.segmentLoopGap ?? 0).toFixed(2)}s
-                    </span>
-                  </div>
-                  <Slider
-                    min={0}
-                    max={2}
-                    step={0.1}
-                    value={[settings.segmentLoopGap ?? 0]}
-                    onValueChange={(v) => updateSettings({ segmentLoopGap: parseFloat(v[0].toFixed(2)) })}
-                  />
-                  <p className="text-[10px] text-muted-foreground leading-snug">
-                    {t('settings.silentGapHint')}
-                  </p>
-                </div>
-              </>
-            )}
-
             <Separator />
 
             <div className="bg-primary/5 rounded-md p-2.5 border border-primary/10">
@@ -1217,108 +1048,30 @@ export default function YouTubeVideoViewerPage() {
 
       {status === 'ready' && rawSegments.length > 0 && (
         <div className="space-y-4 max-w-3xl mx-auto">
-          {settings.transcriptionMode === 'anki' ? (
-            // Anki mode: one segment as a card with fixed Repeat / Next buttons
-            (() => {
-              const cs = clozeSegments[segmentLoopStartIdx];
-              const isActive = segmentLoopStartIdx === activeSegIdx;
-              const goTo = (idx: number) => playSegmentCard(idx);
-              const handleRepeat = () => playSegmentCard(segmentLoopStartIdx);
-
-              return (
-                <div className="flex flex-col gap-4">
-                  {cs ? (
-                    <div className="rounded-2xl border border-border bg-card p-5 sm:p-8 shadow-sm min-h-[40vh] flex items-center justify-center">
-                      <div className="w-full" lang="ja">
-                        <TranscriptSegmentRow
-                          cs={cs}
-                          isActive={isActive}
-                          showClozeMode={false}
-                          highlightMode={settings.highlightMode}
-                          currentTime={isActive ? currentTime : 0}
-                          onSeek={handleSeek}
-                          rowRef={isActive ? activeSegRef : undefined}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-sm text-muted-foreground">{t('transcript.noSentences')}</div>
-                  )}
-
-                  {/* Fixed 3-column bar so button positions never shift */}
-                  <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] border-t border-border">
-                    <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        className="min-h-14 text-sm sm:text-base gap-2"
-                        onClick={() => goTo(segmentLoopStartIdx - 1)}
-                        disabled={segmentLoopStartIdx === 0}
-                        aria-label={t('anki.prevSentence')}
-                      >
-                        {t('anki.prev')}
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="lg"
-                        className="min-h-14 text-sm sm:text-base gap-2"
-                        onClick={handleRepeat}
-                        aria-label={t('anki.repeat')}
-                      >
-                        <Repeat className="w-5 h-5" />
-                        {t('anki.repeatShort')}
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="lg"
-                        className="min-h-14 text-sm sm:text-base gap-2"
-                        onClick={() => goTo(segmentLoopStartIdx + 1)}
-                        disabled={segmentLoopStartIdx >= rawSegments.length - 1}
-                        aria-label={t('anki.nextSentence')}
-                      >
-                        {t('anki.next')}
-                      </Button>
-                    </div>
-                    <div className="text-center text-xs text-muted-foreground mt-2" aria-live="polite">
-                      {t('anki.counter', {
-                        current: segmentLoopStartIdx + 1,
-                        total: rawSegments.length,
-                      })}
-                    </div>
-                  </div>
-                </div>
-              );
-            })()
-          ) : (
-            // Normal study/read mode: show all segments
-            <>
-              {clozeSegments.map((cs, si) => {
-                const isActive = si === activeSegIdx;
-                const segHasStart = loopStart != null && cs.tokens.some(
-                  (t) => t.word.start != null && Math.abs(t.word.start - loopStart) < 0.01,
-                );
-                const segHasEnd = loopEnd != null && cs.tokens.some(
-                  (t) => t.word.start != null && Math.abs(t.word.start - loopEnd) < 0.01,
-                );
-                return (
-                  <TranscriptSegmentRow
-                    key={si}
-                    cs={cs}
-                    isActive={isActive}
-                    showClozeMode={settings.transcriptionMode === 'study'}
-                    highlightMode={settings.highlightMode}
-                    currentTime={isActive ? currentTime : 0}
-                    onSeek={handleSeek}
-                    rowRef={isActive ? activeSegRef : undefined}
-                    loopStart={segHasStart ? loopStart : null}
-                    loopEnd={segHasEnd ? loopEnd : null}
-                    pickMode={null}
-                  />
-                );
-              })}
-              <div className="h-32" />
-            </>
-          )}
+          {(() => {
+            const entry = transcriptModeRegistry.get(settings.transcriptionMode);
+            if (!entry) {
+              return <div className="text-sm text-muted-foreground">{t('transcript.noSentences')}</div>;
+            }
+            return (
+              <Suspense fallback={null}>
+                <entry.Component
+                  clozeSegments={clozeSegments}
+                  rawSegments={rawSegments}
+                  currentTime={currentTime}
+                  activeSegIdx={activeSegIdx}
+                  activeSegRef={activeSegRef}
+                  loopStart={loopStart}
+                  loopEnd={loopEnd}
+                  highlightMode={settings.highlightMode}
+                  segmentLoopStartIdx={segmentLoopStartIdx}
+                  segmentLoopCount={settings.segmentLoopCount}
+                  onSeek={handleSeek}
+                  playSegmentCard={playSegmentCard}
+                />
+              </Suspense>
+            );
+          })()}
         </div>
       )}
 
@@ -1369,33 +1122,6 @@ export default function YouTubeVideoViewerPage() {
     );
   })();
 
-  // ── Accessibility (blind / low-vision) handlers ─────────────────────────
-  const a11ySkip = useCallback((sec: number) => {
-    controlsRef.current?.skipBy(sec);
-  }, []);
-  const a11yTogglePlay = useCallback(() => {
-    controlsRef.current?.toggle();
-  }, []);
-  const a11yPrevSeg = useCallback(() => {
-    setSegmentLoopStartIdx((i) => Math.max(0, i - 1));
-  }, []);
-  const a11yNextSeg = useCallback(() => {
-    setSegmentLoopStartIdx((i) =>
-      Math.min(rawSegments.length - 1, i + settings.segmentLoopCount),
-    );
-  }, [rawSegments.length, settings.segmentLoopCount]);
-  const a11yReplayLoop = useCallback(() => {
-    if (segmentLoopBounds) seekRef.current?.(segmentLoopBounds.loopStart);
-  }, [segmentLoopBounds]);
-
-  // When a11y mode is on, force anki (segment-based) transcription mode.
-  useEffect(() => {
-    if (settings.a11yMode && settings.transcriptionMode !== 'anki') {
-      updateSettings({ transcriptionMode: 'anki' });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.a11yMode]);
-
   return (
     <div className="h-dvh flex flex-col bg-background text-foreground overflow-hidden">
       {/* Header */}
@@ -1421,7 +1147,7 @@ export default function YouTubeVideoViewerPage() {
         </div>
 
         <div className="flex items-center gap-1 flex-shrink-0">
-          {!settings.a11yMode && settings.transcriptionMode !== 'anki' && (
+          {settings.transcriptionMode !== 'anki' && (
             <Button
               variant={loopEnabled ? 'default' : 'ghost'}
               size="sm"
@@ -1432,14 +1158,6 @@ export default function YouTubeVideoViewerPage() {
               <Repeat className={`w-3.5 h-3.5 ${loopEnabled ? '' : 'opacity-70'}`} />
               <span className="hidden sm:inline">{loopEnabled ? t('viewer.looping') : t('viewer.loop')}</span>
             </Button>
-          )}
-          {settings.a11yMode && (
-            <span
-              className="hidden sm:inline-flex items-center gap-1 text-xs text-primary font-medium px-2"
-              aria-hidden="true"
-            >
-              <Accessibility className="w-3.5 h-3.5" /> {t('viewer.a11yBadge')}
-            </span>
           )}
           <Button
             variant="ghost"
@@ -1457,31 +1175,7 @@ export default function YouTubeVideoViewerPage() {
       <main className="flex-1 min-h-0 relative flex overflow-hidden">
         {/* Main */}
         <div className="flex-1 min-w-0 min-h-0 overflow-hidden">
-          {settings.a11yMode ? (
-            <>
-              {/* Video kept mounted for audio + seek, hidden from view */}
-              <div
-                className="absolute w-px h-px overflow-hidden pointer-events-none opacity-0"
-                aria-hidden="true"
-              >
-                {videoNode}
-              </div>
-              <A11ySegmentViewer
-                rawSegments={rawSegments}
-                clozeSegments={clozeSegments}
-                segmentLoopStartIdx={segmentLoopStartIdx}
-                segmentLoopCount={settings.segmentLoopCount}
-                isPlaying={isPlaying}
-                onTogglePlay={a11yTogglePlay}
-                onSkipSeconds={a11ySkip}
-                onPrevSegment={a11yPrevSeg}
-                onNextSegment={a11yNextSeg}
-                onReplayLoop={a11yReplayLoop}
-              />
-            </>
-          ) : (
-            mainContent
-          )}
+          {mainContent}
         </div>
 
 

@@ -46,8 +46,8 @@ export default function FlashcardsPage() {
       data-testid="flashcards-page"
     >
 
-      <Tabs defaultValue="overview">
-        <TabsList className="mb-4 grid grid-cols-2 md:grid-cols-4 w-full md:w-auto">
+      <Tabs defaultValue="decks">
+        <TabsList className="mb-3 grid grid-cols-2 md:grid-cols-3 w-full md:w-auto">
           <TabsTrigger value="decks" data-testid="tab-decks">
             <Library className="w-3.5 h-3.5 mr-1.5" /> {t('page.tabMyDecks')}
           </TabsTrigger>

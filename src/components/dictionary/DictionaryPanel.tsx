@@ -1,11 +1,12 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, Search, BookOpen, Type, BookmarkPlus, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import type { WordLookupEntry } from '@/lib/api/dictionary';
-import { useLookup } from '@/hooks/useLookup';
+import { useLookup } from '@/common/DictionaryLookupOverlay/useLookup';
 import { AddToDeckDialog } from './AddToDeckDialog';
 import { TokenizedSentence } from './TokenizedSentence';
 
@@ -17,6 +18,7 @@ import { TokenizedSentence } from './TokenizedSentence';
  * Both modes are explicit-submit; nothing fires per keystroke (§5.6).
  */
 export function DictionaryPanel() {
+  const { t } = useTranslation('dictionary');
   const [mode, setMode] = useState<'words' | 'sentence'>('words');
 
   const { results, loading, error, lookup } = useLookup(30);
@@ -34,14 +36,15 @@ export function DictionaryPanel() {
     if (!q) return;
     setSearched(true);
     const found = await lookup(q);
-    if (found.length === 0) toast.info('Không tìm thấy từ phù hợp');
+    // No `panel.*` key carries this exact copy; `search.notFound` matches it.
+    if (found.length === 0) toast.info(t('search.notFound'));
   };
 
   const submitSentence = (e?: React.FormEvent) => {
     e?.preventDefault();
     const value = sentence.trim();
     if (!value) {
-      toast.error('Câu trống');
+      toast.error(t('panel.emptySentence'));
       return;
     }
     setActiveSentence(value);
@@ -58,7 +61,7 @@ export function DictionaryPanel() {
               : 'text-muted-foreground hover:bg-muted/50'
           }`}
         >
-          <BookOpen className="w-3 h-3" /> Từ vựng
+          <BookOpen className="w-3 h-3" /> {t('panel.modeVocab')}
         </button>
         <button
           onClick={() => setMode('sentence')}
@@ -68,7 +71,7 @@ export function DictionaryPanel() {
               : 'text-muted-foreground hover:bg-muted/50'
           }`}
         >
-          <Type className="w-3 h-3" /> Câu
+          <Type className="w-3 h-3" /> {t('panel.modeSentence')}
         </button>
       </div>
 
@@ -81,7 +84,7 @@ export function DictionaryPanel() {
             <Input
               value={wordQ}
               onChange={(e) => setWordQ(e.target.value)}
-              placeholder="Từ, kana hoặc nghĩa..."
+              placeholder={t('panel.searchPlaceholder')}
               className="h-8 text-xs"
               data-testid="dict-panel-word-input"
             />
@@ -102,14 +105,14 @@ export function DictionaryPanel() {
                 <div className="py-8 flex flex-col items-center text-muted-foreground gap-2 text-center">
                   <Sparkles className="w-6 h-6 opacity-40" />
                   <p className="text-xs leading-snug">
-                    Tìm từ tiếng Nhật ngay tại đây — kết quả có thể lưu vào bộ flashcard.
+                    {t('panel.hint')}
                   </p>
                 </div>
               )}
 
               {searched && !loading && !error && results.length === 0 && (
                 <p className="py-8 text-center text-xs text-muted-foreground">
-                  Không tìm thấy từ nào.
+                  {t('panel.notFound')}
                 </p>
               )}
 
@@ -131,7 +134,7 @@ export function DictionaryPanel() {
                       size="icon"
                       variant="ghost"
                       className="h-6 w-6 flex-shrink-0 opacity-60 group-hover:opacity-100"
-                      title="Lưu vào bộ"
+                      title={t('panel.saveToDeck')}
                       onClick={() => {
                         setPickedWord(w);
                         setAddOpen(true);
@@ -161,13 +164,13 @@ export function DictionaryPanel() {
             <textarea
               value={sentence}
               onChange={(e) => setSentence(e.target.value)}
-              placeholder="Dán một câu tiếng Nhật..."
+              placeholder={t('panel.sentencePlaceholder')}
               rows={3}
               className="w-full rounded-md border bg-background p-2 text-sm font-japanese resize-none focus:outline-none focus:ring-1 focus:ring-primary"
               data-testid="dict-panel-sentence-input"
             />
             <Button type="submit" size="sm" className="w-full h-8" disabled={!sentence.trim()}>
-              Phân tích
+              {t('panel.analyze')}
             </Button>
           </form>
 
@@ -179,7 +182,7 @@ export function DictionaryPanel() {
                 <div className="py-8 flex flex-col items-center text-muted-foreground gap-2 text-center">
                   <Sparkles className="w-6 h-6 opacity-40" />
                   <p className="text-xs leading-snug">
-                    Tách câu thành từng từ, nhấp vào từ để xem nghĩa.
+                    {t('panel.sentenceHint')}
                   </p>
                 </div>
               )}

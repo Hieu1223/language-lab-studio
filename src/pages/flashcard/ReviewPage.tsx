@@ -230,7 +230,7 @@ export default function ReviewPage() {
           </div>
         )}
         <div className="flex gap-2 pt-2">
-          <Button variant="outline" onClick={() => navigate('/vocabulary')}>
+          <Button variant="outline" onClick={() => navigate('/flashcard')}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> {t('review.back')}
           </Button>
           <Button onClick={load} className="gap-1.5">
@@ -244,7 +244,7 @@ export default function ReviewPage() {
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto min-h-screen flex flex-col" data-testid="review-page">
       <div className="flex items-center justify-between mb-6 gap-2">
-        <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate('/vocabulary')}>
+        <Button variant="ghost" size="sm" className="gap-2" onClick={() => navigate('/flashcard')}>
           <ArrowLeft className="w-4 h-4" /> {t('review.exit')}
         </Button>
         <div className="flex gap-2 text-xs">

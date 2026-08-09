@@ -1,0 +1,92 @@
+{
+  "page": {
+    "title": "Từ điển",
+    "subtitle": "Tra từ đơn lẻ, hoặc dán cả câu để tách từ và tra từng token.",
+    "tabVocab": "Từ vựng",
+    "tabSentence": "Phân tích câu"
+  },
+  "search": {
+    "placeholder": "Nhập từ, kana hoặc nghĩa tiếng Việt...",
+    "submit": "Tra cứu",
+    "notFound": "Không tìm thấy từ phù hợp",
+    "resultCount": "{{count}} kết quả",
+    "addAll": "Thêm tất cả",
+    "empty": "Không tìm thấy mục từ điển nào.",
+    "hint": "Tra cứu một từ tiếng Nhật và lưu thẳng vào bộ flashcard của bạn.",
+    "addToDeckTitle": "Thêm {{count}} từ vào bộ"
+  },
+  "panel": {
+    "modeVocab": "Từ vựng",
+    "modeSentence": "Câu",
+    "searchPlaceholder": "Từ, kana hoặc nghĩa...",
+    "hint": "Tìm từ tiếng Nhật ngay tại đây — kết quả có thể lưu vào bộ flashcard.",
+    "notFound": "Không tìm thấy từ nào.",
+    "saveToDeck": "Lưu vào bộ",
+    "sentencePlaceholder": "Dán một câu tiếng Nhật...",
+    "analyze": "Phân tích",
+    "sentenceHint": "Tách câu thành từng từ, nhấp vào từ để xem nghĩa.",
+    "emptySentence": "Câu trống"
+  },
+  "token": {
+    "dictionaryForm": "Dạng từ điển:",
+    "lookingUp": "Đang tra cứu...",
+    "moreMeanings": "+{{count}} nghĩa khác",
+    "saveToDeck": "Lưu vào bộ",
+    "notInDictionary": "Không có trong từ điển",
+    "addToDeckTitle": "Thêm \"{{word}}\" vào bộ"
+  },
+  "tokenize": {
+    "dialogTitle": "Phân tích câu",
+    "dialogDesc": "Tách câu thành từng từ, tra từ điển và lưu vào bộ flashcard.",
+    "failed": "Tokenize thất bại",
+    "noneFound": "Không tìm thấy từ nào trong từ điển",
+    "skipped": "Bỏ qua {{count}} từ không có trong từ điển",
+    "analyzing": "Đang phân tích câu...",
+    "error": "Lỗi tokenize: ",
+    "selectAll": "Chọn tất cả",
+    "deselectAll": "Bỏ chọn tất cả",
+    "selectionCount": "{{selected}} / {{total}} từ đã chọn",
+    "addSelected": "Thêm đã chọn ({{count}})",
+    "addAll": "Thêm toàn bộ ({{count}})",
+    "hint": "Mẹo: nhấp để xem nghĩa, Shift+click để chọn nhiều từ.",
+    "emptySentence": "Câu trống",
+    "inputPlaceholder": "Nhập câu tiếng Nhật...",
+    "charCount": "{{count}} ký tự",
+    "charCountReadOnly": "{{count}} ký tự · Chỉ đọc — chọn để sao chép",
+    "close": "Đóng",
+    "analyze": "Phân tích"
+  },
+  "deck": {
+    "loadFailed": "Không thể tải danh sách bộ thẻ",
+    "nameRequired": "Tên bộ không được trống",
+    "created": "Đã tạo bộ \"{{name}}\"",
+    "createFailed": "Tạo bộ thất bại",
+    "selectRequired": "Vui lòng chọn một bộ",
+    "noWords": "Không có từ nào để thêm",
+    "added": "Đã thêm {{count}} từ vào bộ",
+    "skipped": "Bỏ qua {{count}} từ (đã có hoặc lỗi)",
+    "dialogTitle": "Thêm {{count}} từ vào bộ",
+    "dialogDesc": "Chọn bộ flashcard hiện có hoặc tạo bộ mới.",
+    "wordCount": "{{count}} từ",
+    "overflow": "+{{count}} khác",
+    "statDue": "đến hạn",
+    "statNew": "mới",
+    "statReview": "ôn",
+    "createNew": "Tạo bộ mới",
+    "newNameLabel": "Tên bộ mới",
+    "newNamePlaceholder": "VD: N5 Vocab",
+    "public": "Công khai",
+    "create": "Tạo",
+    "cancel": "Huỷ",
+    "close": "Đóng",
+    "adding": "Đang thêm...",
+    "addWords": "Thêm {{count}} từ",
+    "addToDeck": "Lưu vào bộ"
+  },
+  "overlay": {
+    "loading": "Đang tải…",
+    "empty": "Không tìm thấy mục từ điển",
+    "addToDeck": "Lưu vào bộ",
+    "addAllToDeck": "Lưu tất cả vào bộ"
+  }
+}

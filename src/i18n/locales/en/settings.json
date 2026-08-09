@@ -1,0 +1,46 @@
+{
+  "title": "Settings",
+  "subtitle": "Customise the interface and default values for each page.",
+  "resetDefaults": "Restore defaults",
+  "resetSuccess": "Settings restored to defaults",
+  "appearance": {
+    "title": "Appearance",
+    "desc": "Choose light / dark mode",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "language": {
+    "title": "Language",
+    "desc": "Choose the app display language",
+    "vietnamese": "Tiếng Việt",
+    "english": "English"
+  },
+  "transcription": {
+    "title": "Transcription defaults (YouTube)",
+    "desc": "Applied to transcript videos.",
+    "mode": "Mode",
+    "modeStudy": "Study",
+    "modeRead": "Read",
+    "modeAnki": "Anki",
+    "highlight": "Reading highlight",
+    "highlightToken": "Word",
+    "highlightSentence": "Sentence",
+    "highlightNone": "Off",
+    "layout": "Default layout",
+    "layoutSplitV": "Top/Bottom",
+    "layoutSplitH": "Left/Right",
+    "layoutVideo": "Video",
+    "layoutTranscript": "Text",
+    "autoScroll": "Auto-scroll transcript",
+    "hiddenRange": "Hidden blocks (cloze)",
+    "visibleRange": "Visible blocks (cloze)"
+  },
+  "manga": {
+    "title": "Manga defaults",
+    "desc": "Applied when opening a new chapter.",
+    "autoOpenPanel": "Auto-open drawer when an OCR block is clicked",
+    "showOcrBoxes": "Show OCR boxes",
+    "zoom": "Default zoom"
+  }
+}

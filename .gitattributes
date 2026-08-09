@@ -1,0 +1,40 @@
+# Normalize line endings and guarantee UTF-8 handling.
+#
+# Why this file exists: several source files (FlashcardsPage.tsx, MangaReaderPage.tsx,
+# DictionaryPage.tsx, DictionaryPanel.tsx, TokenPopover.tsx) were once corrupted by an
+# editor that read UTF-8 Vietnamese copy as Windows-1252 and re-saved it, producing
+# mojibake such as "Ä‘áº¿n háº¡n" instead of "đến hạn". That damage is lossy and cannot be
+# reversed automatically, so the goal here is prevention.
+
+# Treat everything as text and normalize to LF in the repository.
+* text=auto eol=lf
+
+# Source and config files are always UTF-8 text.
+*.ts    text eol=lf
+*.tsx   text eol=lf
+*.js    text eol=lf
+*.jsx   text eol=lf
+*.json  text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# Locale files carry non-ASCII copy (Vietnamese, Japanese) - never touch them.
+src/i18n/locales/**/*.json text eol=lf
+
+# Binary assets must never be line-ending normalized.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.svg   text eol=lf
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.pdf   binary
+*.lockb binary
