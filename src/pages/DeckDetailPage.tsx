@@ -25,15 +25,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   deleteCard,
-  getDecks,
   getDeckCards,
   getDeckProgress,
+  getDecks,
+  parseCardData,
+  renameDeck,
   resetCard,
-  updateDeck,
   type CardResponse,
   type CardState,
-  type DeckProgress,
-  type DeckWithStats,
+  type DeckProgressResponse,
+  type DeckWithStatsResponse,
+  type VocabCardData,
 } from '@/lib/api/flashcard';
 
 const STATE_COLORS: Record<CardState, string> = {
@@ -43,12 +45,17 @@ const STATE_COLORS: Record<CardState, string> = {
   relearning: 'bg-red-500/10 text-red-600',
 };
 
+/** Card `data` is a JSON string whose shape depends on `card_type`. */
+function cardContent(card: CardResponse): VocabCardData {
+  return parseCardData<VocabCardData>(card.data) ?? { word: '' };
+}
+
 export default function DeckDetailPage() {
   const { deckId } = useParams<{ deckId: string }>();
   const navigate = useNavigate();
-  const [deck, setDeck] = useState<DeckWithStats | null>(null);
+  const [deck, setDeck] = useState<DeckWithStatsResponse | null>(null);
   const [cards, setCards] = useState<CardResponse[]>([]);
-  const [progress, setProgress] = useState<DeckProgress | null>(null);
+  const [progress, setProgress] = useState<DeckProgressResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState('');
@@ -91,7 +98,7 @@ export default function DeckDetailPage() {
     }
     try {
       setSavingName(true);
-      await updateDeck(deckId, name.trim());
+      await renameDeck(deckId, name.trim());
       toast.success('Đã đổi tên');
       setEditingName(false);
       load();
@@ -103,9 +110,9 @@ export default function DeckDetailPage() {
   };
 
   const handleDeleteCard = async () => {
-    if (!confirmDelete) return;
+    if (!confirmDelete || !deckId) return;
     try {
-      await deleteCard(confirmDelete.id);
+      await deleteCard(deckId, confirmDelete.id);
       toast.success('Đã xoá thẻ');
       setCards((prev) => prev.filter((c) => c.id !== confirmDelete.id));
     } catch {
@@ -116,8 +123,9 @@ export default function DeckDetailPage() {
   };
 
   const handleResetCard = async (card: CardResponse) => {
+    if (!deckId) return;
     try {
-      await resetCard(card.id);
+      await resetCard(deckId, card.id);
       toast.success('Đã reset SRS');
       load();
     } catch {
@@ -128,12 +136,14 @@ export default function DeckDetailPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return cards;
-    return cards.filter(
-      (c) =>
-        c.word.word.toLowerCase().includes(q) ||
-        c.word.reading.toLowerCase().includes(q) ||
-        c.word.meaning.toLowerCase().includes(q),
-    );
+    return cards.filter((c) => {
+      const content = cardContent(c);
+      return (
+        (content.word ?? '').toLowerCase().includes(q) ||
+        (content.reading ?? '').toLowerCase().includes(q) ||
+        (content.meaning ?? '').toLowerCase().includes(q)
+      );
+    });
   }, [cards, search]);
 
   if (loading) {
@@ -253,7 +263,9 @@ export default function DeckDetailPage() {
         </div>
       ) : (
         <div className="rounded-xl border bg-card divide-y">
-          {filtered.map((c) => (
+          {filtered.map((c) => {
+            const content = cardContent(c);
+            return (
             <div
               key={c.id}
               className="p-3 flex items-center justify-between gap-3 hover:bg-muted/30"
@@ -261,9 +273,9 @@ export default function DeckDetailPage() {
             >
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2 flex-wrap">
-                  <p className="font-bold font-japanese">{c.word.word}</p>
+                  <p className="font-bold font-japanese">{content.word}</p>
                   <p className="text-xs text-muted-foreground font-japanese">
-                    {c.word.reading}
+                    {content.reading}
                   </p>
                   <span
                     className={`text-[9px] uppercase font-mono px-1.5 py-0.5 rounded ${STATE_COLORS[c.state]}`}
@@ -272,10 +284,11 @@ export default function DeckDetailPage() {
                   </span>
                 </div>
                 <p className="text-sm text-muted-foreground line-clamp-1">
-                  {c.word.meaning}
+                  {content.meaning}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  Đến hạn: {new Date(c.due).toLocaleDateString('vi-VN')}
+                  Đến hạn:{' '}
+                  {c.due ? new Date(c.due).toLocaleDateString('vi-VN') : 'chưa lên lịch'}
                 </p>
               </div>
               <div className="flex gap-1 shrink-0">
@@ -301,7 +314,8 @@ export default function DeckDetailPage() {
                 </Button>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -313,7 +327,9 @@ export default function DeckDetailPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Xoá thẻ?</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirmDelete?.word.word} — {confirmDelete?.word.meaning}
+              {confirmDelete
+                ? `${cardContent(confirmDelete).word} — ${cardContent(confirmDelete).meaning ?? ''}`
+                : ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

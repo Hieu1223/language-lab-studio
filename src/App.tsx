@@ -5,9 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth-context";
 import { SplashScreen } from "@/components/SplashScreen";
+import { ConnectivityBanner } from "@/components/ConnectivityBanner";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { useState, useCallback, useEffect } from "react";
-import { startBackgroundPing } from "@/lib/api-client";
+import { ApiError } from "@/lib/api/client";
+import { useState, useCallback } from "react";
 import LandingPage from "./pages/LandingPage";
 import YouTubeVideoViewerPage from "./pages/YouTubeVideoViewerPage";
 import TranscribeViewPage from "./pages/TranscribeViewPage";
@@ -25,7 +26,24 @@ import SettingsPage from "./pages/SettingsPage";
 import ShareTargetPage from "./pages/ShareTargetPage";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // GETs are safe to retry, but never retry a client error (§6.7.1).
+      retry: (failureCount, error) => {
+        if (error instanceof ApiError && error.status >= 400 && error.status < 500) return false;
+        return failureCount < 2;
+      },
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      // Mutations are never silently retried — a lost response could mean the
+      // write actually succeeded, so retrying risks double-submission.
+      retry: false,
+    },
+  },
+});
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -66,15 +84,6 @@ function AppRoutes() {
   );
 }
 
-function BackgroundPing() {
-  useEffect(() => {
-    // Ping every 3 minutes (within the 2-5 minute spec)
-    const stop = startBackgroundPing(3 * 60 * 1000);
-    return stop;
-  }, []);
-  return null;
-}
-
 const App = () => {
   const [splashDone, setSplashDone] = useState(false);
   const handleSplashComplete = useCallback(() => setSplashDone(true), []);
@@ -89,7 +98,7 @@ const App = () => {
             <SplashScreen onComplete={handleSplashComplete} />
           ) : (
             <BrowserRouter>
-              <BackgroundPing />
+              <ConnectivityBanner />
               <AppRoutes />
             </BrowserRouter>
           )}

@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { getTranscriptInfo } from '@/lib/api/transcription';
+import { getTranscriptionDetail } from '@/lib/api/transcription';
 
 /**
  * Legacy route entrypoint: `/transcript/:id`.
@@ -23,7 +23,7 @@ export default function TranscribeViewPage() {
     }
     (async () => {
       try {
-        const info = await getTranscriptInfo(id);
+        const info = await getTranscriptionDetail(id);
         if (cancelled) return;
         if (!info) {
           toast.error('Không tìm thấy bản phiên dịch');

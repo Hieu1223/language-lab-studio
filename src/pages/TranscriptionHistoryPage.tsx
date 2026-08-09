@@ -28,7 +28,7 @@ import {
   getTranscriptionHistory,
   isTranscriptError,
   isTranscriptReady,
-  type UserHistoryItem,
+  type UserHistoryResponse as UserHistoryItem,
 } from '@/lib/api/transcription';
 
 function StatusBadge({ status }: { status: number }) {
@@ -67,9 +67,10 @@ export default function TranscriptionHistoryPage() {
     try {
       setLoading(true);
       const data = await getTranscriptionHistory();
+      const list = data?.items ?? [];
       // newest first
       setItems(
-        [...data].sort(
+        [...list].sort(
           (a, b) =>
             new Date(b.date_created).getTime() - new Date(a.date_created).getTime(),
         ),

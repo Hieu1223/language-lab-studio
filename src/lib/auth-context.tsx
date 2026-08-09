@@ -1,245 +1,208 @@
 import {
   createContext,
-  useContext,
-  useState,
-  useEffect,
   useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
   type ReactNode,
-} from "react";
+} from 'react';
+import { jwtDecode } from 'jwt-decode';
+import * as authApi from '@/lib/api/auth';
+import * as userApi from '@/lib/api/user';
 import {
-  API_BASE_URL,
-  AUTH_UNAUTHORIZED_EVENT,
   clearToken,
+  getStoredRefreshToken,
   getStoredToken,
-  storeToken,
-} from "./api-client";
-import {
-  clearCredentials,
-  getCredentials,
-  saveCredentials,
-} from "./credential-store";
-
+  onUnauthorized,
+} from '@/lib/api/client';
 
 export interface User {
   id: string;
   name: string;
-  email?: string;
-  avatarUrl?: string;
   createdAt?: string;
+  lastLoggedIn?: string | null;
 }
 
-interface AuthContextType {
+interface AuthContextValue {
   user: User | null;
   token: string | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  register: (
-    username: string,
-    password: string,
-    displayName?: string
-  ) => Promise<void>;
+  register: (username: string, password: string, displayName?: string) => Promise<void>;
   logout: () => void;
-  setUser: (user: User | null) => void;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
 
-const USER_KEY = "nihongo-user";
-// NOTE: use the single, unified API_BASE_URL. All `BASE_URL` references below
-// are kept for readability but point to the same value.
-const BASE_URL = API_BASE_URL;
+const USER_KEY = 'nihongo-user';
+
+/** Refresh this many ms before the access token actually expires. */
+const REFRESH_SKEW_MS = 60_000;
+
+function toUser(res: userApi.UserResponse, fallbackName: string): User {
+  return {
+    id: res.id,
+    name: res.display_name || fallbackName,
+    createdAt: res.created_at,
+    lastLoggedIn: res.last_logged_in ?? null,
+  };
+}
+
+function readCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheUser(user: User | null): void {
+  try {
+    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user));
+    else localStorage.removeItem(USER_KEY);
+  } catch {
+    /* private mode */
+  }
+}
+
+/** Milliseconds until the JWT expires, or null when it carries no `exp`. */
+function msUntilExpiry(token: string): number | null {
+  try {
+    const { exp } = jwtDecode<{ exp?: number }>(token);
+    if (!exp) return null;
+    return exp * 1000 - Date.now();
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(readCachedUser);
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [isLoading, setIsLoading] = useState(true);
-
-  // 🔹 Load from storage
-  useEffect(() => {
-    const storedToken = getStoredToken();
-    const storedUser = localStorage.getItem(USER_KEY);
-
-    if (storedToken) setToken(storedToken);
-
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch {
-        localStorage.removeItem(USER_KEY);
-      }
-    }
-
-    setIsLoading(false);
-  }, []);
+  const refreshTimer = useRef<number | null>(null);
 
   const logout = useCallback(() => {
+    const refreshToken = getStoredRefreshToken();
     setUser(null);
     setToken(null);
+    cacheUser(null);
     clearToken();
-    clearCredentials();
-    localStorage.removeItem(USER_KEY);
+    void authApi.logout(refreshToken);
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const response = await fetch(`${BASE_URL}/token`, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        username,
-        password,
-        grant_type: "password",
-      }).toString(),
+  // The API client calls this when a 401 could not be resolved by refreshing.
+  useEffect(() => {
+    onUnauthorized(() => {
+      setUser(null);
+      setToken(null);
+      cacheUser(null);
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.assign(`/login?expired=1&next=${next}`);
+      }
     });
+    return () => onUnauthorized(null);
+  }, []);
 
-    if (!response.ok) {
-      throw new Error("Login failed");
+  /** Schedule a silent refresh just before the access token expires (§6.5). */
+  const scheduleRefresh = useCallback((accessToken: string) => {
+    if (refreshTimer.current != null) {
+      window.clearTimeout(refreshTimer.current);
+      refreshTimer.current = null;
+    }
+    const remaining = msUntilExpiry(accessToken);
+    if (remaining == null) return;
+
+    const delay = Math.max(5_000, remaining - REFRESH_SKEW_MS);
+    refreshTimer.current = window.setTimeout(async () => {
+      const refreshToken = getStoredRefreshToken();
+      if (!refreshToken) return;
+      try {
+        const res = await authApi.refresh(refreshToken);
+        setToken(res.access_token);
+        scheduleRefresh(res.access_token);
+      } catch {
+        /* the next 401 drives the logout path */
+      }
+    }, delay);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (refreshTimer.current != null) window.clearTimeout(refreshTimer.current);
+    };
+  }, []);
+
+  // Boot: validate any stored token against the server.
+  useEffect(() => {
+    const stored = getStoredToken();
+    if (!stored) {
+      setIsLoading(false);
+      return;
     }
 
-    const data = await response.json();
-    const newToken = data.access_token;
+    let cancelled = false;
+    scheduleRefresh(stored);
 
-    setToken(newToken);
-    storeToken(newToken);
-    // Remember credentials so the installed PWA can silently re-authenticate
-    // when this token expires.
-    saveCredentials(username, password);
-
-    // 🔹 Try real user fetch (SAFE fallback)
-    let finalUser: User;
-
-    try {
-      const res = await fetch(`${BASE_URL}/check`, {
-        headers: {
-          Authorization: `Bearer ${newToken}`,
-        },
+    userApi
+      .checkValid()
+      .then((res) => {
+        if (cancelled) return;
+        const next = toUser(res, user?.name ?? 'me');
+        setUser(next);
+        cacheUser(next);
+      })
+      .catch(() => {
+        // A 401 is handled by the interceptor; anything else (offline) keeps
+        // the cached user so the app still renders.
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
       });
 
-      if (!res.ok) throw new Error();
-
-      const checked = await res.json();
-
-      finalUser = {
-        id: checked.id || "4d3e160b-1e2c-48f1-81ae-c570943f846c", //pydantic check on the backend check for the id to be in uuid4 format,
-        name: checked.display_name || checked.name || username,
-        email: checked.email,
-      };
-    } catch {
-      // ✅ fallback (same as your working behavior)
-      finalUser = {
-        id: "8d0d3722-3169-4fe8-aa3b-5d41f06ba1d0",
-        name: username,
-        email: `${username}@example.com`,
-        createdAt: new Date().toISOString(),
-      };
-    }
-
-    setUser(finalUser);
-    localStorage.setItem(USER_KEY, JSON.stringify(finalUser));
-  }, []);
-
-  // 🔹 Global 401 handler — try a silent re-login first, then fall back to logout
-  useEffect(() => {
-    let lastForce = 0;
-    let refreshing = false;
-
-    const handler = async () => {
-      const now = Date.now();
-      if (now - lastForce < 1500) return;
-      lastForce = now;
-      if (refreshing) return;
-
-      const wasLoggedIn = !!getStoredToken();
-      const creds = getCredentials();
-
-      // Attempt silent re-authentication with the saved credentials.
-      if (creds) {
-        refreshing = true;
-        try {
-          await login(creds.username, creds.password);
-          refreshing = false;
-          // Reload so in-flight/failed requests refetch with the fresh token.
-          if (typeof window !== "undefined") window.location.reload();
-          return;
-        } catch {
-          /* fall through to logout */
-        }
-        refreshing = false;
-      }
-
-      logout();
-
-      if (wasLoggedIn && typeof window !== "undefined") {
-        const next = encodeURIComponent(
-          window.location.pathname + window.location.search
-        );
-
-        if (!window.location.pathname.startsWith("/login")) {
-          window.location.assign(`/login?expired=1&next=${next}`);
-        }
-      }
-    };
-
-    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
-    return () =>
-      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handler);
-  }, [logout, login]);
-
-  // 🔹 Boot: no token but saved credentials → sign back in automatically.
-  useEffect(() => {
-    if (isLoading) return;
-    if (getStoredToken()) return;
-    const creds = getCredentials();
-    if (!creds) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        await login(creds.username, creds.password);
-      } catch {
-        if (!cancelled) clearCredentials();
-      }
-    })();
     return () => {
       cancelled = true;
     };
-  }, [isLoading, login]);
+    // Intentionally boot-only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  const login = useCallback(
+    async (username: string, password: string) => {
+      const res = await authApi.login(username, password);
+      setToken(res.access_token);
+      scheduleRefresh(res.access_token);
 
-  const register = async (
-    username: string,
-    password: string,
-    displayName?: string
-  ) => {
-    // 🔹 YOUR working register (unchanged)
-    const response = await fetch(`${BASE_URL}/register`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        username,
-        password,
-        display_name: displayName,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Registration failed");
-    }
-
-    await login(username, password);
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{ user, token, isLoading, login, register, logout, setUser }}
-    >
-      {children}
-    </AuthContext.Provider>
+      const me = await userApi.checkValid();
+      const next = toUser(me, username);
+      setUser(next);
+      cacheUser(next);
+    },
+    [scheduleRefresh],
   );
+
+  const register = useCallback(
+    async (username: string, password: string, displayName?: string) => {
+      await userApi.register(username, password, displayName);
+      await login(username, password);
+    },
+    [login],
+  );
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ user, token, isLoading, login, register, logout }),
+    [user, token, isLoading, login, register, logout],
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth() {
+export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be inside AuthProvider");
+  if (!ctx) throw new Error('useAuth must be used inside AuthProvider');
   return ctx;
 }

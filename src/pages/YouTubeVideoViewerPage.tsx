@@ -47,14 +47,13 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DictionaryPanel } from '@/components/dictionary/DictionaryPanel';
 import {
-  getTranscriptInfo,
-  getTranscriptData,
+  getTranscriptionDetail,
   requestTranscription,
-  findTranscriptByVideoId,
+  previewVideo,
+  visitVideo,
   isTranscriptError,
   isTranscriptReady,
-  getYouTubeVideo,
-  type TranscriptInfo,
+  type TranscriptDetailResponse,
   type TranscriptSegment,
   type VideoPreview,
 } from '@/lib/api/transcription';
@@ -171,7 +170,7 @@ export default function YouTubeVideoViewerPage() {
 
     (async () => {
       try {
-        const info = await getYouTubeVideo(videoId);
+        const info = await previewVideo(videoId);
         if (cancelled) return;
 
         setVideo({
@@ -183,7 +182,7 @@ export default function YouTubeVideoViewerPage() {
             name: info.channel.name,
             url: info.channel.url,
           },
-          duration: null,
+          duration: info.duration ?? null,
           description: info.description,
           view_count: info.view_count,
         });
@@ -199,7 +198,7 @@ export default function YouTubeVideoViewerPage() {
 
   // Transcript state
   const [status, setStatus] = useState<PageStatus>('checking');
-  const [transcriptInfo, setTranscriptInfo] = useState<TranscriptInfo | null>(null);
+  const [transcriptInfo, setTranscriptInfo] = useState<TranscriptDetailResponse | null>(null);
   const [rawSegments, setRawSegments] = useState<TranscriptSegment[]>([]);
   const [requesting, setRequesting] = useState(false);
   const pollAbortRef = useRef(false);
@@ -317,7 +316,19 @@ export default function YouTubeVideoViewerPage() {
     (async () => {
       setStatus('checking');
       try {
-        const info = await findTranscriptByVideoId(videoId);
+        // The API has no "find by video id" lookup; visiting the video returns
+        // (or creates) its transcript detail, which we then poll if needed.
+        const base = video
+          ? { name: video.title || videoId, thumbnail_url: video.thumbnail_url || '', original_source: 'Youtube' }
+          : { name: videoId, thumbnail_url: '', original_source: 'Youtube' };
+        const info = await visitVideo({
+          name: base.name,
+          thumbnail_url: base.thumbnail_url,
+          resource_url: `https://www.youtube.com/watch?v=${videoId}`,
+          user_id: user?.id ?? '',
+          resource_id: videoId,
+          original_source: base.original_source,
+        });
         if (!info) {
           setStatus('not_found');
           return;
@@ -348,7 +359,8 @@ export default function YouTubeVideoViewerPage() {
         return;
       }
       try {
-        const data = await getTranscriptData(transcriptId);
+        const info = await getTranscriptionDetail(transcriptId);
+        const data = info?.data;
         if (data?.segments?.length) {
           setRawSegments(data.segments);
           setStatus('ready');
@@ -371,7 +383,7 @@ export default function YouTubeVideoViewerPage() {
       if (pollAbortRef.current) return;
       attempts++;
       try {
-        const info = await getTranscriptInfo(transcriptId);
+        const info = await getTranscriptionDetail(transcriptId);
         if (info) {
           setTranscriptInfo(info);
           if (isTranscriptError(info.status)) {
@@ -379,7 +391,7 @@ export default function YouTubeVideoViewerPage() {
             return;
           }
           if (isTranscriptReady(info.status)) {
-            const data = await getTranscriptData(transcriptId);
+            const data = info.data;
             if (data?.segments?.length) {
               setRawSegments(data.segments);
               setStatus('ready');
@@ -630,20 +642,16 @@ export default function YouTubeVideoViewerPage() {
     try {
       setRequesting(true);
       setStatus('processing');
-      const res = await requestTranscription(
-        `https://www.youtube.com/watch?v=${videoId}`,
-        videoId,
-        video?.title || 'YouTube Video',
-        video?.thumbnail_url || '',
-        user.id,
-      );
-      if (!res.success) {
-        toast.error('Yêu cầu thất bại');
-        setStatus('not_found');
-        return;
-      }
+      const res = await requestTranscription({
+        name: video?.title || 'YouTube Video',
+        thumbnail_url: video?.thumbnail_url || '',
+        resource_url: `https://www.youtube.com/watch?v=${videoId}`,
+        user_id: user.id,
+        resource_id: videoId,
+        original_source: 'Youtube',
+      });
       toast.success('Đã yêu cầu phiên dịch, đang xử lý...');
-      const info = await getTranscriptInfo(res.transcript_id).catch(() => null);
+      const info = await getTranscriptionDetail(res.transcript_id).catch(() => null);
       if (info) setTranscriptInfo(info);
       startPolling(res.transcript_id);
     } catch (err) {

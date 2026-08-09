@@ -59,19 +59,15 @@ import {
   copyPublicDeck,
   createDeck,
   deleteDeck,
-  getDailyStats,
   getDecks,
-  getOverviewStats,
   getPublicDecks,
-  searchWords,
-  type DailyStat,
-  type DeckWithStats,
-  type OverviewStats,
-  type PublicDeck,
-  type WordResponse,
+  type DeckWithStatsResponse,
+  type PublicDeckResponse,
 } from '@/lib/api/flashcard';
 import { AddToDeckDialog } from '@/components/dictionary/AddToDeckDialog';
 import { TokenizeSentencePanel } from '@/components/dictionary/TokenizedSentence';
+import { useLookup } from '@/hooks/useLookup';
+import type { WordLookupEntry } from '@/lib/api/dictionary';
 
 // ─── Overview & Charts ─────────────────────────────────────────────────────
 
@@ -97,16 +93,10 @@ function StatCard({
   );
 }
 
-function OverviewPanel({
-  overview,
-  daily,
-  decks,
-}: {
-  overview: OverviewStats | null;
-  daily: DailyStat[];
-  decks: DeckWithStats[];
-}) {
-  const totalDeckStats = useMemo(
+function OverviewPanel({ decks }: { decks: DeckWithStatsResponse[] }) {
+  // The API exposes no review-history endpoint, so the overview is derived
+  // entirely from the per-deck stats returned by GET /flashcard/decks.
+  const totals = useMemo(
     () =>
       decks.reduce(
         (acc, d) => ({
@@ -114,175 +104,107 @@ function OverviewPanel({
           learning: acc.learning + d.stats.learning,
           review: acc.review + d.stats.review,
           relearning: acc.relearning + d.stats.relearning,
+          due: acc.due + d.stats.due,
         }),
-        { new: 0, learning: 0, review: 0, relearning: 0 },
+        { new: 0, learning: 0, review: 0, relearning: 0, due: 0 },
       ),
     [decks],
   );
 
+  const totalCards = totals.new + totals.learning + totals.review + totals.relearning;
+
   const pieData = [
-    { name: 'New', value: totalDeckStats.new, fill: '#3b82f6' },
-    { name: 'Learning', value: totalDeckStats.learning, fill: '#f59e0b' },
-    { name: 'Review', value: totalDeckStats.review, fill: '#10b981' },
-    { name: 'Relearning', value: totalDeckStats.relearning, fill: '#ef4444' },
+    { name: 'New', value: totals.new, fill: '#3b82f6' },
+    { name: 'Learning', value: totals.learning, fill: '#f59e0b' },
+    { name: 'Review', value: totals.review, fill: '#10b981' },
+    { name: 'Relearning', value: totals.relearning, fill: '#ef4444' },
   ].filter((d) => d.value > 0);
+
+  const perDeck = useMemo(
+    () =>
+      decks
+        .map((d) => ({
+          name: d.name.length > 12 ? `${d.name.slice(0, 12)}…` : d.name,
+          due: d.stats.due,
+          new: d.stats.new,
+          review: d.stats.review,
+        }))
+        .slice(0, 12),
+    [decks],
+  );
 
   return (
     <div className="space-y-6" data-testid="flashcard-overview">
-      {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard
-          label="Tổng số bộ"
-          value={overview?.total_decks ?? '—'}
-          icon={Library}
-          color="text-blue-500"
-        />
-        <StatCard
-          label="Tổng số thẻ"
-          value={overview?.total_cards ?? '—'}
-          icon={ListPlus}
-          color="text-purple-500"
-        />
-        <StatCard
-          label="Đến hạn"
-          value={overview?.due_cards ?? '—'}
-          icon={Sparkles}
-          color="text-amber-500"
-        />
-        <StatCard
-          label="Streak"
-          value={overview?.streak_days != null ? `${overview.streak_days} ngày` : '—'}
-          icon={TrendingUp}
-          color="text-green-500"
-        />
+        <StatCard label="Tổng số bộ" value={decks.length} icon={Library} color="text-blue-500" />
+        <StatCard label="Tổng số thẻ" value={totalCards} icon={ListPlus} color="text-purple-500" />
+        <StatCard label="Đến hạn" value={totals.due} icon={Sparkles} color="text-amber-500" />
+        <StatCard label="Thẻ mới" value={totals.new} icon={TrendingUp} color="text-green-500" />
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <StatCard
-          label="Hôm nay"
-          value={overview?.reviews_today ?? '—'}
-          icon={BarChart3}
-          color="text-rose-500"
-        />
-        <StatCard
-          label="Mới"
-          value={overview?.new_cards ?? '—'}
-          icon={Sparkles}
-          color="text-blue-400"
-        />
-        <StatCard
-          label="Độ chính xác"
-          value={
-            overview?.accuracy != null
-              ? `${(overview.accuracy * 100).toFixed(1)}%`
-              : '—'
-          }
-          icon={TrendingUp}
-          color="text-emerald-500"
-        />
-      </div>
+      {totalCards === 0 ? (
+        <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground">
+          Chưa có thẻ nào. Thêm từ ở tab “Thêm từ” hoặc từ trang Từ điển.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {perDeck.length > 0 && (
+            <div className="rounded-xl border bg-card p-4">
+              <p className="text-sm font-bold mb-3">Thẻ đến hạn theo bộ</p>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={perDeck}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                  <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 8,
+                      fontSize: 11,
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="due" fill="#f59e0b" name="Đến hạn" />
+                  <Bar dataKey="new" fill="#3b82f6" name="Mới" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
-      {/* Daily reviews */}
-      {daily.length > 0 && (
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-bold">Ôn tập hằng ngày</p>
-            <p className="text-xs text-muted-foreground">{daily.length} ngày gần nhất</p>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={daily}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-              />
-              <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-              <Tooltip
-                contentStyle={{
-                  background: 'hsl(var(--card))',
-                  border: '1px solid hsl(var(--border))',
-                  borderRadius: 8,
-                  fontSize: 11,
-                }}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="correct" stackId="a" fill="#10b981" name="Đúng" />
-              <Bar dataKey="wrong" stackId="a" fill="#ef4444" name="Sai" />
-            </BarChart>
-          </ResponsiveContainer>
+          {pieData.length > 0 && (
+            <div className="rounded-xl border bg-card p-4">
+              <p className="text-sm font-bold mb-3">Phân bố trạng thái thẻ</p>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={70}
+                    label={(d) => `${d.name}: ${d.value}`}
+                    labelLine={false}
+                  >
+                    {pieData.map((entry, i) => (
+                      <Cell key={i} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      background: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: 8,
+                      fontSize: 11,
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       )}
-
-      {/* Accuracy line + state pie */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {daily.length > 0 && (
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm font-bold mb-3">Độ chính xác theo ngày</p>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={daily}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                  domain={[0, 1]}
-                  tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-                />
-                <Tooltip
-                  formatter={(v: number) => `${(v * 100).toFixed(1)}%`}
-                  contentStyle={{
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 8,
-                    fontSize: 11,
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="accuracy"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {pieData.length > 0 && (
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm font-bold mb-3">Phân bố trạng thái thẻ</p>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={70}
-                  label={(d) => `${d.name}: ${d.value}`}
-                  labelLine={false}
-                >
-                  {pieData.map((entry, i) => (
-                    <Cell key={i} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 8,
-                    fontSize: 11,
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -293,7 +215,7 @@ function DecksPanel({
   decks,
   onChange,
 }: {
-  decks: DeckWithStats[];
+  decks: DeckWithStatsResponse[];
   onChange: () => void;
 }) {
   const navigate = useNavigate();
@@ -301,7 +223,7 @@ function DecksPanel({
   const [name, setName] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<DeckWithStats | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<DeckWithStatsResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   const handleCreate = async () => {
@@ -497,7 +419,7 @@ function DecksPanel({
 // ─── Public decks panel ───────────────────────────────────────────────────
 
 function PublicDecksPanel({ onChange }: { onChange: () => void }) {
-  const [decks, setDecks] = useState<PublicDeck[]>([]);
+  const [decks, setDecks] = useState<PublicDeckResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [copying, setCopying] = useState<string | null>(null);
@@ -520,7 +442,7 @@ function PublicDecksPanel({ onChange }: { onChange: () => void }) {
     d.name.toLowerCase().includes(q.toLowerCase()),
   );
 
-  const handleCopy = async (deck: PublicDeck) => {
+  const handleCopy = async (deck: PublicDeckResponse) => {
     try {
       setCopying(deck.id);
       await copyPublicDeck(deck.id);
@@ -595,24 +517,14 @@ function PublicDecksPanel({ onChange }: { onChange: () => void }) {
 // ─── Add words panel (tokenize / dictionary) ──────────────────────────────
 
 function AddWordsPanel() {
+  const { query, loading, error, results, lookup } = useLookup(30);
   const [q, setQ] = useState('');
-  const [results, setResults] = useState<WordResponse[]>([]);
-  const [loading, setLoading] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
-  const [single, setSingle] = useState<WordResponse | null>(null);
+  const [single, setSingle] = useState<WordLookupEntry | null>(null);
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!q.trim()) return;
-    try {
-      setLoading(true);
-      const data = await searchWords(q.trim(), 30);
-      setResults(data);
-    } catch {
-      toast.error('Tìm kiếm thất bại');
-    } finally {
-      setLoading(false);
-    }
+    await lookup(q);
   };
 
   return (
@@ -639,6 +551,11 @@ function AddWordsPanel() {
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             </Button>
           </form>
+          {error && (
+            <p className="text-xs text-destructive" data-testid="lookup-error">
+              {error}
+            </p>
+          )}
           {results.length > 0 && (
             <>
               <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -666,11 +583,13 @@ function AddWordsPanel() {
                 open={bulkOpen}
                 onOpenChange={setBulkOpen}
                 words={results}
+                title={query ? `Thêm kết quả cho "${query}"` : undefined}
               />
               <AddToDeckDialog
                 open={!!single}
                 onOpenChange={(o) => !o && setSingle(null)}
                 words={single ? [single] : []}
+                title={single ? `Thêm "${single.word}"` : undefined}
               />
             </>
           )}
@@ -687,22 +606,19 @@ function AddWordsPanel() {
 // ─── Page ────────────────────────────────────────────────────────────────
 
 export default function FlashcardsPage() {
-  const [decks, setDecks] = useState<DeckWithStats[]>([]);
-  const [overview, setOverview] = useState<OverviewStats | null>(null);
-  const [daily, setDaily] = useState<DailyStat[]>([]);
+  const [decks, setDecks] = useState<DeckWithStatsResponse[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
     setLoading(true);
-    const [decksRes, ovRes, dlRes] = await Promise.allSettled([
-      getDecks(),
-      getOverviewStats(),
-      getDailyStats(30),
-    ]);
-    if (decksRes.status === 'fulfilled') setDecks(decksRes.value);
-    if (ovRes.status === 'fulfilled') setOverview(ovRes.value);
-    if (dlRes.status === 'fulfilled') setDaily(dlRes.value);
-    setLoading(false);
+    try {
+      const data = await getDecks();
+      setDecks(data);
+    } catch {
+      toast.error('Không tải được danh sách bộ thẻ');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -748,7 +664,7 @@ export default function FlashcardsPage() {
         </TabsList>
 
         <TabsContent value="overview">
-          <OverviewPanel overview={overview} daily={daily} decks={decks} />
+          <OverviewPanel decks={decks} />
         </TabsContent>
         <TabsContent value="decks">
           <DecksPanel decks={decks} onChange={load} />

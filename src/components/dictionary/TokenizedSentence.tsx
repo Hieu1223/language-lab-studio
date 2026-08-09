@@ -1,7 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2, ListChecks, BookmarkPlus, CheckSquare, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { tokenize, type Token, type WordEntry } from '@/lib/api/tokenization';
+import {
+  isLookupCandidate,
+  lookupQueryFor,
+  lookupWord,
+  tokenize,
+  type Token,
+  type WordLookupEntry,
+} from '@/lib/api/dictionary';
 import { TokenPopover } from './TokenPopover';
 import { AddToDeckDialog } from './AddToDeckDialog';
 import { toast } from 'sonner';
@@ -22,9 +29,12 @@ interface TokenizedSentenceProps {
 
 /**
  * Renders a Japanese sentence with each token underlined and clickable.
- * Click → TokenPopover. If `showControls` is enabled, the user can also
- * select multiple tokens and bulk-add them to a deck (only ones with
- * dictionary entries can be saved).
+ * Click → TokenPopover. With `showControls`, tokens can be multi-selected and
+ * bulk-added to a deck.
+ *
+ * The tokenizer returns no definitions, so selected tokens are resolved
+ * against `/tokenization/dictionary/words/lookup` at add time; tokens with no
+ * dictionary match are reported and skipped.
  */
 export function TokenizedSentence({
   text,
@@ -39,6 +49,8 @@ export function TokenizedSentence({
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [resolvedWords, setResolvedWords] = useState<WordLookupEntry[]>([]);
 
   useEffect(() => {
     if (tokensProp) {
@@ -59,6 +71,7 @@ export function TokenizedSentence({
         const res = await tokenize(text);
         if (cancelled) return;
         setTokens(res.tokens);
+        setSelected(new Set());
         onTokens?.(res.tokens);
       } catch (e) {
         if (cancelled) return;
@@ -73,13 +86,14 @@ export function TokenizedSentence({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, tokensProp]);
 
-  const tokensWithEntry = tokens
-    .map((t, i) => ({ token: t, idx: i }))
-    .filter(({ token }) => !!token.entry);
+  /** Indices of tokens worth looking up (skips punctuation/whitespace). */
+  const lookupIndices = useMemo(
+    () => tokens.map((t, i) => ({ token: t, idx: i })).filter(({ token }) => isLookupCandidate(token)),
+    [tokens],
+  );
 
   const allSelected =
-    tokensWithEntry.length > 0 &&
-    tokensWithEntry.every(({ idx }) => selected.has(idx));
+    lookupIndices.length > 0 && lookupIndices.every(({ idx }) => selected.has(idx));
 
   const toggle = (idx: number) =>
     setSelected((prev) => {
@@ -90,16 +104,50 @@ export function TokenizedSentence({
     });
 
   const toggleAll = () => {
-    setSelected(allSelected ? new Set() : new Set(tokensWithEntry.map((t) => t.idx)));
+    setSelected(allSelected ? new Set() : new Set(lookupIndices.map((t) => t.idx)));
   };
 
-  const selectedEntries: WordEntry[] = Array.from(selected)
-    .map((i) => tokens[i]?.entry)
-    .filter((e): e is WordEntry => !!e);
+  /** Resolve the chosen tokens to dictionary entries, then open the dialog. */
+  const openAddDialog = async (indices: number[]) => {
+    if (indices.length === 0) return;
+    setResolving(true);
+    try {
+      const queries = Array.from(
+        new Set(
+          indices
+            .map((i) => tokens[i])
+            .filter((t): t is Token => !!t)
+            .map(lookupQueryFor)
+            .filter(Boolean),
+        ),
+      );
 
-  const allEntries: WordEntry[] = tokensWithEntry
-    .map(({ token }) => token.entry!)
-    .filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
+      const settled = await Promise.all(
+        queries.map(async (q) => {
+          try {
+            const res = await lookupWord(q, 1);
+            return res.results?.[0] ?? null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      const found = settled.filter((e): e is WordLookupEntry => !!e);
+      const missing = queries.length - found.length;
+
+      if (found.length === 0) {
+        toast.error('Không tìm thấy từ nào trong từ điển');
+        return;
+      }
+      if (missing > 0) toast.warning(`Bỏ qua ${missing} từ không có trong từ điển`);
+
+      setResolvedWords(found);
+      setAddOpen(true);
+    } finally {
+      setResolving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -122,7 +170,7 @@ export function TokenizedSentence({
 
   return (
     <div className={`space-y-3 ${className}`}>
-      {showControls && tokensWithEntry.length > 0 && (
+      {showControls && lookupIndices.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <Button
             variant="outline"
@@ -139,31 +187,32 @@ export function TokenizedSentence({
             {allSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
           </Button>
           <span className="text-muted-foreground">
-            {selected.size} / {tokensWithEntry.length} từ có nghĩa
+            {selected.size} / {lookupIndices.length} từ đã chọn
           </span>
           <Button
             size="sm"
             className="gap-1.5 h-8"
-            disabled={selected.size === 0}
-            onClick={() => setAddOpen(true)}
+            disabled={selected.size === 0 || resolving}
+            onClick={() => void openAddDialog(Array.from(selected))}
             data-testid="add-selected-tokens-btn"
           >
-            <BookmarkPlus className="w-3.5 h-3.5" />
+            {resolving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <BookmarkPlus className="w-3.5 h-3.5" />
+            )}
             Thêm đã chọn ({selected.size})
           </Button>
           <Button
             variant="secondary"
             size="sm"
             className="gap-1.5 h-8"
-            disabled={allEntries.length === 0}
-            onClick={() => {
-              setSelected(new Set(tokensWithEntry.map((t) => t.idx)));
-              setAddOpen(true);
-            }}
+            disabled={lookupIndices.length === 0 || resolving}
+            onClick={() => void openAddDialog(lookupIndices.map((t) => t.idx))}
             data-testid="add-all-tokens-btn"
           >
             <ListChecks className="w-3.5 h-3.5" />
-            Thêm toàn bộ ({allEntries.length})
+            Thêm toàn bộ ({lookupIndices.length})
           </Button>
         </div>
       )}
@@ -173,40 +222,38 @@ export function TokenizedSentence({
         data-testid="tokenized-sentence"
       >
         {tokens.map((t, i) => {
-          const hasEntry = !!t.entry;
+          const lookupable = isLookupCandidate(t);
           const isSelected = selected.has(i);
-          const cls = hasEntry
+          const cls = lookupable
             ? `cursor-pointer underline decoration-dotted underline-offset-4 decoration-primary/60 hover:decoration-primary hover:bg-primary/10 rounded px-0.5 transition-colors ${
                 isSelected ? 'bg-primary/20 decoration-primary' : ''
               }`
             : 'text-muted-foreground/80';
 
-          const inner = (
-            <span
-              className={cls}
-              onClick={(e) => {
-                if (!hasEntry) return;
-                if (e.shiftKey && showControls) {
-                  e.preventDefault();
-                  toggle(i);
-                }
-              }}
-              data-testid={hasEntry ? `token-${i}` : undefined}
-              data-token-idx={i}
-            >
-              {t.surface}
-            </span>
-          );
+          if (!lookupable) {
+            return (
+              <span key={i} className={cls}>
+                {t.surface}
+              </span>
+            );
+          }
 
-          // Tokens with entry get a popover, others render plain
-          return hasEntry ? (
+          return (
             <TokenPopover key={i} token={t}>
-              {inner}
+              <span
+                className={cls}
+                onClick={(e) => {
+                  if (e.shiftKey && showControls) {
+                    e.preventDefault();
+                    toggle(i);
+                  }
+                }}
+                data-testid={`token-${i}`}
+                data-token-idx={i}
+              >
+                {t.surface}
+              </span>
             </TokenPopover>
-          ) : (
-            <span key={i} className={cls}>
-              {t.surface}
-            </span>
           );
         })}
       </p>
@@ -221,9 +268,12 @@ export function TokenizedSentence({
         open={addOpen}
         onOpenChange={(o) => {
           setAddOpen(o);
-          if (!o) setSelected(new Set());
+          if (!o) {
+            setSelected(new Set());
+            setResolvedWords([]);
+          }
         }}
-        words={selected.size > 0 ? selectedEntries : allEntries}
+        words={resolvedWords}
       />
     </div>
   );

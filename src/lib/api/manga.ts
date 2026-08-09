@@ -1,89 +1,20 @@
-import { apiCall, API_BASE_URL, getStoredToken } from '../api-client';
+// Manga endpoints (doc §5.5).
+import { apiCall, buildUrl, getStoredToken } from './client';
+import type { components } from './types.gen';
 
-// ────────────────────────────────────────────────────────────────────────────
-// Types — mirror the OpenAPI schema exactly
-// ────────────────────────────────────────────────────────────────────────────
+export type MangaPreview = components['schemas']['MangaPreview'];
+export type MangaDetail = components['schemas']['MangaDetail'];
+export type ChapterPreview = components['schemas']['ChapterPreview'];
+export type ReadResponse = components['schemas']['ReadResponse'];
+export type OCRBlock = components['schemas']['OCRBlock'];
+export type OCRPage = components['schemas']['OCRPage'];
+export type OCRResponse = components['schemas']['OCRResponse'];
+export type OCRResultResponse = components['schemas']['OCRResultResponse'];
+export type OCRUserInfo = components['schemas']['OCRUserInfo'];
+export type ReadHistoryResponse = components['schemas']['ReadHistoryResponse'];
+export type ReadHistoryUpdate = components['schemas']['ReadHistoryUpdate'];
 
-export interface MangaPreview {
-  id: string;
-  title: string;
-  cover: string | null;
-  status: string | null;
-}
-
-export interface ChapterPreview {
-  id: string;
-  title: string;
-  chapter_index: number | null;
-  date: string | null;
-}
-
-export interface MangaDetail extends MangaPreview {
-  description: string | null;
-  genres: string | null;
-  chapters: ChapterPreview[];
-}
-
-export interface OCRBlock {
-  box: number[];
-  vertical: boolean;
-  font_size: number;
-  lines_coords: number[][][];
-  lines: string[];
-}
-
-export interface OCRPage {
-  version: string;
-  img_width: number;
-  img_height: number;
-  blocks: OCRBlock[];
-}
-
-export interface OCRResponse {
-  pages: OCRPage[];
-}
-
-export interface OCRUserInfo {
-  id: string;
-  display_name: string | null;
-}
-
-export interface OCRResultResponse {
-  chapter_id: string;
-  ocr_date: string;
-  ocr_by: OCRUserInfo | null;
-  manga: MangaPreview;
-  ocr_data: OCRResponse;
-}
-
-export interface ReadResponse {
-  manga: MangaPreview;
-  chapter: ChapterPreview;
-  chapters: ChapterPreview[];
-  pages: string[];
-}
-
-/** Shape accepted by POST /manga/history */
-export interface ReadHistoryUpdate {
-  manga_id: string;
-  chapter_id: string;
-  current_page?: number;
-}
-
-export interface ReadHistoryResponse {
-  id: string;
-  current_page: number;
-  updated_at: string;
-  manga_id: string;
-  manga_title: string;
-  manga_cover: string | null;
-  chapter_id: string;
-  chapter_index: number | null;
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Search / browse
-// ────────────────────────────────────────────────────────────────────────────
+// ─── Browse ─────────────────────────────────────────────────────────────────
 
 export interface SearchMangaParams {
   q?: string | null;
@@ -92,82 +23,77 @@ export interface SearchMangaParams {
 }
 
 /** GET /manga/manga */
-export async function searchManga(params: SearchMangaParams = {}): Promise<MangaPreview[]> {
-  const { q = null, limit = 20, offset = 0 } = params;
-  return apiCall<MangaPreview[]>('/manga/manga', {
-    method: 'GET',
-    query: { q, limit, offset },
-  });
+export async function searchManga({
+  q = null,
+  limit = 20,
+  offset = 0,
+}: SearchMangaParams = {}): Promise<MangaPreview[]> {
+  return apiCall<MangaPreview[]>('/manga/manga', { query: { q, limit, offset } });
 }
-
-// ────────────────────────────────────────────────────────────────────────────
-// Manga detail
-// ────────────────────────────────────────────────────────────────────────────
 
 /** GET /manga/manga/{manga_id} */
 export async function getMangaDetail(mangaId: string): Promise<MangaDetail> {
-  return apiCall<MangaDetail>(`/manga/manga/${encodeURIComponent(mangaId)}`, {
-    method: 'GET',
-  });
+  return apiCall<MangaDetail>(`/manga/manga/${encodeURIComponent(mangaId)}`);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Reader  — single call returns manga info, chapter list, and page URLs
-// ────────────────────────────────────────────────────────────────────────────
-
-/** GET /manga/read/{chapter_id} */
+/** GET /manga/read/{chapter_id} — pages plus sibling chapters for nav. */
 export async function getChapterRead(chapterId: string): Promise<ReadResponse> {
-  return apiCall<ReadResponse>(`/manga/read/${encodeURIComponent(chapterId)}`, {
-    method: 'GET',
-  });
+  return apiCall<ReadResponse>(`/manga/read/${encodeURIComponent(chapterId)}`);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// OCR (non-streaming)
-// ────────────────────────────────────────────────────────────────────────────
+// ─── OCR ────────────────────────────────────────────────────────────────────
 
-/** GET /manga/ocr/{chapter_id} — returns cached OCR result or 404 */
+/** GET /manga/ocr/{chapter_id} — already-computed results (404 when absent). */
 export async function getOCRResult(chapterId: string): Promise<OCRResultResponse> {
-  return apiCall<OCRResultResponse>(`/manga/ocr/${encodeURIComponent(chapterId)}`, {
-    method: 'GET',
-  });
+  return apiCall<OCRResultResponse>(`/manga/ocr/${encodeURIComponent(chapterId)}`);
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Streaming OCR
-// GET /manga/ocr/stream/{chapter_id}
-//   • Backend returns 409 if OCR already exists → caller should use getOCRResult instead
-//   • Requires auth (token attached via Authorization header)
-// ────────────────────────────────────────────────────────────────────────────
+/** DELETE /manga/ocr/{chapter_id} — reset so OCR can be re-run. */
+export async function resetOCR(chapterId: string): Promise<void> {
+  await apiCall(`/manga/ocr/${encodeURIComponent(chapterId)}`, { method: 'DELETE' });
+}
 
 export interface OCRStreamHandle {
   abort: () => void;
 }
 
-export function getOCRDataStream(
+export interface OCRStreamCallbacks {
+  onPage: (page: OCRPage, index: number) => void;
+  onDone?: () => void;
+  onError?: (error: Error) => void;
+}
+
+/**
+ * GET /manga/ocr/stream/{chapter_id} — SSE-style "run OCR now" with live
+ * progress. Returns a handle whose `abort()` MUST be called on unmount or
+ * chapter change (§6.7.4), otherwise a stale stream can populate the overlay
+ * for a page the user already navigated away from.
+ *
+ * The backend answers 409 when OCR already exists — callers should fall back
+ * to `getOCRResult` in that case.
+ */
+export function streamOCR(
   chapterId: string,
-  onPage: (page: OCRPage) => void,
-  onDone?: () => void,
-  onError?: (error: Error) => void,
+  { onPage, onDone, onError }: OCRStreamCallbacks,
 ): OCRStreamHandle {
-  const url = `${API_BASE_URL}/manga/ocr/stream/${encodeURIComponent(chapterId)}`;
   const controller = new AbortController();
 
-  (async () => {
+  void (async () => {
+    let pageIndex = 0;
     try {
       const token = getStoredToken();
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          Accept: 'text/event-stream',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      const response = await fetch(
+        buildUrl(`/manga/ocr/stream/${encodeURIComponent(chapterId)}`),
+        {
+          signal: controller.signal,
+          headers: {
+            Accept: 'text/event-stream',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
         },
-      });
+      );
 
-      if (!response.ok) {
-        // 409 = already OCR'd; caller should switch to getOCRResult
-        throw new Error(`HTTP ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       if (!response.body) throw new Error('No response body');
 
       const reader = response.body.getReader();
@@ -175,25 +101,26 @@ export function getOCRDataStream(
       let buffer = '';
       let finished = false;
 
-      const flushEvent = (part: string): 'done' | 'ok' | 'skip' => {
+      /** Parse one SSE event block. Returns 'done' to stop the loop. */
+      const handleEvent = (block: string): 'done' | 'ok' | 'skip' => {
         const dataLines: string[] = [];
-        for (const rawLine of part.split(/\r?\n/)) {
+        for (const rawLine of block.split(/\r?\n/)) {
           const line = rawLine.trimStart();
           if (!line || line.startsWith(':')) continue;
-          if (line.startsWith('data:')) {
-            dataLines.push(line.slice(5).trimStart());
-          }
+          if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
         }
         if (dataLines.length === 0) return 'skip';
+
         const raw = dataLines.join('\n');
         if (raw === '[DONE]') return 'done';
+
         try {
           const parsed = JSON.parse(raw);
           if (parsed && typeof parsed === 'object' && 'error' in parsed && parsed.error) {
             onError?.(new Error(String(parsed.error)));
             return 'done';
           }
-          onPage(parsed as OCRPage);
+          onPage(parsed as OCRPage, pageIndex++);
           return 'ok';
         } catch {
           return 'skip';
@@ -204,53 +131,81 @@ export function getOCRDataStream(
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split(/\r?\n\r?\n/);
-        buffer = parts.pop() ?? '';
-        for (const part of parts) {
-          if (flushEvent(part) === 'done') {
+        const blocks = buffer.split(/\r?\n\r?\n/);
+        buffer = blocks.pop() ?? '';
+        for (const block of blocks) {
+          if (handleEvent(block) === 'done') {
             finished = true;
-            onDone?.();
             break;
           }
         }
       }
 
-      if (!finished && buffer.trim().length > 0) {
-        if (flushEvent(buffer) === 'done') {
-          finished = true;
-          onDone?.();
-        }
-      }
-      if (!finished) onDone?.();
-    } catch (e) {
-      if ((e as Error).name === 'AbortError') return;
-      onError?.(e instanceof Error ? e : new Error(String(e)));
+      if (!finished && buffer.trim()) handleEvent(buffer);
+      onDone?.();
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if ((err as Error)?.name === 'AbortError') return;
+      onError?.(err instanceof Error ? err : new Error(String(err)));
     }
   })();
 
   return { abort: () => controller.abort() };
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Reading history
-// ────────────────────────────────────────────────────────────────────────────
+/**
+ * Convert an OCR block's pixel `box` into normalized 0–1 fractions so the
+ * overlay repositions under zoom/pan via CSS alone (§5.5, checklist §9).
+ * `box` is [x1, y1, x2, y2] in the source image's pixel space.
+ */
+export interface NormalizedBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export function normalizeBox(box: number[], page: Pick<OCRPage, 'img_width' | 'img_height'>): NormalizedBox {
+  const [x1 = 0, y1 = 0, x2 = 0, y2 = 0] = box;
+  const width = page.img_width || 1;
+  const height = page.img_height || 1;
+  const left = Math.min(x1, x2) / width;
+  const top = Math.min(y1, y2) / height;
+  return {
+    left,
+    top,
+    width: Math.abs(x2 - x1) / width,
+    height: Math.abs(y2 - y1) / height,
+  };
+}
+
+// ─── Reading history ────────────────────────────────────────────────────────
 
 /** GET /manga/history */
 export async function getMangaHistory(): Promise<ReadHistoryResponse[]> {
-  return apiCall<ReadHistoryResponse[]>('/manga/history', { method: 'GET' });
+  return apiCall<ReadHistoryResponse[]>('/manga/history');
 }
 
-/**
- * POST /manga/history
- * Only accepts { manga_id, chapter_id, current_page } — all UUIDs.
- */
-export async function upsertMangaHistory(data: ReadHistoryUpdate): Promise<ReadHistoryResponse> {
+/** POST /manga/history — upsert keyed by manga + chapter. */
+export async function upsertMangaHistory(
+  update: ReadHistoryUpdate,
+): Promise<ReadHistoryResponse> {
   return apiCall<ReadHistoryResponse>('/manga/history', {
     method: 'POST',
     body: {
-      manga_id: data.manga_id,
-      chapter_id: data.chapter_id,
-      current_page: data.current_page ?? 0,
-    },
+      manga_id: update.manga_id,
+      chapter_id: update.chapter_id,
+      current_page: update.current_page ?? 0,
+    } satisfies ReadHistoryUpdate,
   });
+}
+
+/** DELETE /manga/history/{history_id} */
+export async function deleteMangaHistory(historyId: string): Promise<void> {
+  await apiCall(`/manga/history/${encodeURIComponent(historyId)}`, { method: 'DELETE' });
+}
+
+/** DELETE /manga/history/manga/{manga_id} — clear all history for one manga. */
+export async function deleteMangaHistoryByManga(mangaId: string): Promise<void> {
+  await apiCall(`/manga/history/manga/${encodeURIComponent(mangaId)}`, { method: 'DELETE' });
 }

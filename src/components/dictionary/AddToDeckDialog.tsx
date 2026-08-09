@@ -14,25 +14,28 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Check, Plus, BookCopy } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  addCard,
+  addVocabCard,
   createDeck,
   getDecks,
-  type DeckWithStats,
+  type DeckWithStatsResponse,
 } from '@/lib/api/flashcard';
-import type { WordEntry } from '@/lib/api/tokenization';
+import type { WordLookupEntry } from '@/lib/api/dictionary';
 
 interface AddToDeckDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Words to save. Each must have a uuid4 `id`. */
-  words: WordEntry[];
+  /** Dictionary entries to save as vocab cards. */
+  words: WordLookupEntry[];
   /** Optional title shown at top */
   title?: string;
 }
 
 /**
- * Reusable dialog that lets the user pick / create a deck and add the
- * given words to it. Words must have uuid4 `id` (NOT integer word_id).
+ * Reusable dialog that lets the user pick / create a deck and add the given
+ * words to it.
+ *
+ * Only vocab cards can be created through the API
+ * (`POST /flashcard/decks/{id}/cards/vocab`), which takes `{ word, meaning }`.
  */
 export function AddToDeckDialog({
   open,
@@ -40,7 +43,7 @@ export function AddToDeckDialog({
   words,
   title,
 }: AddToDeckDialogProps) {
-  const [decks, setDecks] = useState<DeckWithStats[]>([]);
+  const [decks, setDecks] = useState<DeckWithStatsResponse[]>([]);
   const [loadingDecks, setLoadingDecks] = useState(false);
   const [selectedDeckId, setSelectedDeckId] = useState<string>('');
   const [creating, setCreating] = useState(false);
@@ -109,7 +112,7 @@ export function AddToDeckDialog({
     let failed = 0;
     for (const w of words) {
       try {
-        await addCard(selectedDeckId, w.id);
+        await addVocabCard(selectedDeckId, w.word, w.meaning);
         success++;
       } catch {
         failed++;
@@ -141,9 +144,9 @@ export function AddToDeckDialog({
               {words.length} từ
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {words.slice(0, 30).map((w) => (
+              {words.slice(0, 30).map((w, i) => (
                 <span
-                  key={w.id}
+                  key={`${w.id}-${i}`}
                   className="inline-block px-2 py-0.5 rounded-md bg-primary/10 text-primary text-xs font-medium"
                 >
                   {w.word}

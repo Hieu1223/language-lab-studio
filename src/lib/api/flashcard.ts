@@ -1,202 +1,169 @@
-import { apiCall, getStoredToken } from '../api-client';
-import type { WordEntry } from './tokenization';
+// Flashcard endpoints (doc §5.8).
+//
+// The API surface is deliberately small — everything here maps 1:1 to a real
+// endpoint in the OpenAPI spec. In particular there is NO dictionary search
+// under /flashcard; use `lookupWord` from ./dictionary instead. And only vocab
+// cards can be created (`POST /flashcard/decks/{id}/cards/vocab`).
+import { apiCall } from './client';
+import type { components } from './types.gen';
 
-// ─── Types ─────────────────────────────────────────────────────────────────
+export type DeckResponse = components['schemas']['DeckResponse'];
+export type DeckStatsResponse = components['schemas']['DeckStatsResponse'];
+export type DeckWithStatsResponse = components['schemas']['DeckWithStatsResponse'];
+export type DeckProgressResponse = components['schemas']['DeckProgressResponse'];
+export type PublicDeckResponse = components['schemas']['PublicDeckResponse'];
+export type CardResponse = components['schemas']['CardResponse'];
+export type CardWithSrsResponse = components['schemas']['CardWithSrsResponse'];
+export type ReviewSessionWithSrsResponse = components['schemas']['ReviewSessionWithSrsResponse'];
+export type CardType = components['schemas']['CardType'];
+export type CardState = components['schemas']['CardState'];
+type AddVocabRequest = components['schemas']['AddVocabRequest'];
+type SaveReviewRequest = components['schemas']['SaveReviewRequest'];
 
-/** Server WordResponse (same shape as WordEntry in tokenization) */
-export type WordResponse = WordEntry;
+// ─── Decks ──────────────────────────────────────────────────────────────────
 
-export type CardState = 'new' | 'learning' | 'review' | 'relearning';
-export type ReviewRating = 'again' | 'hard' | 'good' | 'easy';
-
-export interface DeckStats {
-  new: number;
-  learning: number;
-  review: number;
-  relearning: number;
-  due: number;
+/** GET /flashcard/decks */
+export async function getDecks(): Promise<DeckWithStatsResponse[]> {
+  return apiCall<DeckWithStatsResponse[]>('/flashcard/decks');
 }
 
-export interface DeckWithStats {
-  id: string; // uuid
-  name: string;
-  owner_id: string;
-  public: boolean;
-  stats: DeckStats;
-}
-
-export interface Deck {
-  id: string;
-  name: string;
-  owner_id: string;
-  public: boolean;
-}
-
-export interface PublicDeck {
-  id: string;
-  name: string;
-  owner_id: string;
-  card_count: number;
-}
-
-export interface DeckProgress {
-  total: number;
-  new: number;
-  learning: number;
-  review: number;
-  relearning: number;
-  due: number;
-}
-
-export interface CardResponse {
-  id: string;
-  deck_id: string;
-  word: WordResponse;
-  state: CardState;
-  step: number | null;
-  stability: number | null;
-  difficulty: number | null;
-  due: string;
-  last_review: string | null;
-}
-
-export interface DailyStat {
-  date: string;
-  total: number;
-  correct: number;
-  wrong: number;
-  accuracy: number;
-}
-
-export interface OverviewStats {
-  total_decks: number;
-  total_cards: number;
-  due_cards: number;
-  new_cards: number;
-  reviews_today: number;
-  accuracy: number;
-  streak_days: number;
-}
-
-// ─── Words search ──────────────────────────────────────────────────────────
-
-export async function searchWords(q: string, limit: number = 20): Promise<WordResponse[]> {
-  return apiCall<WordResponse[]>('/flashcard/words/search', {
-    method: 'GET',
-    query: { q, limit },
-  });
-}
-
-// ─── Decks ────────────────────────────────────────────────────────────────
-
-function requireToken(): string {
-  const token = getStoredToken();
-  if (!token) throw new Error('Not authenticated');
-  return token;
-}
-
-export async function getDecks(): Promise<DeckWithStats[]> {
-  return apiCall<DeckWithStats[]>('/flashcard/decks', {
-    method: 'GET',
-    token: requireToken(),
-  });
-}
-
-export async function createDeck(name: string, isPublic: boolean = false): Promise<DeckWithStats> {
-  return apiCall<DeckWithStats>('/flashcard/decks', {
+/** POST /flashcard/decks — `name`/`public` are query parameters. */
+export async function createDeck(name: string, isPublic = false): Promise<DeckWithStatsResponse> {
+  return apiCall<DeckWithStatsResponse>('/flashcard/decks', {
     method: 'POST',
-    token: requireToken(),
     query: { name, public: isPublic },
   });
 }
 
-export async function updateDeck(deckId: string, name: string): Promise<Deck> {
-  return apiCall<Deck>(`/flashcard/decks/${deckId}`, {
+/** PATCH /flashcard/decks/{deck_id} — rename; `name` is a query parameter. */
+export async function renameDeck(deckId: string, name: string): Promise<DeckResponse> {
+  return apiCall<DeckResponse>(`/flashcard/decks/${encodeURIComponent(deckId)}`, {
     method: 'PATCH',
-    token: requireToken(),
     query: { name },
   });
 }
 
+/** DELETE /flashcard/decks/{deck_id} */
 export async function deleteDeck(deckId: string): Promise<void> {
-  await apiCall(`/flashcard/decks/${deckId}`, {
-    method: 'DELETE',
-    token: requireToken(),
-  });
+  await apiCall(`/flashcard/decks/${encodeURIComponent(deckId)}`, { method: 'DELETE' });
 }
 
-export async function getPublicDecks(): Promise<PublicDeck[]> {
-  return apiCall<PublicDeck[]>('/flashcard/decks/public', { method: 'GET' });
+/** GET /flashcard/decks/{deck_id}/progress */
+export async function getDeckProgress(deckId: string): Promise<DeckProgressResponse> {
+  return apiCall<DeckProgressResponse>(
+    `/flashcard/decks/${encodeURIComponent(deckId)}/progress`,
+  );
 }
 
-export async function copyPublicDeck(deckId: string): Promise<DeckWithStats> {
-  return apiCall<DeckWithStats>(`/flashcard/decks/${deckId}/copy`, {
-    method: 'POST',
-    token: requireToken(),
-  });
+// ─── Public decks ───────────────────────────────────────────────────────────
+
+/** GET /flashcard/decks/public */
+export async function getPublicDecks(): Promise<PublicDeckResponse[]> {
+  return apiCall<PublicDeckResponse[]>('/flashcard/decks/public');
 }
 
-export async function getDeckProgress(deckId: string): Promise<DeckProgress> {
-  return apiCall<DeckProgress>(`/flashcard/decks/${deckId}/progress`, { method: 'GET' });
+/** POST /flashcard/decks/{deck_id}/copy — clones cards + SRS into a private deck. */
+export async function copyPublicDeck(deckId: string): Promise<DeckWithStatsResponse> {
+  return apiCall<DeckWithStatsResponse>(
+    `/flashcard/decks/${encodeURIComponent(deckId)}/copy`,
+    { method: 'POST' },
+  );
 }
 
+// ─── Cards ──────────────────────────────────────────────────────────────────
+
+/** GET /flashcard/decks/{deck_id}/cards — simplified shape (enum `state`). */
 export async function getDeckCards(deckId: string): Promise<CardResponse[]> {
-  return apiCall<CardResponse[]>(`/flashcard/decks/${deckId}/cards`, { method: 'GET' });
+  return apiCall<CardResponse[]>(`/flashcard/decks/${encodeURIComponent(deckId)}/cards`);
 }
 
-// ─── Cards ────────────────────────────────────────────────────────────────
-
-/** Add a word (by uuid4 word_id from WordEntry/WordResponse) to a deck. */
-export async function addCard(deckId: string, wordId: string): Promise<CardResponse> {
-  return apiCall<CardResponse>('/flashcard/cards', {
-    method: 'POST',
-    token: requireToken(),
-    body: { deck_id: deckId, word_id: wordId },
-  });
-}
-
-export async function deleteCard(cardId: string): Promise<void> {
-  await apiCall(`/flashcard/cards/${cardId}`, {
-    method: 'DELETE',
-    token: requireToken(),
-  });
-}
-
-export async function resetCard(cardId: string): Promise<void> {
-  await apiCall(`/flashcard/cards/${cardId}/reset`, {
-    method: 'POST',
-    token: requireToken(),
-  });
-}
-
-export async function getNextCard(deckId: string): Promise<CardResponse | null> {
-  return apiCall<CardResponse | null>(`/flashcard/decks/${deckId}/next`, { method: 'GET' });
-}
-
-export async function reviewCard(
-  cardId: string,
-  rating: ReviewRating,
+/** POST /flashcard/decks/{deck_id}/cards/vocab — the only card-create endpoint. */
+export async function addVocabCard(
+  deckId: string,
+  word: string,
+  meaning: string,
 ): Promise<CardResponse> {
-  return apiCall<CardResponse>('/flashcard/cards/review', {
+  const body: AddVocabRequest = { word, meaning };
+  return apiCall<CardResponse>(
+    `/flashcard/decks/${encodeURIComponent(deckId)}/cards/vocab`,
+    { method: 'POST', body },
+  );
+}
+
+/** DELETE /flashcard/decks/{deck_id}/cards/{card_id} */
+export async function deleteCard(deckId: string, cardId: string): Promise<void> {
+  await apiCall(
+    `/flashcard/decks/${encodeURIComponent(deckId)}/cards/${encodeURIComponent(cardId)}`,
+    { method: 'DELETE' },
+  );
+}
+
+/** POST /flashcard/decks/{deck_id}/cards/{card_id}/reset — wipe SRS state. */
+export async function resetCard(deckId: string, cardId: string): Promise<CardResponse> {
+  return apiCall<CardResponse>(
+    `/flashcard/decks/${encodeURIComponent(deckId)}/cards/${encodeURIComponent(cardId)}/reset`,
+    { method: 'POST' },
+  );
+}
+
+// ─── Review session ─────────────────────────────────────────────────────────
+
+/** GET /flashcard/decks/{deck_id}/review-session — raw `srs_*` primitives. */
+export async function loadReviewSession(
+  deckId: string,
+  limit = 20,
+): Promise<ReviewSessionWithSrsResponse> {
+  return apiCall<ReviewSessionWithSrsResponse>(
+    `/flashcard/decks/${encodeURIComponent(deckId)}/review-session`,
+    { query: { limit } },
+  );
+}
+
+/**
+ * POST /flashcard/cards/{card_id}/review — persists the whole ts-fsrs Card.
+ * Called immediately per grade, never batched (doc §5.8).
+ */
+export async function saveCardReview(
+  cardId: string,
+  card: Record<string, unknown>,
+): Promise<CardResponse> {
+  const body: SaveReviewRequest = { card };
+  return apiCall<CardResponse>(`/flashcard/cards/${encodeURIComponent(cardId)}/review`, {
     method: 'POST',
-    token: requireToken(),
-    body: { card_id: cardId, rating },
+    body,
   });
 }
 
-// ─── Stats ────────────────────────────────────────────────────────────────
+// ─── Card content helpers ───────────────────────────────────────────────────
 
-export async function getDailyStats(days: number = 30): Promise<DailyStat[]> {
-  return apiCall<DailyStat[]>('/flashcard/stats/daily', {
-    method: 'GET',
-    token: requireToken(),
-    query: { days },
-  });
+/** Parsed contents of a vocab card's `data` blob. */
+export interface VocabCardData {
+  word: string;
+  reading?: string;
+  meaning?: string;
 }
 
-export async function getOverviewStats(): Promise<OverviewStats> {
-  return apiCall<OverviewStats>('/flashcard/stats/overview', {
-    method: 'GET',
-    token: requireToken(),
-  });
+/**
+ * `data` is a JSON string whose shape depends on `card_type`. Parsing is
+ * defensive: a malformed blob renders as an empty card rather than crashing
+ * the review session.
+ */
+export function parseCardData<T = Record<string, unknown>>(data: string): T | null {
+  try {
+    const parsed = JSON.parse(data);
+    return parsed && typeof parsed === 'object' ? (parsed as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Best-effort display text for any card type, used in lists and fallbacks. */
+export function cardTitle(card: Pick<CardResponse, 'data'>): string {
+  const parsed = parseCardData<Record<string, unknown>>(card.data);
+  if (!parsed) return '';
+  for (const key of ['word', 'front', 'sentence', 'grammar', 'text']) {
+    const value = parsed[key];
+    if (typeof value === 'string' && value.trim()) return value;
+  }
+  return '';
 }

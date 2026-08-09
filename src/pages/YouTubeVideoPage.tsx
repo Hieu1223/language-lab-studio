@@ -15,11 +15,10 @@ import { VideoPlayer } from '@/components/video/VideoPlayer';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
-  getTranscriptInfo,
-  getTranscriptData,
+  getTranscriptionDetail,
   requestTranscription,
   type TranscriptSegment,
-  type TranscriptInfo,
+  type TranscriptDetailResponse,
 } from '@/lib/api/transcription';
 
 import { useAuth } from '@/lib/auth-context';
@@ -154,7 +153,7 @@ export default function TranscribeViewPage() {
   const [isTranscribing, setIsTranscribing] = useState(false);
 
   const [transcriptInfo, setTranscriptInfo] =
-    useState<TranscriptInfo | null>(null);
+    useState<TranscriptDetailResponse | null>(null);
 
   const [rawSegments, setRawSegments] = useState<TranscriptSegment[]>([]);
   const [clozeSegments, setClozeSegments] = useState<ClozeSegment[]>([]);
@@ -184,18 +183,13 @@ export default function TranscribeViewPage() {
       try {
         setLoading(true);
 
-        const [info, data] = await Promise.all([
-          getTranscriptInfo(id),
-          getTranscriptData(id),
-        ]);
-
-        if (!info || !data) return;
+        const info = await getTranscriptionDetail(id);
+        if (!info) return;
 
         setTranscriptInfo(info);
-        setRawSegments(data.segments);
-        setClozeSegments(
-          generateClozeData(data.segments, clozeOptions, seed),
-        );
+        const segments = info.data?.segments ?? [];
+        setRawSegments(segments);
+        setClozeSegments(generateClozeData(segments, clozeOptions, seed));
       } catch {
         toast.error('Failed to load transcript');
         navigate('/youtube');
@@ -227,32 +221,25 @@ export default function TranscribeViewPage() {
     try {
       setIsTranscribing(true);
 
-      const res = await requestTranscription(
-        `https://www.youtube.com/watch?v=${id}`,
-        id,
-        transcriptInfo?.original_source || '',
-        '',
-        user.id,
-      );
-
-      if (!res.success) {
-        toast.error('Failed to start transcription');
-        return;
-      }
+      await requestTranscription({
+        name: transcriptInfo?.original_source || id,
+        thumbnail_url: transcriptInfo?.thumnail_url || '',
+        resource_url: transcriptInfo?.resource_url || `https://www.youtube.com/watch?v=${id}`,
+        user_id: user.id,
+        resource_id: id,
+        original_source: 'Youtube',
+      });
 
       toast.success('Transcription started');
 
       // simple polling
       for (let i = 0; i < 10; i++) {
-        const info = await getTranscriptInfo(id);
-        if (info) {
-          const data = await getTranscriptData(id);
-
+        const info = await getTranscriptionDetail(id);
+        if (info?.done || info?.data?.segments?.length) {
           setTranscriptInfo(info);
-          setRawSegments(data.segments);
-          setClozeSegments(
-            generateClozeData(data.segments, clozeOptions, seed),
-          );
+          const segments = info.data?.segments ?? [];
+          setRawSegments(segments);
+          setClozeSegments(generateClozeData(segments, clozeOptions, seed));
           break;
         }
 

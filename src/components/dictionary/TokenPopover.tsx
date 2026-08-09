@@ -1,25 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { BookmarkPlus, BookOpen } from 'lucide-react';
-import type { Token, WordEntry } from '@/lib/api/tokenization';
+import { BookmarkPlus, BookOpen, Loader2 } from 'lucide-react';
+import type { Token } from '@/lib/api/dictionary';
+import { lookupQueryFor } from '@/lib/api/dictionary';
+import { useLookup } from '@/hooks/useLookup';
 import { AddToDeckDialog } from './AddToDeckDialog';
 
 interface TokenPopoverProps {
   token: Token;
-  /** trigger element wraps the surface text */
+  /** Trigger element wrapping the surface text. */
   children: React.ReactNode;
 }
 
 /**
- * Click a token → popover with reading, dictionary form, meaning,
- * and a "save to deck" action that uses `entry.id` (uuid4).
+ * Click a token → popover with reading, dictionary form and meaning.
+ *
+ * The tokenizer does not return definitions, so the entry is fetched on demand
+ * the first time the popover opens (doc §5.6).
  */
 export function TokenPopover({ token, children }: TokenPopoverProps) {
   const [open, setOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const entry: WordEntry | null = token.entry;
-  const hasEntry = !!entry;
+  const { results, loading, error, lookup } = useLookup();
+
+  const query = lookupQueryFor(token);
+
+  useEffect(() => {
+    if (open && query) void lookup(query);
+  }, [open, query, lookup]);
+
+  const entry = results[0] ?? null;
 
   return (
     <>
@@ -33,13 +44,9 @@ export function TokenPopover({ token, children }: TokenPopoverProps) {
           <div className="space-y-2">
             <div className="flex items-baseline justify-between gap-2">
               <div className="min-w-0">
-                <p className="text-lg font-bold leading-tight font-japanese">
-                  {token.surface}
-                </p>
+                <p className="text-lg font-bold leading-tight font-japanese">{token.surface}</p>
                 {token.reading && token.reading !== token.surface && (
-                  <p className="text-xs text-muted-foreground font-japanese">
-                    {token.reading}
-                  </p>
+                  <p className="text-xs text-muted-foreground font-japanese">{token.reading}</p>
                 )}
               </div>
               <div className="flex flex-wrap gap-1 justify-end shrink-0">
@@ -62,7 +69,14 @@ export function TokenPopover({ token, children }: TokenPopoverProps) {
             )}
 
             <div className="border-t pt-2">
-              {hasEntry ? (
+              {loading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  Đang tra cứu...
+                </div>
+              ) : error ? (
+                <p className="text-xs text-destructive py-1">{error}</p>
+              ) : entry ? (
                 <>
                   <div className="space-y-1">
                     <p className="text-sm font-medium font-japanese">{entry.word}</p>
@@ -73,6 +87,12 @@ export function TokenPopover({ token, children }: TokenPopoverProps) {
                     )}
                     <p className="text-sm leading-snug">{entry.meaning}</p>
                   </div>
+
+                  {results.length > 1 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      +{results.length - 1} nghĩa khác
+                    </p>
+                  )}
 
                   <Button
                     size="sm"
@@ -98,7 +118,7 @@ export function TokenPopover({ token, children }: TokenPopoverProps) {
         </PopoverContent>
       </Popover>
 
-      {hasEntry && (
+      {entry && (
         <AddToDeckDialog
           open={addOpen}
           onOpenChange={setAddOpen}

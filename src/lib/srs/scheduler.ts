@@ -12,32 +12,24 @@ export { Rating, State };
 
 export type { Card, FSRSParameters, Grade };
 
+/** ts-fsrs `State` enum, exposed under the doc's `Queue` name (§6.6). */
+export const Queue = State;
+
 /**
  * User-level scheduler settings, edited on the Settings page and fed into
- * `makeFsrs`. Mirrors the `scheduler.*` section of the user settings blob.
+ * `makeFsrs`. This is the single source of truth defined in
+ * `lib/settings/schema.ts`; re-exported here so call sites don't need both.
  *
- * `learningSteps` / `relearningSteps` are part of the settings schema for
- * forward-compatibility; the core FSRS engine in ts-fsrs v4 derives its own
- * short-term step progression from `enable_short_term`, so they are persisted
- * but not passed to the engine constructor here.
+ * `learningSteps` / `relearningSteps` are persisted for forward-compatibility:
+ * the FSRS engine in ts-fsrs v4 derives its own short-term step progression
+ * from `enable_short_term` and accepts no explicit step lists, so they are
+ * stored but not passed to the engine constructor.
  */
-export interface SchedulerSettings {
-  requestRetention: number;
-  maximumInterval: number;
-  learningSteps: string[];
-  relearningSteps: string[];
-  enableFuzz: boolean;
-  enableShortTerm: boolean;
-}
+export type { SchedulerSettings } from '@/lib/settings/schema';
+export { DEFAULT_SCHEDULER_SETTINGS } from '@/lib/settings/schema';
 
-export const DEFAULT_SCHEDULER_SETTINGS: SchedulerSettings = {
-  requestRetention: 0.9,
-  maximumInterval: 36500,
-  learningSteps: ['1m', '10m'],
-  relearningSteps: ['10m'],
-  enableFuzz: false,
-  enableShortTerm: true,
-};
+import type { SchedulerSettings } from '@/lib/settings/schema';
+import { DEFAULT_SCHEDULER_SETTINGS } from '@/lib/settings/schema';
 
 /** Build a typed ts-fsrs instance from (partial) user-level scheduler settings. */
 export function makeFsrs(
