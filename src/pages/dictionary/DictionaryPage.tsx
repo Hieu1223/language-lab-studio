@@ -9,14 +9,15 @@ export default function DictionaryPage() {
   const { t } = useTranslation('dictionary');
   return (
     <div className="p-4 md:p-6 max-w-4xl mx-auto animate-fade-in" data-testid="dictionary-page">
-
       <Tabs defaultValue="words">
-        <TabsList className="mb-4">
-          <TabsTrigger value="words" className="gap-1.5" data-testid="tab-words">
-            <BookOpen className="w-3.5 h-3.5" /> {t('page.tabVocab')}
+        <TabsList className="mb-4 w-full grid grid-cols-2 sm:inline-flex sm:w-auto h-11 sm:h-10">
+          <TabsTrigger value="words" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-words">
+            <BookOpen className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{t('page.tabVocab')}</span>
           </TabsTrigger>
-          <TabsTrigger value="sentence" className="gap-1.5" data-testid="tab-sentence">
-            <Wand2 className="w-3.5 h-3.5" /> {t('page.tabSentence')}
+          <TabsTrigger value="sentence" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-sentence">
+            <Wand2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{t('page.tabSentence')}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -31,3 +32,4 @@ export default function DictionaryPage() {
     </div>
   );
 }
+

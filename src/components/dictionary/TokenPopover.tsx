@@ -34,10 +34,12 @@ export function TokenPopover({ token, children }: TokenPopoverProps) {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>{children}</PopoverTrigger>
         <PopoverContent
-          className="w-72 p-3"
+          className="w-[min(20rem,calc(100vw-2rem))] p-3"
+          collisionPadding={12}
           data-testid="token-popover"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
+
           <div className="space-y-2">
             <div className="flex items-baseline justify-between gap-2">
               <div className="min-w-0">
