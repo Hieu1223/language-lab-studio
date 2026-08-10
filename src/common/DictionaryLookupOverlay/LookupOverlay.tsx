@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useLookup } from "./useLookup";
-import { AddToDeckButton } from "@/common/AddToDeckButton";
+import { AddToDeckDialog } from "@/components/dictionary/AddToDeckDialog";
+import { WordResultList } from "@/components/dictionary/WordResultList";
 import type { WordLookupEntry } from "@/lib/api/dictionary";
 
 interface LookupOverlayProps {
@@ -10,10 +10,12 @@ interface LookupOverlayProps {
   query: string;
 }
 
+/** Lightweight lookup popover: always lists every matching entry. */
 export function LookupOverlay({ children, query }: LookupOverlayProps) {
-  const { t } = useTranslation("dictionary");
   const [open, setOpen] = useState(false);
-  const { results, loading, error, lookup } = useLookup();
+  const [picked, setPicked] = useState<WordLookupEntry | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const { results, loading, error, lookup } = useLookup(30);
 
   useEffect(() => {
     if (open && query) void lookup(query);
@@ -23,38 +25,34 @@ export function LookupOverlay({ children, query }: LookupOverlayProps) {
     <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>{children}</PopoverTrigger>
-        <PopoverContent className="w-72 p-3" data-testid="lookup-overlay">
-          <div className="space-y-2">
-            {loading && <p className="text-xs text-muted-foreground">{t("overlay.loading")}</p>}
-            {error && <p className="text-xs text-destructive">{error}</p>}
-            {!loading && !error && results.length === 0 && (
-              <p className="text-xs text-muted-foreground">{t("overlay.empty")}</p>
-            )}
-            {results.length > 0 && (
-              <ul className="space-y-1.5 max-h-60 overflow-y-auto pr-1">
-                {results.map((w, i) => (
-                  <li key={`${w.id}-${i}`} className="rounded bg-muted/40 p-1.5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-japanese font-semibold text-sm">
-                          {w.word}{" "}
-                          <span className="text-muted-foreground font-normal text-xs">{w.reading}</span>
-                        </p>
-                        <p className="text-muted-foreground text-xs line-clamp-2 mt-0.5">{w.meaning}</p>
-                      </div>
-                      <AddToDeckButton
-                        words={[w]}
-                        label={t("overlay.addToDeck")}
-                        className="text-xs px-1.5 py-0.5 rounded border border-border hover:bg-muted/50 transition-colors shrink-0"
-                      />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+        <PopoverContent
+          className="w-[min(22rem,calc(100vw-2rem))] p-3"
+          collisionPadding={12}
+          data-testid="lookup-overlay"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <WordResultList
+            results={results}
+            loading={loading}
+            error={error}
+            onAdd={(w) => {
+              setPicked(w);
+              setAddOpen(true);
+            }}
+          />
         </PopoverContent>
       </Popover>
+
+      <AddToDeckDialog
+        open={addOpen && !!picked}
+        onOpenChange={(o) => {
+          setAddOpen(o);
+          if (!o) setPicked(null);
+        }}
+        words={picked ? [picked] : []}
+      />
     </>
   );
 }
+
+export default LookupOverlay;
