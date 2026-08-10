@@ -130,6 +130,24 @@ export function onUnauthorized(cb: (() => void) | null): void {
 /** In-flight refresh, shared so concurrent 401s trigger only one refresh. */
 let refreshInFlight: Promise<string | null> | null = null;
 
+/** Tolerant token extraction — `/token*` responses are untyped in the spec. */
+function pickToken(data: unknown, keys: string[]): string | null {
+  if (!data || typeof data !== 'object') return null;
+  const obj = data as Record<string, unknown>;
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === 'string' && value) return value;
+  }
+  for (const nested of ['data', 'tokens']) {
+    const child = obj[nested];
+    if (child && typeof child === 'object') {
+      const found = pickToken(child, keys);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 async function refreshAccessToken(): Promise<string | null> {
   const refresh = getStoredRefreshToken();
   if (!refresh) return null;
@@ -139,14 +157,15 @@ async function refreshAccessToken(): Promise<string | null> {
   try {
     const res = await fetch(url, { method: 'POST' });
     if (!res.ok) return null;
-    const data = (await res.json()) as {
-      access_token?: string;
-      refresh_token?: string;
-    };
-    if (!data.access_token) return null;
-    storeToken(data.access_token);
-    if (data.refresh_token) storeRefreshToken(data.refresh_token);
-    return data.access_token;
+    const data: unknown = await res.json();
+    const access = pickToken(data, ['access_token', 'accessToken', 'token']);
+    if (!access) return null;
+    storeToken(access);
+    const nextRefresh = pickToken(data, ['refresh_token', 'refreshToken', 'refresh']);
+    // Rotate to the new refresh token when the server issues one, otherwise
+    // keep the existing one so the session survives the next expiry.
+    if (nextRefresh) storeRefreshToken(nextRefresh);
+    return access;
   } catch {
     return null;
   }
