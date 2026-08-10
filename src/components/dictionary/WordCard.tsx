@@ -32,7 +32,7 @@ export function WordCard({ word, index }: WordCardProps) {
           <Button
             size="icon"
             variant="ghost"
-            className="h-9 w-9 shrink-0 -mr-1 -mt-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity"
+            className="h-9 w-9 shrink-0 -mr-1 -mt-1 text-primary hover:bg-primary/10 transition-colors"
             onClick={() => setOpen(true)}
             data-testid={`word-save-btn-${index}`}
             title={t('deck.addToDeck')}
