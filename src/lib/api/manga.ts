@@ -16,8 +16,12 @@ export type ReadHistoryUpdate = components['schemas']['ReadHistoryUpdate'];
 
 // ─── Browse ─────────────────────────────────────────────────────────────────
 
+export type MangaOrder = 'latest' | '-latest' | 'az' | '-az' | 'created' | '-created';
+
 export interface SearchMangaParams {
   q?: string | null;
+  tags?: string[];
+  order_by?: MangaOrder | null;
   limit?: number;
   offset?: number;
 }
@@ -25,10 +29,17 @@ export interface SearchMangaParams {
 /** GET /manga/manga */
 export async function searchManga({
   q = null,
+  tags = [],
+  order_by = null,
   limit = 20,
   offset = 0,
 }: SearchMangaParams = {}): Promise<MangaPreview[]> {
-  return apiCall<MangaPreview[]>('/manga/manga', { query: { q, limit, offset } });
+  return apiCall<MangaPreview[]>('/manga/manga', { query: { q, tags, order_by, limit, offset } });
+}
+
+/** GET /manga/tags — prefix lookup for the browse filter. */
+export async function searchMangaTags(q: string, limit = 5): Promise<string[]> {
+  return apiCall<string[]>('/manga/tags', { query: { q, order_by: 'az', limit, offset: 0 } });
 }
 
 /** GET /manga/manga/{manga_id} */

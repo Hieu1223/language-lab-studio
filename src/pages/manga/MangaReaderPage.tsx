@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Eye,
@@ -36,6 +36,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { BlockTokenResult } from '@/components/manga/BlockTokenResult';
+import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
 import { ChapterEndCard, chapterLabel } from '@/components/manga/ChapterEndCard';
 import { DictionaryRightPanel } from '@/components/manga/DictionaryRightPanel';
 import { MangaPage } from '@/components/manga/MangaPage';
@@ -144,6 +145,7 @@ export default function MangaReaderPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
   const [selectedBlock, setSelectedBlock] = useState<SelectedBlock | null>(null);
+  const [dependencyDialogText, setDependencyDialogText] = useState<string | null>(null);
 
   // ── OCR block list state ──────────────────────────────────────────────────
   // expandedBlock: "pageIdx-blockIdx" of the currently open accordion item
@@ -430,18 +432,29 @@ export default function MangaReaderPage() {
 
   const handleSelectBlock = useCallback((pageIdx: number, blockIdx: number) => {
     const key = `${pageIdx}-${blockIdx}`;
+    const text = ocrDataPages[pageIdx]?.blocks[blockIdx]?.lines.join('\n') ?? '';
     setSelectedBlock({ pageIdx, blockIdx });
     setExpandedBlock(key);
+    if (text.trim() && !blockTokens.has(key) && !blockTokenizing.has(key)) {
+      setBlockTokenizing((prev) => new Set(prev).add(key));
+      void tokenize(text)
+        .then((result) => setBlockTokens((prev) => new Map(prev).set(key, result.tokens)))
+        .catch(() => toast.error('Phân tích thất bại'))
+        .finally(() => setBlockTokenizing((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        }));
+    }
     if (autoOpenPanelOnBlock) {
       setPanelOpen(true);
       setPanelTab('text');
     }
-    // Scroll the list item into view after the panel renders
     requestAnimationFrame(() => {
       const el = blockItemRefs.current.get(key);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
-  }, [autoOpenPanelOnBlock]);
+  }, [autoOpenPanelOnBlock, blockTokenizing, blockTokens, ocrDataPages]);
 
   // ── Block tokenize ───────────────────────────────────────────────────────
   const tokenizeBlock = async (key: string, text: string) => {
@@ -982,6 +995,15 @@ export default function MangaReaderPage() {
                                       )}
                                       <button
                                         type="button"
+                                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors"
+                                        onClick={() => setDependencyDialogText(blockText)}
+                                        title="Xem dependency của câu"
+                                      >
+                                        <Wand2 className="w-3 h-3" />
+                                        Dependency
+                                      </button>
+                                      <button
+                                        type="button"
                                         className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                                         onClick={() => copyToClipboard(blockText)}
                                         title="Sao chép"
@@ -1040,7 +1062,13 @@ export default function MangaReaderPage() {
         )}
       </div>
 
-
+      <SentenceTokenizeDialog
+        open={dependencyDialogText !== null}
+        onOpenChange={(open) => {
+          if (!open) setDependencyDialogText(null);
+        }}
+        text={dependencyDialogText ?? ''}
+      />
     </div>
   );
 }

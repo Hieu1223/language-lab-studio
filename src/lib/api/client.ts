@@ -182,7 +182,7 @@ function requestRefresh(): Promise<string | null> {
 
 // ─── Request ────────────────────────────────────────────────────────────────
 
-export type QueryValue = string | number | boolean | undefined | null;
+export type QueryValue = string | number | boolean | readonly string[] | undefined | null;
 
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -205,7 +205,11 @@ export function buildUrl(endpoint: string, query?: Record<string, QueryValue>): 
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query)) {
       if (value === undefined || value === null) continue;
-      params.append(key, String(value));
+      if (Array.isArray(value)) {
+        for (const item of value) params.append(key, item);
+      } else {
+        params.append(key, String(value));
+      }
     }
     const qs = params.toString();
     if (qs) url += `?${qs}`;

@@ -12,9 +12,42 @@ export type TokenList = components['schemas']['TokenList'];
 export type WordLookupEntry = components['schemas']['WordLookupEntry'];
 export type WordLookupResponse = components['schemas']['WordLookupResponse'];
 
+export interface DependencyLink {
+  token_index: number;
+  surface: string;
+  reading: string | null;
+  lemma: string;
+  pos: string[];
+  dep: string;
+  dep_description: string;
+  head_index: number | null;
+  head_surface: string | null;
+  is_root: boolean;
+}
+
+export interface DependencyTreeResponse {
+  text: string;
+  sentences: Array<{
+    sentence_id: number;
+    text: string;
+    tokens: DependencyLink[];
+  }>;
+}
+
 /** GET /tokenization/tokenize — explicit submit only, never per keystroke. */
 export async function tokenize(text: string, signal?: AbortSignal): Promise<TokenList> {
   return apiCall<TokenList>('/tokenization/tokenize', {
+    query: { text },
+    signal,
+  });
+}
+
+/** GET /tokenization/dependency-tree */
+export async function getDependencyTree(
+  text: string,
+  signal?: AbortSignal,
+): Promise<DependencyTreeResponse> {
+  return apiCall<DependencyTreeResponse>('/tokenization/dependency-tree', {
     query: { text },
     signal,
   });
