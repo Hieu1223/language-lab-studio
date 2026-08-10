@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Loader2, X, Sparkles, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { Search, Loader2, X, Sparkles, ChevronLeft, ChevronRight, BookOpen, Filter, Tag } from 'lucide-react';
 import { MangaImage } from '@/components/manga/MangaImage';
-import { searchManga, type MangaPreview } from '@/lib/api/manga';
+import { searchManga, searchMangaTags, type MangaOrder, type MangaPreview } from '@/lib/api/manga';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────
 const QUERY_STORAGE_KEY = 'manga-query';
@@ -39,6 +39,13 @@ export default function MangaBrowse() {
   );
 
   const [query, setQuery] = useState(initialQuery);
+  const [selectedTags, setSelectedTags] = useState(() => searchParams.getAll('tags'));
+  const [tagInput, setTagInput] = useState('');
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(false);
+  const [orderBy, setOrderBy] = useState<MangaOrder | ''>(
+    (searchParams.get('order_by') as MangaOrder | null) ?? '',
+  );
   const [page, setPage] = useState<number>(initialPage);
   const [results, setResults] = useState<MangaPreview[]>(() => {
     try {
@@ -69,11 +76,18 @@ export default function MangaBrowse() {
    * Run a server-side search. We always send `q` as a string (possibly empty)
    * together with `limit` + `offset` — this matches the backend spec.
    */
-  const runSearch = useCallback(async (q: string, p: number = 1) => {
+  const runSearch = useCallback(async (
+    q: string,
+    tags: string[],
+    sort: MangaOrder | '',
+    p: number = 1,
+  ) => {
     setLoading(true);
     try {
       const items = await searchManga({
         q,
+        tags,
+        order_by: sort || null,
         limit: PAGE_SIZE,
         offset: Math.max(0, (p - 1) * PAGE_SIZE),
       });
@@ -87,36 +101,91 @@ export default function MangaBrowse() {
     }
   }, [t]);
 
+  useEffect(() => {
+    const prefix = tagInput.trim();
+    if (!prefix) {
+      setTagSuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setTagsLoading(true);
+      try {
+        const suggestions = await searchMangaTags(prefix, 5);
+        if (!cancelled) setTagSuggestions(suggestions.filter((tag) => !selectedTags.includes(tag)).slice(0, 5));
+      } catch {
+        if (!cancelled) setTagSuggestions([]);
+      } finally {
+        if (!cancelled) setTagsLoading(false);
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [tagInput, selectedTags]);
+
+  const updateUrl = (q: string, tags: string[], sort: MangaOrder | '', p: number) => {
+    const params = new URLSearchParams({ q, page: String(p) });
+    for (const tag of tags) params.append('tags', tag);
+    if (sort) params.set('order_by', sort);
+    setSearchParams(params, { replace: true });
+  };
+
   // Initial load
   useEffect(() => {
-    if (results.length > 0) return; // keep cached on mount
-    runSearch(query, page);
+    if (results.length > 0) return;
+    runSearch(query, selectedTags, orderBy, page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const q = query.trim();
-    setQuery(q); // reflect trimmed value back to input
-    setSearchParams({ q, page: '1' }, { replace: true });
-    runSearch(q, 1);
+    setQuery(q);
+    updateUrl(q, selectedTags, orderBy, 1);
+    runSearch(q, selectedTags, orderBy, 1);
+  };
+
+  const chooseTag = (tag: string) => {
+    const tags = selectedTags.includes(tag) ? selectedTags : [...selectedTags, tag];
+    setSelectedTags(tags);
+    setTagInput('');
+    setTagSuggestions([]);
+    updateUrl(query, tags, orderBy, 1);
+    runSearch(query, tags, orderBy, 1);
+  };
+
+  const removeTag = (tag: string) => {
+    const tags = selectedTags.filter((selected) => selected !== tag);
+    setSelectedTags(tags);
+    updateUrl(query, tags, orderBy, 1);
+    runSearch(query, tags, orderBy, 1);
+  };
+
+  const changeOrder = (sort: MangaOrder | '') => {
+    setOrderBy(sort);
+    updateUrl(query, selectedTags, sort, 1);
+    runSearch(query, selectedTags, sort, 1);
   };
 
   const handleClear = () => {
     setQuery(DEFAULT_QUERY);
-    setSearchParams({ q: DEFAULT_QUERY, page: '1' }, { replace: true });
-    runSearch(DEFAULT_QUERY, 1);
+    setSelectedTags([]);
+    setTagInput('');
+    setOrderBy('');
+    updateUrl(DEFAULT_QUERY, [], '', 1);
+    runSearch(DEFAULT_QUERY, [], '', 1);
   };
 
   const goToPage = (p: number) => {
-    setSearchParams({ q: query, page: String(p) }, { replace: true });
-    runSearch(query, p);
+    updateUrl(query, selectedTags, orderBy, p);
+    runSearch(query, selectedTags, orderBy, p);
   };
 
   return (
     <>
-      {/* Search Form */}
-      <form onSubmit={handleSubmit} className="mb-6">
+      <form onSubmit={handleSubmit} className="mb-6 space-y-3">
         <div className="flex gap-2 flex-wrap">
           <div className="flex-1 min-w-[200px] relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -142,18 +211,89 @@ export default function MangaBrowse() {
           </div>
           <Button type="submit" disabled={loading}>
             {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                {tc('actions.searching')}
-              </>
+              <><Loader2 className="w-4 h-4 animate-spin mr-2" />{tc('actions.searching')}</>
             ) : (
-              <>
-                <Search className="w-4 h-4 mr-2" />
-                {tc('actions.search')}
-              </>
+              <><Search className="w-4 h-4 mr-2" />{tc('actions.search')}</>
             )}
           </Button>
         </div>
+
+        <div className="flex flex-wrap gap-2 items-start">
+          <div className="relative flex-1 min-w-[200px]">
+            <Tag className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              placeholder="Filter by tag"
+              className="pl-10"
+              disabled={loading}
+              data-testid="manga-tag-filter-input"
+            />
+            {(tagSuggestions.length > 0 || tagsLoading) && (
+              <div className="absolute z-20 mt-1 w-full rounded-md border bg-popover p-1 shadow-md">
+                {tagsLoading ? (
+                  <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" />Loading tags…</div>
+                ) : tagSuggestions.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => chooseTag(tag)}
+                    className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
+                    data-testid={`manga-tag-suggestion-${tag}`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="relative min-w-[170px]">
+            <Filter className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <select
+              value={orderBy}
+              onChange={(e) => changeOrder(e.target.value as MangaOrder | '')}
+              disabled={loading}
+              className="h-10 w-full appearance-none rounded-md border border-input bg-background pl-10 pr-3 text-sm"
+              aria-label="Sort manga"
+              data-testid="manga-sort-select"
+            >
+              <option value="">Default order</option>
+              <option value="latest">Latest update</option>
+              <option value="-latest">Oldest update</option>
+              <option value="az">Title A–Z</option>
+              <option value="-az">Title Z–A</option>
+              <option value="created">Oldest created</option>
+              <option value="-created">Newest created</option>
+            </select>
+          </div>
+        </div>
+
+        {selectedTags.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2" data-testid="manga-selected-tags">
+            {selectedTags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="gap-1 pr-1">
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => removeTag(tag)}
+                  className="rounded-sm p-0.5 hover:bg-background"
+                  aria-label={`Remove ${tag}`}
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </Badge>
+            ))}
+            <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
+              setSelectedTags([]);
+              updateUrl(query, [], orderBy, 1);
+              runSearch(query, [], orderBy, 1);
+            }}>
+              Clear tags
+            </Button>
+          </div>
+        )}
       </form>
 
       {/* Header */}

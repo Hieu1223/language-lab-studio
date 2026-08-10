@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import {
   isLookupCandidate,
   lookupQueryFor,
+  getDependencyTree,
   lookupWord,
   tokenize,
+  type DependencyLink,
   type Token,
   type WordLookupEntry,
 } from '@/lib/api/dictionary';
@@ -50,6 +52,8 @@ export function TokenizedSentence({
   const [tokens, setTokens] = useState<Token[]>(tokensProp ?? []);
   const [loading, setLoading] = useState(!tokensProp && !!text);
   const [error, setError] = useState<string | null>(null);
+  const [dependencies, setDependencies] = useState<DependencyLink[]>([]);
+  const [dependencyError, setDependencyError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
   const [resolving, setResolving] = useState(false);
@@ -71,15 +75,24 @@ export function TokenizedSentence({
       try {
         setLoading(true);
         setError(null);
-        const res = await tokenize(text);
+        const [tokenResult, dependencyResult] = await Promise.all([
+          tokenize(text),
+          getDependencyTree(text),
+        ]);
         if (cancelled) return;
-        setTokens(res.tokens);
+        setTokens(tokenResult.tokens);
+        setDependencies(dependencyResult.sentences.flatMap((sentence) => sentence.tokens));
+        setDependencyError(null);
         setSelected(new Set());
-        onTokens?.(res.tokens);
+        onTokens?.(tokenResult.tokens);
       } catch (e) {
         if (cancelled) return;
-        // `translate` (not `t`) keeps the effect from re-tokenizing whenever
-        // the UI language changes.
+        setDependencies([]);
+        setDependencyError(
+          e instanceof Error
+            ? e.message
+            : translate('dictionary:tokenize.failed', 'Dependency analysis failed'),
+        );
         setError(
           e instanceof Error
             ? e.message
@@ -269,6 +282,32 @@ export function TokenizedSentence({
           );
         })}
       </p>
+
+      {dependencies.length > 0 && (
+        <div className="rounded-lg border bg-muted/30 p-3 space-y-2" data-testid="token-dependencies">
+          <p className="text-xs font-semibold text-foreground">Dependencies</p>
+          <div className="space-y-1.5">
+            {dependencies.map((dependency, index) => (
+              <div
+                key={`${dependency.token_index}-${index}`}
+                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-xs"
+              >
+                <span className="font-japanese font-medium truncate">{dependency.surface}</span>
+                <span className="text-muted-foreground font-mono text-[10px] whitespace-nowrap">
+                  {dependency.is_root ? 'ROOT' : dependency.dep}
+                </span>
+                <span className="font-japanese text-muted-foreground truncate text-right">
+                  {dependency.is_root ? '—' : dependency.head_surface ?? '—'}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {dependencyError && !error && (
+        <p className="text-xs text-muted-foreground">Dependency analysis unavailable.</p>
+      )}
 
       {showControls && (
         <p className="text-[10px] text-muted-foreground italic">
