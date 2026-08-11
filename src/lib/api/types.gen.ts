@@ -41,6 +41,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tokenization/dependency-tree": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Dependency Tree Endpoint
+         * @description Parse Japanese input text with GiNZA/spaCy and return the dependency tree of each sentence, including the dependency relation (dep) that links each token to its head
+         */
+        get: operations["dependency_tree_endpoint_tokenization_dependency_tree_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tokenization/dependency-tree/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Dependency Tree
+         * @description Parse Japanese input text with GiNZA and build the dependency tree of each sentence, then save the analysis to the user's history (separate table) and return it
+         */
+        post: operations["save_dependency_tree_tokenization_dependency_tree_save_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tokenization/dependency-tree/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dependency Tree History
+         * @description Return the current user's saved tokenization/dependency-tree history
+         */
+        get: operations["get_dependency_tree_history_tokenization_dependency_tree_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tokenization/dependency-tree/history/{history_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Dependency Tree History
+         * @description Delete a single entry from the current user's tokenization history
+         */
+        delete: operations["delete_dependency_tree_history_tokenization_dependency_tree_history__history_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tokenization/dictionary/words/lookup": {
         parameters: {
             query?: never;
@@ -474,7 +554,7 @@ export interface paths {
         };
         /**
          * Read Decks
-         * @description List every deck belonging to the current user, each enriched with live SRS counts (new, learning, review, relearning and due cards)
+         * @description List every deck belonging to the current user, each enriched with live SRS counts (new, learning and due cards)
          */
         get: operations["read_decks_flashcard_decks_get"];
         put?: never;
@@ -522,7 +602,7 @@ export interface paths {
         };
         /**
          * Get Deck Progress
-         * @description Compute the current SRS progress for a deck, reporting how many cards are new, in learning, in review, relearning and due for study
+         * @description Compute the current SRS progress for a deck, reporting how many cards are new, in learning, and due for study
          */
         get: operations["get_deck_progress_flashcard_decks__deck_id__progress_get"];
         put?: never;
@@ -662,9 +742,29 @@ export interface paths {
         };
         /**
          * List Manga
-         * @description List manga with optional text search and pagination
+         * @description List manga with optional text search, genre tag filter and pagination
          */
         get: operations["list_manga_manga_manga_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manga/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Tags
+         * @description List all available manga genre tags with optional prefix search, ordering and pagination
+         */
+        get: operations["list_tags_manga_tags_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -722,7 +822,7 @@ export interface paths {
         };
         /**
          * Get Ocr
-         * @description Return a previously computed OCR result for a chapter
+         * @description Return a previously computed OCR result for a chapter, paginated by page using offset/limit to avoid loading the full (potentially huge) OCR payload at once
          */
         get: operations["get_ocr_manga_ocr__chapter_id__get"];
         put?: never;
@@ -746,7 +846,52 @@ export interface paths {
         };
         /**
          * Stream Ocr
-         * @description Stream OCR extraction progress for a chapter as server-sent events, persisting the result when complete
+         * @description Stream OCR extraction progress for a chapter as server-sent events (media_type text/event-stream), persisting the result when complete.
+         *
+         *     Each event is a line "data: <json>\n\n" where <json> is an OCRPage augmented with GiNZA tokenization + dependency analysis:
+         *
+         *     {
+         *       "version": "1",
+         *       "img_width": 100,
+         *       "img_height": 100,
+         *       "analyze": [ DependencyTree, ... ],          // page-level trees (one per sentence)
+         *       "blocks": [
+         *         {
+         *           "box": [x1, y1, x2, y2],
+         *           "vertical": false,
+         *           "font_size": 12.0,
+         *           "lines_coords": [ [ [x, y], ... ] ],       // 4 points per line
+         *           "lines": ["私は学生です。", "これは本です。"],
+         *           "analyze": [                               // one entry per line in `lines`
+         *             [ DependencyTree, ... ],
+         *             [ DependencyTree, ... ]
+         *           ]
+         *         }
+         *       ]
+         *     }
+         *
+         *     After all page events a final event "data: [DONE]\n\n" is emitted.
+         *
+         *     A DependencyTree is:
+         *     {
+         *       "sentence_id": 0,
+         *       "text": "私は学生です。",
+         *       "tokens": [ DependencyLink, ... ]
+         *     }
+         *
+         *     A DependencyLink (one per token, built by GiNZA) is:
+         *     {
+         *       "token_index": 0,
+         *       "surface": "私",
+         *       "reading": "わたし",
+         *       "lemma": "私",
+         *       "pos": ["名詞", "代名詞", "一般", "*", "*", "*"],   // Ja/Kun Universal POS tag split on "-"
+         *       "dep": "nsubj",                                     // Universal Dependencies relation to its head
+         *       "dep_description": "nominal subject (the noun performing the action)",
+         *       "head_index": 2,                                    // null for the root token
+         *       "head_surface": "です",                             // null for the root token
+         *       "is_root": false                                    // true for the root token (head_index/head_surface null)
+         *     }
          */
         get: operations["stream_ocr_manga_ocr_stream__chapter_id__get"];
         put?: never;
@@ -821,6 +966,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/manga/ocr/backfill-analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Backfill Ocr Analysis Route
+         * @description Run GiNZA tokenization + dependency analysis on all existing OCR data that lacks it, and persist the augmented results
+         */
+        post: operations["backfill_ocr_analysis_route_manga_ocr_backfill_analysis_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/web-novel/novels/search": {
         parameters: {
             query?: never;
@@ -878,67 +1043,27 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * Update Chapter
-         * @description Replace the content of an existing chapter and return the updated chapter
-         */
-        patch: operations["update_chapter_web_novel_chapters__chapter_id__patch"];
-        trace?: never;
-    };
-    "/web-novel/novels": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Novel
-         * @description Create a new web novel record with the given author, publication date and summary
-         */
-        post: operations["create_novel_web_novel_novels_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
         patch?: never;
         trace?: never;
     };
-    "/web-novel/novels/{novel_id}/chapters": {
+    "/proxy": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        put?: never;
         /**
-         * Create Chapter
-         * @description Append a new chapter to an existing novel and return the created chapter
+         * Proxy
+         * @description Fetch a remote URL server-side and return its response.
+         *
+         *     Uses plain ``requests`` (no configured HTTP_PROXY). ``proxies={"http": None,
+         *     "https": None}`` explicitly bypasses any ``HTTP_PROXY``/``HTTPS_PROXY`` env
+         *     vars so the request goes out directly from the server.
          */
-        post: operations["create_chapter_web_novel_novels__novel_id__chapters_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/web-novel/novels/request": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        get: operations["proxy_proxy_get"];
         put?: never;
-        /**
-         * Request Novel
-         * @description Submit a web-novel URL to an external ingestion server to request that it be fetched and indexed; the request is dispatched asynchronously
-         */
-        post: operations["request_novel_web_novel_novels_request_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1081,22 +1206,6 @@ export interface components {
             /** Date */
             date: string | null;
         };
-        /** CreateChapterRequest */
-        CreateChapterRequest: {
-            /** Name */
-            name: string;
-            /** Content */
-            content?: string | null;
-        };
-        /** CreateWebNovelRequest */
-        CreateWebNovelRequest: {
-            /** Author */
-            author: string;
-            /** Date Published */
-            date_published?: string | null;
-            /** Summary */
-            summary?: string | null;
-        };
         /** DeckProgressResponse */
         DeckProgressResponse: {
             /** Total */
@@ -1105,10 +1214,6 @@ export interface components {
             new: number;
             /** Learning */
             learning: number;
-            /** Review */
-            review: number;
-            /** Relearning */
-            relearning: number;
             /** Due */
             due: number;
         };
@@ -1142,16 +1247,6 @@ export interface components {
              */
             learning: number;
             /**
-             * Review
-             * @default 0
-             */
-            review: number;
-            /**
-             * Relearning
-             * @default 0
-             */
-            relearning: number;
-            /**
              * Due
              * @default 0
              */
@@ -1174,6 +1269,48 @@ export interface components {
             /** Public */
             public: boolean;
             stats: components["schemas"]["DeckStatsResponse"];
+        };
+        /** DependencyLink */
+        DependencyLink: {
+            /** Token Index */
+            token_index: number;
+            /** Surface */
+            surface: string;
+            /** Reading */
+            reading?: string | null;
+            /** Lemma */
+            lemma: string;
+            /** Pos */
+            pos: string[];
+            /** Dep */
+            dep: string;
+            /** Dep Description */
+            dep_description: string;
+            /** Head Index */
+            head_index?: number | null;
+            /** Head Surface */
+            head_surface?: string | null;
+            /**
+             * Is Root
+             * @default false
+             */
+            is_root: boolean;
+        };
+        /** DependencyTree */
+        DependencyTree: {
+            /** Sentence Id */
+            sentence_id: number;
+            /** Text */
+            text: string;
+            /** Tokens */
+            tokens: components["schemas"]["DependencyLink"][];
+        };
+        /** DependencyTreeResponse */
+        DependencyTreeResponse: {
+            /** Text */
+            text: string;
+            /** Sentences */
+            sentences: components["schemas"]["DependencyTree"][];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1226,6 +1363,8 @@ export interface components {
             lines_coords: number[][][];
             /** Lines */
             lines: string[];
+            /** Analyze */
+            analyze?: components["schemas"]["DependencyTree"][][] | null;
         };
         /** OCRPage */
         OCRPage: {
@@ -1256,8 +1395,13 @@ export interface components {
              */
             ocr_date: string;
             ocr_by: components["schemas"]["OCRUserInfo"] | null;
-            manga: components["schemas"]["MangaPreview"];
             ocr_data: components["schemas"]["OCRResponse"];
+            /** Total Pages */
+            total_pages: number;
+            /** Offset */
+            offset: number;
+            /** Limit */
+            limit: number;
         };
         /** OCRUserInfo */
         OCRUserInfo: {
@@ -1429,6 +1573,14 @@ export interface components {
             begin: number;
             /** End */
             end: number;
+            /** Dep */
+            dep?: string | null;
+            /** Dep Description */
+            dep_description?: string | null;
+            /** Head Index */
+            head_index?: number | null;
+            /** Head Surface */
+            head_surface?: string | null;
         };
         /** TokenList */
         TokenList: {
@@ -1443,6 +1595,52 @@ export interface components {
             end: number | null;
             /** Token */
             token: string;
+        };
+        /** TokenizationHistoryItem */
+        TokenizationHistoryItem: {
+            /**
+             * History Id
+             * Format: uuid
+             */
+            history_id: string;
+            /** Text */
+            text: string;
+            /** Sentences */
+            sentences: number;
+            /**
+             * Date Created
+             * Format: date-time
+             */
+            date_created: string;
+        };
+        /** TokenizationHistoryListResponse */
+        TokenizationHistoryListResponse: {
+            /** Items */
+            items: components["schemas"]["TokenizationHistoryItem"][];
+            /** Total */
+            total: number;
+        };
+        /** TokenizeDependenciesRequest */
+        TokenizeDependenciesRequest: {
+            /** Text */
+            text: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
+        /** TokenizeDependenciesResponse */
+        TokenizeDependenciesResponse: {
+            /**
+             * History Id
+             * Format: uuid
+             */
+            history_id: string;
+            /** Text */
+            text: string;
+            /** Sentences */
+            sentences: components["schemas"]["DependencyTree"][];
         };
         /** TranscriptDetailResponse */
         TranscriptDetailResponse: {
@@ -1754,6 +1952,136 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TokenList"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dependency_tree_endpoint_tokenization_dependency_tree_get: {
+        parameters: {
+            query: {
+                text: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DependencyTreeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_dependency_tree_tokenization_dependency_tree_save_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TokenizeDependenciesRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenizeDependenciesResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dependency_tree_history_tokenization_dependency_tree_history_get: {
+        parameters: {
+            query: {
+                /** @description User id that owns the history */
+                user_id: string;
+                offset?: number;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenizationHistoryListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_dependency_tree_history_tokenization_dependency_tree_history__history_id__delete: {
+        parameters: {
+            query: {
+                /** @description User id that owns the history */
+                user_id: string;
+            };
+            header?: never;
+            path: {
+                history_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -2901,6 +3229,10 @@ export interface operations {
         parameters: {
             query?: {
                 q?: string | null;
+                /** @description Filter by one or more genres */
+                tags?: string[] | null;
+                /** @description Sort order: latest (newest update), -latest (oldest update), az (A-Z title), -az (Z-A title), created (oldest first), -created (newest first) */
+                order_by?: string | null;
                 limit?: number;
                 offset?: number;
             };
@@ -2917,6 +3249,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MangaPreview"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tags_manga_tags_get: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive prefix filter on tag name */
+                q?: string | null;
+                /** @description Sort order: az (A-Z), -az (Z-A), len (shortest first), -len (longest first) */
+                order_by?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
                 };
             };
             /** @description Validation Error */
@@ -2994,7 +3362,12 @@ export interface operations {
     };
     get_ocr_manga_ocr__chapter_id__get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Page offset into the chapter's OCR pages */
+                offset?: number;
+                /** @description Number of OCR pages to return */
+                limit?: number;
+            };
             header?: never;
             path: {
                 chapter_id: string;
@@ -3200,6 +3573,26 @@ export interface operations {
             };
         };
     };
+    backfill_ocr_analysis_route_manga_ocr_backfill_analysis_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
     search_novels_web_novel_novels_search_get: {
         parameters: {
             query: {
@@ -3295,113 +3688,11 @@ export interface operations {
             };
         };
     };
-    update_chapter_web_novel_chapters__chapter_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                chapter_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateChapterRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WebNovelChapterResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_novel_web_novel_novels_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateWebNovelRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WebNovelResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_chapter_web_novel_novels__novel_id__chapters_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                novel_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateChapterRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WebNovelChapterResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    request_novel_web_novel_novels_request_post: {
+    proxy_proxy_get: {
         parameters: {
             query: {
-                novel_url: string;
+                /** @description The absolute URL to fetch through the server */
+                url: string;
             };
             header?: never;
             path?: never;
