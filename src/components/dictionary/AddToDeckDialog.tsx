@@ -191,7 +191,7 @@ export function AddToDeckDialog({
                         <p className="text-sm font-medium truncate">{deck.name}</p>
                         <p className="text-[10px] text-muted-foreground">
                           {deck.stats.due} {t('deck.statDue')} · {deck.stats.new}{' '}
-                          {t('deck.statNew')} · {deck.stats.review} {t('deck.statReview')}
+                          {t('deck.statNew')} · {deck.stats.learning} {t('deck.statReview')}
                         </p>
                       </div>
                       {active && <Check className="w-4 h-4 text-primary shrink-0" />}

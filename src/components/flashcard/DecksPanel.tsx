@@ -103,7 +103,7 @@ export function DecksPanel({ decks, onChange }: DecksPanelProps) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {decks.map((d) => {
-            const total = d.stats.new + d.stats.learning + d.stats.review + d.stats.relearning;
+            const total = d.stats.new + d.stats.learning + d.stats.due;
             return (
               <div
                 key={d.id}
@@ -145,12 +145,11 @@ export function DecksPanel({ decks, onChange }: DecksPanelProps) {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-1 mb-3">
+                <div className="grid grid-cols-3 gap-1 mb-3">
                   {[
                     { label: t('stats.new'), val: d.stats.new, color: 'bg-blue-500/10 text-blue-600' },
                     { label: t('stats.learning'), val: d.stats.learning, color: 'bg-amber-500/10 text-amber-600' },
-                    { label: t('stats.review'), val: d.stats.review, color: 'bg-green-500/10 text-green-600' },
-                    { label: t('stats.relearning'), val: d.stats.relearning, color: 'bg-red-500/10 text-red-600' },
+                    { label: t('stats.review'), val: d.stats.due, color: 'bg-green-500/10 text-green-600' },
                   ].map((s) => (
                     <div
                       key={s.label}

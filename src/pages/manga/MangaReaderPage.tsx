@@ -18,8 +18,8 @@ import {
   Copy,
   Loader2,
   Type,
-  Wand2,
   ChevronDown,
+  Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,7 +36,8 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { BlockTokenResult } from '@/components/manga/BlockTokenResult';
-import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
+import { DependencyArcsList } from '@/components/dictionary/DependencyArcs';
+import { blockTrees, treesToTokens } from '@/lib/manga-analysis';
 import { ChapterEndCard, chapterLabel } from '@/components/manga/ChapterEndCard';
 import { DictionaryRightPanel } from '@/components/manga/DictionaryRightPanel';
 import { MangaPage } from '@/components/manga/MangaPage';
@@ -120,6 +121,9 @@ export default function MangaReaderPage() {
   const [ocrPagesReceived, setOcrPagesReceived] = useState(0);
   const ocrStreamRef = useRef<OCRStreamHandle | null>(null);
   const ocrPageCounterRef = useRef(0);
+  /** True once we know the chapter already has a stored OCR result. */
+  const [ocrAvailable, setOcrAvailable] = useState(false);
+  const fetchedOcrPagesRef = useRef<Set<number>>(new Set());
 
   // ── Settings ─────────────────────────────────────────────────────────────
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
@@ -145,7 +149,8 @@ export default function MangaReaderPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
   const [selectedBlock, setSelectedBlock] = useState<SelectedBlock | null>(null);
-  const [dependencyDialogText, setDependencyDialogText] = useState<string | null>(null);
+  // Blocks whose dependency-arc diagram is currently visible (key "page-block")
+  const [arcBlocks, setArcBlocks] = useState<Set<string>>(new Set());
 
   // ── OCR block list state ──────────────────────────────────────────────────
   // expandedBlock: "pageIdx-blockIdx" of the currently open accordion item
@@ -209,6 +214,7 @@ export default function MangaReaderPage() {
         ocrStreamRef.current = null;
         ocrPageCounterRef.current = 0;
         setOcrLoaded(false);
+        setOcrAvailable(false);
         setOcrPagesReceived(0);
         setLoadingOCR(false);
         setOcrDataPages([]);
@@ -223,6 +229,7 @@ export default function MangaReaderPage() {
         setChapters(data.chapters);
         setCurrentChapter(data.chapter);
         setOcrDataPages(new Array(data.pages.length).fill(null));
+        fetchedOcrPagesRef.current = new Set();
         pageRefs.current = new Array(data.pages.length).fill(null);
 
         // Find current chapter index in the list
@@ -238,19 +245,23 @@ export default function MangaReaderPage() {
           }).catch((err) => console.warn('Failed to save manga history:', err));
         }
 
-        // Auto-load OCR if already cached — silent, no toast on miss
+        // Probe whether OCR already exists — only one page is fetched, the
+        // reader then pulls the OCR of whatever page the user is on.
         try {
-          const existing = await getOCRResult(chapterId);
-          const pages = existing.ocr_data.pages;
-          setOcrDataPages(
-            pages.length === data.pages.length
-              ? pages
-              : [...pages, ...new Array(Math.max(0, data.pages.length - pages.length)).fill(null)],
-          );
-          setOcrPagesReceived(pages.length);
+          const existing = await getOCRResult(chapterId, { offset: 0, limit: 1 });
+          const first = existing.ocr_data.pages[0] ?? null;
+          setOcrDataPages((prev) => {
+            const next = prev.length ? prev.slice() : new Array(data.pages.length).fill(null);
+            next[0] = first;
+            return next;
+          });
+          fetchedOcrPagesRef.current.add(0);
+          setOcrPagesReceived(existing.total_pages);
+          setOcrAvailable(true);
           setOcrLoaded(true);
         } catch {
           // 404 = not yet OCR'd, that's fine — user can trigger manually
+          setOcrAvailable(false);
         }
       } catch (err) {
         toast.error('Không thể tải chapter');
@@ -339,11 +350,16 @@ export default function MangaReaderPage() {
 
     // First check if OCR already exists (backend 409 if we stream twice)
     try {
-      const existing = await getOCRResult(chapterId);
-      // Already OCR'd — populate pages from cached data
-      const pages = existing.ocr_data.pages;
-      setOcrDataPages(pages.length === images.length ? pages : [...pages, ...new Array(Math.max(0, images.length - pages.length)).fill(null)]);
-      setOcrPagesReceived(pages.length);
+      const existing = await getOCRResult(chapterId, { offset: currentPageIndex, limit: 1 });
+      const page = existing.ocr_data.pages[0] ?? null;
+      setOcrDataPages((prev) => {
+        const next = prev.length >= images.length ? prev.slice() : new Array(images.length).fill(null);
+        next[currentPageIndex] = page;
+        return next;
+      });
+      fetchedOcrPagesRef.current.add(currentPageIndex);
+      setOcrPagesReceived(existing.total_pages);
+      setOcrAvailable(true);
       setOcrLoaded(true);
       toast.success('OCR đã được tải từ cache');
       return;
@@ -360,6 +376,7 @@ export default function MangaReaderPage() {
     setOcrLoaded(false);
     setOcrPagesReceived(0);
     ocrPageCounterRef.current = 0;
+    fetchedOcrPagesRef.current = new Set();
     setOcrDataPages(new Array(images.length).fill(null));
 
     ocrStreamRef.current = streamOCR(
@@ -373,10 +390,12 @@ export default function MangaReaderPage() {
             if (idx < next.length) next[idx] = page;
             return next;
           });
+          fetchedOcrPagesRef.current.add(idx);
           setOcrPagesReceived((c) => c + 1);
         },
         onDone: () => {
           setOcrLoaded(true);
+          setOcrAvailable(true);
           setLoadingOCR(false);
           ocrStreamRef.current = null;
           toast.success('OCR đã tải xong');
@@ -384,10 +403,16 @@ export default function MangaReaderPage() {
         onError: (err) => {
           // 409 = race: another client triggered OCR, try fetching the result
           if (err.message.includes('409')) {
-            getOCRResult(chapterId!).then((existing) => {
-              const pages = existing.ocr_data.pages;
-              setOcrDataPages(pages.length === images.length ? pages : [...pages, ...new Array(Math.max(0, images.length - pages.length)).fill(null)]);
-              setOcrPagesReceived(pages.length);
+            getOCRResult(chapterId!, { offset: currentPageIndex, limit: 1 }).then((existing) => {
+              const page = existing.ocr_data.pages[0] ?? null;
+              setOcrDataPages((prev) => {
+                const next = prev.length >= images.length ? prev.slice() : new Array(images.length).fill(null);
+                next[currentPageIndex] = page;
+                return next;
+              });
+              fetchedOcrPagesRef.current.add(currentPageIndex);
+              setOcrPagesReceived(existing.total_pages);
+              setOcrAvailable(true);
               setOcrLoaded(true);
               toast.success('OCR đã được tải từ cache');
             }).catch(() => toast.error('Không thể tải OCR'));
@@ -401,6 +426,30 @@ export default function MangaReaderPage() {
       },
     );
   };
+
+  // ── Fetch the OCR of the page being read (paginated, one page at a time) ──
+  useEffect(() => {
+    if (!chapterId || !ocrAvailable || loadingOCR) return;
+    const idx = currentPageIndex;
+    if (idx >= images.length) return;
+    if (fetchedOcrPagesRef.current.has(idx)) return;
+    fetchedOcrPagesRef.current.add(idx);
+    let cancelled = false;
+    getOCRResult(chapterId, { offset: idx, limit: 1 })
+      .then((res) => {
+        if (cancelled) return;
+        const page = res.ocr_data.pages[0] ?? null;
+        setOcrDataPages((prev) => {
+          const next = prev.length >= images.length ? prev.slice() : new Array(images.length).fill(null);
+          next[idx] = page;
+          return next;
+        });
+      })
+      .catch(() => {
+        fetchedOcrPagesRef.current.delete(idx);
+      });
+    return () => { cancelled = true; };
+  }, [chapterId, ocrAvailable, loadingOCR, currentPageIndex, images.length]);
 
   // ── Chapter navigation ────────────────────────────────────────────────────
   const goToChapter = useCallback(
@@ -432,10 +481,12 @@ export default function MangaReaderPage() {
 
   const handleSelectBlock = useCallback((pageIdx: number, blockIdx: number) => {
     const key = `${pageIdx}-${blockIdx}`;
-    const text = ocrDataPages[pageIdx]?.blocks[blockIdx]?.lines.join('\n') ?? '';
+    const block = ocrDataPages[pageIdx]?.blocks[blockIdx];
+    const text = block?.lines.join('\n') ?? '';
     setSelectedBlock({ pageIdx, blockIdx });
     setExpandedBlock(key);
-    if (text.trim() && !blockTokens.has(key) && !blockTokenizing.has(key)) {
+    const hasEmbedded = blockTrees(block).length > 0;
+    if (!hasEmbedded && text.trim() && !blockTokens.has(key) && !blockTokenizing.has(key)) {
       setBlockTokenizing((prev) => new Set(prev).add(key));
       void tokenize(text)
         .then((result) => setBlockTokens((prev) => new Map(prev).set(key, result.tokens)))
@@ -470,21 +521,32 @@ export default function MangaReaderPage() {
     }
   };
 
-  // Tokenize every block that hasn't been tokenized yet, sequentially
-  const tokenizeAll = async () => {
-    for (const [pageIdx, page] of ocrDataPages.entries()) {
-      if (!page) continue;
-      for (const [blockIdx] of page.blocks.entries()) {
-        const key = `${pageIdx}-${blockIdx}`;
-        if (blockTokens.has(key)) continue;
-        const text = page.blocks[blockIdx].lines.join('\n');
+  // Older OCR payloads have no embedded GiNZA analysis. For those, tokenize
+  // every block of the page being read automatically — no button to press.
+  const tokenizeBlockRef = useRef(tokenizeBlock);
+  tokenizeBlockRef.current = tokenizeBlock;
+  useEffect(() => {
+    const page = ocrDataPages[currentPageIndex];
+    if (!page) return;
+    let cancelled = false;
+    (async () => {
+      for (const [blockIdx, block] of page.blocks.entries()) {
+        if (cancelled) return;
+        if (blockTrees(block).length > 0) continue;
+        const key = `${currentPageIndex}-${blockIdx}`;
+        if (blockTokens.has(key) || blockTokenizing.has(key)) continue;
+        const text = block.lines.join('\n');
         if (!text.trim()) continue;
-        await tokenizeBlock(key, text);
+        await tokenizeBlockRef.current(key, text);
       }
-    }
-  };
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPageIndex, ocrDataPages[currentPageIndex]]);
+
   const isTokenizingAny = blockTokenizing.size > 0;
 
+  const currentOcrPage = ocrDataPages[currentPageIndex] ?? null;
   const zoomScale = zoom / 100;
 
   // ── End-of-chapter card ───────────────────────────────────────────────────
@@ -884,16 +946,15 @@ export default function MangaReaderPage() {
               </ScrollArea>
             )}
 
-            {/* Text tab — OCR block list */}
+            {/* Text tab — OCR blocks of the page currently being read */}
             {panelTab === 'text' && (
               <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full">
-                {ocrDataPages.every((p) => p === null) ? (
-                  /* No OCR yet */
+                {!currentOcrPage ? (
                   <div className="flex-1 flex flex-col items-center justify-center p-6 text-center gap-2">
                     <Type className="w-8 h-8 text-muted-foreground/50" />
                     <p className="text-sm font-medium text-muted-foreground">Chưa có dữ liệu OCR</p>
                     <p className="text-xs text-muted-foreground">
-                      Tải OCR ở tab Settings, sau đó các block chữ sẽ hiện ở đây.
+                      Tải OCR ở tab Settings, sau đó các block chữ của trang này sẽ hiện ở đây.
                     </p>
                   </div>
                 ) : (
@@ -901,152 +962,139 @@ export default function MangaReaderPage() {
                     {/* ── Toolbar ── */}
                     <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-shrink-0">
                       <span className="text-[11px] text-muted-foreground flex-1">
-                        {blockTokens.size} / {ocrDataPages.reduce((n, p) => n + (p?.blocks.length ?? 0), 0)} đã phân tích
+                        Trang {currentPageIndex + 1} · {currentOcrPage.blocks.length} block
                       </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7 text-xs gap-1.5"
-                        disabled={isTokenizingAny}
-                        onClick={tokenizeAll}
-                      >
-                        {isTokenizingAny
-                          ? <Loader2 className="w-3 h-3 animate-spin" />
-                          : <Wand2 className="w-3 h-3" />}
-                        Phân tích tất cả
-                      </Button>
+                      {isTokenizingAny && (
+                        <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+                      )}
                     </div>
 
-                    {/* ── Block list ── */}
+                    {/* ── Block list (current page only) ── */}
                     <ScrollArea className="flex-1 w-full [&>[data-radix-scroll-area-viewport]>div]:!block [&>[data-radix-scroll-area-viewport]]:!w-full">
                       <div ref={blockListRef} className="p-2 space-y-2 w-full max-w-full min-w-0">
-                        {ocrDataPages.map((page, pageIdx) => {
-                          if (!page) return null;
-                          return page.blocks.map((block, blockIdx) => {
-                            const key = `${pageIdx}-${blockIdx}`;
-                            const blockText = block.lines.join('');
-                            const preview = block.lines[0]?.slice(0, 26) +
-                              (block.lines[0]?.length > 26 || block.lines.length > 1 ? '…' : '');
-                            const isSelected =
-                              selectedBlock?.pageIdx === pageIdx &&
-                              selectedBlock?.blockIdx === blockIdx;
-                            const isExpanded = expandedBlock === key;
-                            const tokens = blockTokens.get(key);
-                            const isTokenizing = blockTokenizing.has(key);
+                        {currentOcrPage.blocks.map((block, blockIdx) => {
+                          const pageIdx = currentPageIndex;
+                          const key = `${pageIdx}-${blockIdx}`;
+                          const blockText = block.lines.join('');
+                          const preview = block.lines[0]?.slice(0, 26) +
+                            (block.lines[0]?.length > 26 || block.lines.length > 1 ? '…' : '');
+                          const isSelected =
+                            selectedBlock?.pageIdx === pageIdx &&
+                            selectedBlock?.blockIdx === blockIdx;
+                          const isExpanded = expandedBlock === key;
+                          const trees = blockTrees(block);
+                          const tokens = trees.length ? treesToTokens(trees) : blockTokens.get(key);
+                          const isTokenizing = blockTokenizing.has(key);
+                          const showArcs = arcBlocks.has(key);
 
-                            return (
-                              <div
-                                key={key}
-                                ref={(el) => {
-                                  if (el) blockItemRefs.current.set(key, el);
-                                  else blockItemRefs.current.delete(key);
-                                }}
-                                className={`rounded-lg border bg-card overflow-hidden transition-colors w-full ${
-                                  isSelected
-                                    ? 'border-amber-400 ring-1 ring-amber-400/40'
-                                    : 'border-border hover:border-primary/40'
-                                }`}
-                              >
-                                {/* ── Collapsed: preview only with see-more affordance ── */}
-                                {!isExpanded && (
-                                  <button
-                                    type="button"
-                                    className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-muted/40 transition-colors group min-w-0"
-                                    onClick={() => {
-                                      setExpandedBlock(key);
-                                      setSelectedBlock({ pageIdx, blockIdx });
-                                      if (readMode === 'single') {
-                                        goTo(pageIdx);
-                                      } else if (readMode === 'vertical' && pageRefs.current[pageIdx]) {
-                                        pageRefs.current[pageIdx]!.scrollIntoView({ behavior: 'smooth' });
-                                      }
-                                    }}
-                                  >
-                                    <span className="flex-1 min-w-0 text-xs font-japanese truncate text-foreground/85">
-                                      {preview}
-                                    </span>
-                                    {tokens && (
-                                      <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" title="Đã phân tích" />
-                                    )}
-                                    {isTokenizing && (
-                                      <Loader2 className="flex-shrink-0 w-3 h-3 animate-spin text-muted-foreground" />
-                                    )}
-                                    <span className="flex-shrink-0 text-[10px] text-primary/80 group-hover:text-primary font-medium">
-                                      xem thêm
-                                    </span>
-                                  </button>
-                                )}
+                          return (
+                            <div
+                              key={key}
+                              ref={(el) => {
+                                if (el) blockItemRefs.current.set(key, el);
+                                else blockItemRefs.current.delete(key);
+                              }}
+                              className={`rounded-lg border bg-card overflow-hidden transition-colors w-full ${
+                                isSelected
+                                  ? 'border-amber-400 ring-1 ring-amber-400/40'
+                                  : 'border-border hover:border-primary/40'
+                              }`}
+                            >
+                              {!isExpanded && (
+                                <button
+                                  type="button"
+                                  className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-muted/40 transition-colors group min-w-0"
+                                  onClick={() => {
+                                    setExpandedBlock(key);
+                                    setSelectedBlock({ pageIdx, blockIdx });
+                                  }}
+                                >
+                                  <span className="flex-1 min-w-0 text-xs font-japanese truncate text-foreground/85">
+                                    {preview}
+                                  </span>
+                                  {tokens && (
+                                    <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full bg-emerald-500" title="Đã phân tích" />
+                                  )}
+                                  {isTokenizing && (
+                                    <Loader2 className="flex-shrink-0 w-3 h-3 animate-spin text-muted-foreground" />
+                                  )}
+                                  <span className="flex-shrink-0 text-[10px] text-primary/80 group-hover:text-primary font-medium">
+                                    xem thêm
+                                  </span>
+                                </button>
+                              )}
 
-                                {/* ── Expanded body: full sentence ── */}
-                                {isExpanded && (
-                                  <div className="px-3 pt-2.5 pb-3 space-y-2 min-w-0">
-                                    {/* Top action row: collapse + inline analyze + copy */}
-                                    <div className="flex items-center justify-end gap-1 -mt-1 -mr-1">
-                                      {!tokens && !isTokenizing && (
-                                        <button
-                                          type="button"
-                                          className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors"
-                                          onClick={() => tokenizeBlock(key, blockText)}
-                                          title="Phân tích từ"
-                                        >
-                                          <Wand2 className="w-3 h-3" />
-                                          Phân tích
-                                        </button>
-                                      )}
+                              {isExpanded && (
+                                <div className="px-3 pt-2.5 pb-3 space-y-2 min-w-0">
+                                  <div className="flex items-center justify-end gap-1 -mt-1 -mr-1">
+                                    {trees.length > 0 && (
                                       <button
                                         type="button"
-                                        className="inline-flex items-center gap-1 text-[11px] text-primary hover:text-primary/80 font-medium px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors"
-                                        onClick={() => setDependencyDialogText(blockText)}
-                                        title="Xem dependency của câu"
+                                        className={`inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded transition-colors ${
+                                          showArcs
+                                            ? 'bg-primary/15 text-primary'
+                                            : 'text-primary hover:text-primary/80 hover:bg-primary/10'
+                                        }`}
+                                        onClick={() =>
+                                          setArcBlocks((prev) => {
+                                            const next = new Set(prev);
+                                            if (next.has(key)) next.delete(key);
+                                            else next.add(key);
+                                            return next;
+                                          })
+                                        }
+                                        title="Xem quan hệ ngữ pháp giữa các từ"
                                       >
-                                        <Wand2 className="w-3 h-3" />
-                                        Dependency
+                                        <Share2 className="w-3 h-3" />
+                                        Cấu trúc
                                       </button>
-                                      <button
-                                        type="button"
-                                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                        onClick={() => copyToClipboard(blockText)}
-                                        title="Sao chép"
-                                      >
-                                        <Copy className="w-3 h-3" />
-                                      </button>
-                                      <button
-                                        type="button"
-                                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                        onClick={() => setExpandedBlock(null)}
-                                        title="Thu gọn"
-                                      >
-                                        <ChevronDown className="w-3.5 h-3.5 rotate-180" />
-                                      </button>
-                                    </div>
-
-                                    {isTokenizing && (
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang phân tích…
-                                      </div>
                                     )}
-
-                                    {!tokens && !isTokenizing && (
-                                      <p
-                                        className="text-sm font-japanese leading-relaxed text-foreground/90 whitespace-pre-wrap select-text"
-                                        style={{
-                                          fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif',
-                                          wordBreak: 'break-all',
-                                          overflowWrap: 'anywhere',
-                                        }}
-                                      >
-                                        {blockText}
-                                      </p>
-                                    )}
-
-                                    {tokens && !isTokenizing && (
-                                      <BlockTokenResult tokens={tokens} />
-                                    )}
+                                    <button
+                                      type="button"
+                                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                      onClick={() => copyToClipboard(blockText)}
+                                      title="Sao chép"
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                      onClick={() => setExpandedBlock(null)}
+                                      title="Thu gọn"
+                                    >
+                                      <ChevronDown className="w-3.5 h-3.5 rotate-180" />
+                                    </button>
                                   </div>
-                                )}
-                              </div>
-                            );
-                          });
+
+                                  {isTokenizing && !tokens && (
+                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang phân tích…
+                                    </div>
+                                  )}
+
+                                  {!tokens && !isTokenizing && (
+                                    <p
+                                      className="text-sm font-japanese leading-relaxed text-foreground/90 whitespace-pre-wrap select-text"
+                                      style={{
+                                        fontFamily: '"Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif',
+                                        wordBreak: 'break-all',
+                                        overflowWrap: 'anywhere',
+                                      }}
+                                    >
+                                      {blockText}
+                                    </p>
+                                  )}
+
+                                  {tokens && <BlockTokenResult tokens={tokens} />}
+
+                                  {showArcs && trees.length > 0 && (
+                                    <DependencyArcsList sentences={trees} compact />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
                         })}
                       </div>
                     </ScrollArea>
@@ -1062,13 +1110,6 @@ export default function MangaReaderPage() {
         )}
       </div>
 
-      <SentenceTokenizeDialog
-        open={dependencyDialogText !== null}
-        onOpenChange={(open) => {
-          if (!open) setDependencyDialogText(null);
-        }}
-        text={dependencyDialogText ?? ''}
-      />
     </div>
   );
 }

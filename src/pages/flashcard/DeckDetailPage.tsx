@@ -228,14 +228,12 @@ export default function DeckDetailPage() {
       </header>
 
       {progress && (
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-6">
           {[
             [t('detail.total'), progress.total, 'bg-muted/50'],
             [t('detail.due'), progress.due, 'bg-amber-500/10 text-amber-600'],
             [t('detail.new'), progress.new, 'bg-blue-500/10 text-blue-600'],
             [t('detail.learning'), progress.learning, 'bg-amber-500/10 text-amber-600'],
-            [t('detail.reviewState'), progress.review, 'bg-green-500/10 text-green-600'],
-            [t('detail.relearning'), progress.relearning, 'bg-red-500/10 text-red-600'],
           ].map(([label, val, color]) => (
             <div
               key={label as string}
