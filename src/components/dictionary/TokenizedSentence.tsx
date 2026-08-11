@@ -30,6 +30,8 @@ interface TokenizedSentenceProps {
   compact?: boolean;
   /** Called after tokens are loaded (when using `text`) */
   onTokens?: (tokens: Token[]) => void;
+  /** Called after a text analysis completes successfully. */
+  onAnalyzed?: (text: string) => void;
 }
 
 /**
@@ -48,6 +50,7 @@ export function TokenizedSentence({
   showControls = false,
   compact = false,
   onTokens,
+  onAnalyzed,
 }: TokenizedSentenceProps) {
   const { t } = useTranslation('dictionary');
   const [tokens, setTokens] = useState<Token[]>(tokensProp ?? []);
@@ -86,6 +89,7 @@ export function TokenizedSentence({
         setDependencyError(null);
         setSelected(new Set());
         onTokens?.(tokenResult.tokens);
+        onAnalyzed?.(text);
       } catch (e) {
         if (cancelled) return;
         setDepSentences([]);
@@ -321,11 +325,13 @@ export function TokenizeSentencePanel({
   initialText,
   onClose,
   readOnly = false,
+  onAnalyzed,
 }: {
   initialText: string;
   onClose?: () => void;
   /** When true, the textarea cannot be edited (e.g. opened from manga / transcription). */
   readOnly?: boolean;
+  onAnalyzed?: (text: string) => void;
 }) {
   const { t } = useTranslation('dictionary');
   const [text, setText] = useState(initialText);
@@ -408,7 +414,7 @@ export function TokenizeSentencePanel({
       </div>
 
       {!retokenizing && activeText.trim() && (
-        <TokenizedSentence text={activeText} showControls />
+        <TokenizedSentence text={activeText} showControls onAnalyzed={onAnalyzed} />
       )}
     </div>
   );

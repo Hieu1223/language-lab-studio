@@ -54,7 +54,16 @@
     "charCount": "{{count}} ký tự",
     "charCountReadOnly": "{{count}} ký tự · Chỉ đọc — chọn để sao chép",
     "close": "Đóng",
-    "analyze": "Phân tích"
+    "analyze": "Phân tích",
+    "historyTitle": "Lịch sử phân tích",
+    "loadingHistory": "Đang tải lịch sử...",
+    "emptyHistory": "Chưa có phân tích nào được lưu.",
+    "historyLoadFailed": "Không thể tải lịch sử phân tích",
+    "historySaveFailed": "Không thể lưu phân tích này",
+    "historyDeleteFailed": "Không thể xoá phân tích này",
+    "refreshHistory": "Làm mới lịch sử",
+    "deleteHistory": "Xoá phân tích",
+    "sentenceCount": "{{count}} câu"
   },
   "deck": {
     "loadFailed": "Không thể tải danh sách bộ thẻ",

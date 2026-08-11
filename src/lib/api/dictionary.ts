@@ -16,6 +16,8 @@ export type DependencyLink = components['schemas']['DependencyLink'];
 export type DependencyTree = components['schemas']['DependencyTree'];
 export type DependencyTreeResponse = components['schemas']['DependencyTreeResponse'];
 export type TokenizeDependenciesResponse = components['schemas']['TokenizeDependenciesResponse'];
+export type TokenizationHistoryItem = components['schemas']['TokenizationHistoryItem'];
+export type TokenizationHistoryListResponse = components['schemas']['TokenizationHistoryListResponse'];
 
 /**
  * Adapt a GiNZA dependency token to the tokenizer's `Token` shape so it can be
@@ -55,6 +57,39 @@ export async function getDependencyTree(
   return apiCall<DependencyTreeResponse>('/tokenization/dependency-tree', {
     query: { text },
     signal,
+  });
+}
+
+/** POST /tokenization/dependency-tree/save */
+export async function saveTokenizationHistory(
+  text: string,
+  user_id: string,
+): Promise<TokenizeDependenciesResponse> {
+  return apiCall<TokenizeDependenciesResponse>('/tokenization/dependency-tree/save', {
+    method: 'POST',
+    body: { text, user_id },
+  });
+}
+
+/** GET /tokenization/dependency-tree/history */
+export async function getTokenizationHistory(
+  user_id: string,
+  offset = 0,
+  limit = 50,
+): Promise<TokenizationHistoryListResponse> {
+  return apiCall<TokenizationHistoryListResponse>('/tokenization/dependency-tree/history', {
+    query: { user_id, offset, limit },
+  });
+}
+
+/** DELETE /tokenization/dependency-tree/history/{history_id} */
+export async function deleteTokenizationHistory(
+  history_id: string,
+  user_id: string,
+): Promise<void> {
+  await apiCall<void>(`/tokenization/dependency-tree/history/${history_id}`, {
+    method: 'DELETE',
+    query: { user_id },
   });
 }
 

@@ -54,7 +54,16 @@
     "charCount": "{{count}} characters",
     "charCountReadOnly": "{{count}} characters · Read-only — select to copy",
     "close": "Close",
-    "analyze": "Analyze"
+    "analyze": "Analyze",
+    "historyTitle": "Analysis history",
+    "loadingHistory": "Loading history...",
+    "emptyHistory": "No saved analyses yet.",
+    "historyLoadFailed": "Could not load analysis history",
+    "historySaveFailed": "Could not save this analysis",
+    "historyDeleteFailed": "Could not delete this analysis",
+    "refreshHistory": "Refresh history",
+    "deleteHistory": "Delete analysis",
+    "sentenceCount": "{{count}} sentences"
   },
   "deck": {
     "loadFailed": "Could not load deck list",
