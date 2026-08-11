@@ -20,6 +20,7 @@ import {
   Type,
   Wand2,
   ChevronDown,
+  Share2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,7 +37,8 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LoadingScreen } from '@/components/LoadingScreen';
 import { BlockTokenResult } from '@/components/manga/BlockTokenResult';
-import { SentenceTokenizeDialog } from '@/components/dictionary/SentenceTokenizeDialog';
+import { DependencyArcsList } from '@/components/dictionary/DependencyArcs';
+import { blockTrees, treesToTokens } from '@/lib/manga-analysis';
 import { ChapterEndCard, chapterLabel } from '@/components/manga/ChapterEndCard';
 import { DictionaryRightPanel } from '@/components/manga/DictionaryRightPanel';
 import { MangaPage } from '@/components/manga/MangaPage';
@@ -120,6 +122,9 @@ export default function MangaReaderPage() {
   const [ocrPagesReceived, setOcrPagesReceived] = useState(0);
   const ocrStreamRef = useRef<OCRStreamHandle | null>(null);
   const ocrPageCounterRef = useRef(0);
+  /** True once we know the chapter already has a stored OCR result. */
+  const [ocrAvailable, setOcrAvailable] = useState(false);
+  const fetchedOcrPagesRef = useRef<Set<number>>(new Set());
 
   // ── Settings ─────────────────────────────────────────────────────────────
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
@@ -145,7 +150,8 @@ export default function MangaReaderPage() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>('settings');
   const [selectedBlock, setSelectedBlock] = useState<SelectedBlock | null>(null);
-  const [dependencyDialogText, setDependencyDialogText] = useState<string | null>(null);
+  // Blocks whose dependency-arc diagram is currently visible (key "page-block")
+  const [arcBlocks, setArcBlocks] = useState<Set<string>>(new Set());
 
   // ── OCR block list state ──────────────────────────────────────────────────
   // expandedBlock: "pageIdx-blockIdx" of the currently open accordion item
@@ -209,6 +215,7 @@ export default function MangaReaderPage() {
         ocrStreamRef.current = null;
         ocrPageCounterRef.current = 0;
         setOcrLoaded(false);
+        setOcrAvailable(false);
         setOcrPagesReceived(0);
         setLoadingOCR(false);
         setOcrDataPages([]);
@@ -223,6 +230,7 @@ export default function MangaReaderPage() {
         setChapters(data.chapters);
         setCurrentChapter(data.chapter);
         setOcrDataPages(new Array(data.pages.length).fill(null));
+        fetchedOcrPagesRef.current = new Set();
         pageRefs.current = new Array(data.pages.length).fill(null);
 
         // Find current chapter index in the list
@@ -238,19 +246,23 @@ export default function MangaReaderPage() {
           }).catch((err) => console.warn('Failed to save manga history:', err));
         }
 
-        // Auto-load OCR if already cached — silent, no toast on miss
+        // Probe whether OCR already exists — only one page is fetched, the
+        // reader then pulls the OCR of whatever page the user is on.
         try {
-          const existing = await getOCRResult(chapterId);
-          const pages = existing.ocr_data.pages;
-          setOcrDataPages(
-            pages.length === data.pages.length
-              ? pages
-              : [...pages, ...new Array(Math.max(0, data.pages.length - pages.length)).fill(null)],
-          );
-          setOcrPagesReceived(pages.length);
+          const existing = await getOCRResult(chapterId, { offset: 0, limit: 1 });
+          const first = existing.ocr_data.pages[0] ?? null;
+          setOcrDataPages((prev) => {
+            const next = prev.length ? prev.slice() : new Array(data.pages.length).fill(null);
+            next[0] = first;
+            return next;
+          });
+          fetchedOcrPagesRef.current.add(0);
+          setOcrPagesReceived(existing.total_pages);
+          setOcrAvailable(true);
           setOcrLoaded(true);
         } catch {
           // 404 = not yet OCR'd, that's fine — user can trigger manually
+          setOcrAvailable(false);
         }
       } catch (err) {
         toast.error('Không thể tải chapter');
@@ -339,11 +351,16 @@ export default function MangaReaderPage() {
 
     // First check if OCR already exists (backend 409 if we stream twice)
     try {
-      const existing = await getOCRResult(chapterId);
-      // Already OCR'd — populate pages from cached data
-      const pages = existing.ocr_data.pages;
-      setOcrDataPages(pages.length === images.length ? pages : [...pages, ...new Array(Math.max(0, images.length - pages.length)).fill(null)]);
-      setOcrPagesReceived(pages.length);
+      const existing = await getOCRResult(chapterId, { offset: currentPageIndex, limit: 1 });
+      const page = existing.ocr_data.pages[0] ?? null;
+      setOcrDataPages((prev) => {
+        const next = prev.length >= images.length ? prev.slice() : new Array(images.length).fill(null);
+        next[currentPageIndex] = page;
+        return next;
+      });
+      fetchedOcrPagesRef.current.add(currentPageIndex);
+      setOcrPagesReceived(existing.total_pages);
+      setOcrAvailable(true);
       setOcrLoaded(true);
       toast.success('OCR đã được tải từ cache');
       return;
@@ -360,6 +377,7 @@ export default function MangaReaderPage() {
     setOcrLoaded(false);
     setOcrPagesReceived(0);
     ocrPageCounterRef.current = 0;
+    fetchedOcrPagesRef.current = new Set();
     setOcrDataPages(new Array(images.length).fill(null));
 
     ocrStreamRef.current = streamOCR(
@@ -373,10 +391,12 @@ export default function MangaReaderPage() {
             if (idx < next.length) next[idx] = page;
             return next;
           });
+          fetchedOcrPagesRef.current.add(idx);
           setOcrPagesReceived((c) => c + 1);
         },
         onDone: () => {
           setOcrLoaded(true);
+          setOcrAvailable(true);
           setLoadingOCR(false);
           ocrStreamRef.current = null;
           toast.success('OCR đã tải xong');
@@ -384,10 +404,16 @@ export default function MangaReaderPage() {
         onError: (err) => {
           // 409 = race: another client triggered OCR, try fetching the result
           if (err.message.includes('409')) {
-            getOCRResult(chapterId!).then((existing) => {
-              const pages = existing.ocr_data.pages;
-              setOcrDataPages(pages.length === images.length ? pages : [...pages, ...new Array(Math.max(0, images.length - pages.length)).fill(null)]);
-              setOcrPagesReceived(pages.length);
+            getOCRResult(chapterId!, { offset: currentPageIndex, limit: 1 }).then((existing) => {
+              const page = existing.ocr_data.pages[0] ?? null;
+              setOcrDataPages((prev) => {
+                const next = prev.length >= images.length ? prev.slice() : new Array(images.length).fill(null);
+                next[currentPageIndex] = page;
+                return next;
+              });
+              fetchedOcrPagesRef.current.add(currentPageIndex);
+              setOcrPagesReceived(existing.total_pages);
+              setOcrAvailable(true);
               setOcrLoaded(true);
               toast.success('OCR đã được tải từ cache');
             }).catch(() => toast.error('Không thể tải OCR'));
