@@ -18,7 +18,6 @@ import {
   Copy,
   Loader2,
   Type,
-  Wand2,
   ChevronDown,
   Share2,
 } from 'lucide-react';
