@@ -54,9 +54,18 @@ export async function getChapterRead(chapterId: string): Promise<ReadResponse> {
 
 // ─── OCR ────────────────────────────────────────────────────────────────────
 
-/** GET /manga/ocr/{chapter_id} — already-computed results (404 when absent). */
-export async function getOCRResult(chapterId: string): Promise<OCRResultResponse> {
-  return apiCall<OCRResultResponse>(`/manga/ocr/${encodeURIComponent(chapterId)}`);
+/**
+ * GET /manga/ocr/{chapter_id} — already-computed results (404 when absent).
+ * Paginated by page: pass `offset`/`limit` so the reader only pulls the pages
+ * it is actually showing instead of a whole chapter's OCR payload.
+ */
+export async function getOCRResult(
+  chapterId: string,
+  { offset = 0, limit = 50 }: { offset?: number; limit?: number } = {},
+): Promise<OCRResultResponse> {
+  return apiCall<OCRResultResponse>(`/manga/ocr/${encodeURIComponent(chapterId)}`, {
+    query: { offset, limit },
+  });
 }
 
 /** DELETE /manga/ocr/{chapter_id} — reset so OCR can be re-run. */
