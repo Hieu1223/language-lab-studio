@@ -428,6 +428,30 @@ export default function MangaReaderPage() {
     );
   };
 
+  // ── Fetch the OCR of the page being read (paginated, one page at a time) ──
+  useEffect(() => {
+    if (!chapterId || !ocrAvailable || loadingOCR) return;
+    const idx = currentPageIndex;
+    if (idx >= images.length) return;
+    if (fetchedOcrPagesRef.current.has(idx)) return;
+    fetchedOcrPagesRef.current.add(idx);
+    let cancelled = false;
+    getOCRResult(chapterId, { offset: idx, limit: 1 })
+      .then((res) => {
+        if (cancelled) return;
+        const page = res.ocr_data.pages[0] ?? null;
+        setOcrDataPages((prev) => {
+          const next = prev.length >= images.length ? prev.slice() : new Array(images.length).fill(null);
+          next[idx] = page;
+          return next;
+        });
+      })
+      .catch(() => {
+        fetchedOcrPagesRef.current.delete(idx);
+      });
+    return () => { cancelled = true; };
+  }, [chapterId, ocrAvailable, loadingOCR, currentPageIndex, images.length]);
+
   // ── Chapter navigation ────────────────────────────────────────────────────
   const goToChapter = useCallback(
     (chapter: ChapterPreview) => {
@@ -458,10 +482,12 @@ export default function MangaReaderPage() {
 
   const handleSelectBlock = useCallback((pageIdx: number, blockIdx: number) => {
     const key = `${pageIdx}-${blockIdx}`;
-    const text = ocrDataPages[pageIdx]?.blocks[blockIdx]?.lines.join('\n') ?? '';
+    const block = ocrDataPages[pageIdx]?.blocks[blockIdx];
+    const text = block?.lines.join('\n') ?? '';
     setSelectedBlock({ pageIdx, blockIdx });
     setExpandedBlock(key);
-    if (text.trim() && !blockTokens.has(key) && !blockTokenizing.has(key)) {
+    const hasEmbedded = blockTrees(block).length > 0;
+    if (!hasEmbedded && text.trim() && !blockTokens.has(key) && !blockTokenizing.has(key)) {
       setBlockTokenizing((prev) => new Set(prev).add(key));
       void tokenize(text)
         .then((result) => setBlockTokens((prev) => new Map(prev).set(key, result.tokens)))
