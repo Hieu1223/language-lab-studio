@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import { ChevronDown } from 'lucide-react';
 import { TokenPopover } from '@/components/dictionary/TokenPopover';
 import { depLinkToToken, isLookupCandidate, type DependencyLink, type DependencyTree } from '@/lib/api/dictionary';
 
@@ -149,11 +150,53 @@ export function DependencyArcs({ sentence, compact = false }: DependencyArcsProp
 export function DependencyArcsList({
   sentences,
   compact = false,
+  collapsible = false,
 }: {
   sentences: DependencyTree[];
   compact?: boolean;
+  /** Show sentence-sized segments first, expanding their arcs on click. */
+  collapsible?: boolean;
 }) {
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+
   if (!sentences.length) return null;
+
+  if (collapsible) {
+    return (
+      <div className="space-y-2" data-testid="dependency-segments">
+        {sentences.map((sentence, i) => {
+          const isExpanded = expanded.has(i);
+          return (
+            <div key={`${sentence.sentence_id}-${i}`} className="overflow-hidden rounded-lg border bg-muted/30">
+              <button
+                type="button"
+                className={`flex w-full items-center gap-2 px-3 py-3 text-left font-japanese transition-colors ${
+                  isExpanded ? 'bg-primary/10 text-foreground' : 'hover:bg-primary/5'
+                }`}
+                onClick={() => setExpanded((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(i)) next.delete(i);
+                  else next.add(i);
+                  return next;
+                })}
+                aria-expanded={isExpanded}
+                data-testid={`dependency-segment-${i}`}
+              >
+                <span className="min-w-0 flex-1 text-base leading-relaxed">{sentence.text}</span>
+                <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+              </button>
+              {isExpanded && (
+                <div className="border-t px-2 py-2">
+                  <DependencyArcs sentence={sentence} compact={compact} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       {sentences.map((s, i) => (

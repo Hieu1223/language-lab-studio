@@ -243,52 +243,49 @@ export function TokenizedSentence({
         </div>
       )}
 
-      <p
-        className={`flex flex-wrap items-baseline leading-loose font-japanese ${textSize}`}
-        data-testid="tokenized-sentence"
-      >
-        {tokens.map((t, i) => {
-          const lookupable = isLookupCandidate(t);
-          const isSelected = selected.has(i);
-          const cls = lookupable
-            ? `cursor-pointer underline decoration-dotted underline-offset-4 decoration-primary/60 hover:decoration-primary hover:bg-primary/10 rounded px-0.5 transition-colors ${
-                isSelected ? 'bg-primary/20 decoration-primary' : ''
-              }`
-            : 'text-muted-foreground/80';
+      {depSentences.length > 0 ? (
+        <DependencyArcsList sentences={depSentences} collapsible />
+      ) : (
+        <p
+          className={`flex flex-wrap items-baseline leading-loose font-japanese ${textSize}`}
+          data-testid="tokenized-sentence"
+        >
+          {tokens.map((t, i) => {
+            const lookupable = isLookupCandidate(t);
+            const isSelected = selected.has(i);
+            const cls = lookupable
+              ? `cursor-pointer underline decoration-dotted underline-offset-4 decoration-primary/60 hover:decoration-primary hover:bg-primary/10 rounded px-0.5 transition-colors ${
+                  isSelected ? 'bg-primary/20 decoration-primary' : ''
+                }`
+              : 'text-muted-foreground/80';
 
-          if (!lookupable) {
+            if (!lookupable) {
+              return (
+                <span key={i} className={cls}>
+                  {t.surface}
+                </span>
+              );
+            }
+
             return (
-              <span key={i} className={cls}>
-                {t.surface}
-              </span>
+              <TokenPopover key={i} token={t}>
+                <span
+                  className={cls}
+                  onClick={(e) => {
+                    if (e.shiftKey && showControls) {
+                      e.preventDefault();
+                      toggle(i);
+                    }
+                  }}
+                  data-testid={`token-${i}`}
+                  data-token-idx={i}
+                >
+                  {t.surface}
+                </span>
+              </TokenPopover>
             );
-          }
-
-          return (
-            <TokenPopover key={i} token={t}>
-              <span
-                className={cls}
-                onClick={(e) => {
-                  if (e.shiftKey && showControls) {
-                    e.preventDefault();
-                    toggle(i);
-                  }
-                }}
-                data-testid={`token-${i}`}
-                data-token-idx={i}
-              >
-                {t.surface}
-              </span>
-            </TokenPopover>
-          );
-        })}
-      </p>
-
-      {depSentences.length > 0 && (
-        <div className="space-y-2" data-testid="token-dependencies">
-          <p className="text-xs font-semibold text-foreground">Dependencies</p>
-          <DependencyArcsList sentences={depSentences} />
-        </div>
+          })}
+        </p>
       )}
 
       {dependencyError && !error && (

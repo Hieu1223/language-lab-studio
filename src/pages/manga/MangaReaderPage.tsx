@@ -124,6 +124,7 @@ export default function MangaReaderPage() {
   /** True once we know the chapter already has a stored OCR result. */
   const [ocrAvailable, setOcrAvailable] = useState(false);
   const fetchedOcrPagesRef = useRef<Set<number>>(new Set());
+  const activeOcrChapterRef = useRef<string | null>(null);
 
   // ── Settings ─────────────────────────────────────────────────────────────
   const [settings, setSettings] = useState<ReaderSettings>(loadSettings);
@@ -209,6 +210,7 @@ export default function MangaReaderPage() {
     const load = async () => {
       try {
         setLoadingChapter(true);
+        activeOcrChapterRef.current = chapterId;
         // Abort any in-flight OCR stream
         ocrStreamRef.current?.abort();
         ocrStreamRef.current = null;
@@ -427,29 +429,59 @@ export default function MangaReaderPage() {
     );
   };
 
-  // ── Fetch the OCR of the page being read (paginated, one page at a time) ──
-  useEffect(() => {
-    if (!chapterId || !ocrAvailable || loadingOCR) return;
-    const idx = currentPageIndex;
-    if (idx >= images.length) return;
-    if (fetchedOcrPagesRef.current.has(idx)) return;
-    fetchedOcrPagesRef.current.add(idx);
-    let cancelled = false;
-    getOCRResult(chapterId, { offset: idx, limit: 1 })
-      .then((res) => {
-        if (cancelled) return;
+  // ── Fetch one OCR page without duplicating requests ───────────────────────
+  const fetchOcrPage = useCallback(
+    async (idx: number) => {
+      if (!chapterId || idx < 0 || idx >= images.length) return;
+      if (fetchedOcrPagesRef.current.has(idx)) return;
+      fetchedOcrPagesRef.current.add(idx);
+      const requestedChapterId = chapterId;
+      try {
+        const res = await getOCRResult(requestedChapterId, { offset: idx, limit: 1 });
+        if (activeOcrChapterRef.current !== requestedChapterId) return;
         const page = res.ocr_data.pages[0] ?? null;
         setOcrDataPages((prev) => {
           const next = prev.length >= images.length ? prev.slice() : new Array(images.length).fill(null);
           next[idx] = page;
           return next;
         });
-      })
-      .catch(() => {
-        fetchedOcrPagesRef.current.delete(idx);
-      });
-    return () => { cancelled = true; };
-  }, [chapterId, ocrAvailable, loadingOCR, currentPageIndex, images.length]);
+      } catch {
+        if (activeOcrChapterRef.current === requestedChapterId) {
+          fetchedOcrPagesRef.current.delete(idx);
+        }
+      }
+    },
+    [chapterId, images.length],
+  );
+
+  // In scrolling mode, fetch OCR when a page enters (or nears) the viewport.
+  // The current-page tracker is intentionally kept separate from data loading:
+  // it can lag behind a fast scroll by a frame or two.
+  useEffect(() => {
+    if (readMode !== 'vertical' || !chapterId || !ocrAvailable || loadingOCR) return;
+    const container = verticalContainerRef.current;
+    if (!container) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const idx = Number((entry.target as HTMLElement).dataset.pageIndex);
+          if (Number.isInteger(idx)) void fetchOcrPage(idx);
+        });
+      },
+      { root: container, rootMargin: '300px 0px', threshold: 0.01 },
+    );
+    pageRefs.current.forEach((ref) => {
+      if (ref) observer.observe(ref);
+    });
+    return () => observer.disconnect();
+  }, [readMode, chapterId, ocrAvailable, loadingOCR, images.length, fetchOcrPage]);
+
+  // Keep single-page mode loading the page selected by the controls.
+  useEffect(() => {
+    if (readMode === 'vertical' || !chapterId || !ocrAvailable || loadingOCR) return;
+    void fetchOcrPage(currentPageIndex);
+  }, [readMode, chapterId, ocrAvailable, loadingOCR, currentPageIndex, fetchOcrPage]);
 
   // ── Chapter navigation ────────────────────────────────────────────────────
   const goToChapter = useCallback(
@@ -584,6 +616,7 @@ export default function MangaReaderPage() {
                 <div
                   key={i}
                   ref={(el) => { pageRefs.current[i] = el; }}
+                  data-page-index={i}
                   style={{ width: '100%', maxWidth: 900 }}
                 >
                   <MangaPage
