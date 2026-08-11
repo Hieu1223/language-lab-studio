@@ -8,11 +8,12 @@ import {
   getDependencyTree,
   lookupWord,
   tokenize,
-  type DependencyLink,
+  type DependencyTree,
   type Token,
   type WordLookupEntry,
 } from '@/lib/api/dictionary';
 import { TokenPopover } from './TokenPopover';
+import { DependencyArcsList } from './DependencyArcs';
 import { AddToDeckDialog } from './AddToDeckDialog';
 import { translate } from '@/lib/i18n-runtime';
 import { toast } from 'sonner';
@@ -52,7 +53,7 @@ export function TokenizedSentence({
   const [tokens, setTokens] = useState<Token[]>(tokensProp ?? []);
   const [loading, setLoading] = useState(!tokensProp && !!text);
   const [error, setError] = useState<string | null>(null);
-  const [dependencies, setDependencies] = useState<DependencyLink[]>([]);
+  const [depSentences, setDepSentences] = useState<DependencyTree[]>([]);
   const [dependencyError, setDependencyError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [addOpen, setAddOpen] = useState(false);
@@ -81,13 +82,13 @@ export function TokenizedSentence({
         ]);
         if (cancelled) return;
         setTokens(tokenResult.tokens);
-        setDependencies(dependencyResult.sentences.flatMap((sentence) => sentence.tokens));
+        setDepSentences(dependencyResult.sentences);
         setDependencyError(null);
         setSelected(new Set());
         onTokens?.(tokenResult.tokens);
       } catch (e) {
         if (cancelled) return;
-        setDependencies([]);
+        setDepSentences([]);
         setDependencyError(
           e instanceof Error
             ? e.message
@@ -283,25 +284,10 @@ export function TokenizedSentence({
         })}
       </p>
 
-      {dependencies.length > 0 && (
-        <div className="rounded-lg border bg-muted/30 p-3 space-y-2" data-testid="token-dependencies">
+      {depSentences.length > 0 && (
+        <div className="space-y-2" data-testid="token-dependencies">
           <p className="text-xs font-semibold text-foreground">Dependencies</p>
-          <div className="space-y-1.5">
-            {dependencies.map((dependency, index) => (
-              <div
-                key={`${dependency.token_index}-${index}`}
-                className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-xs"
-              >
-                <span className="font-japanese font-medium truncate">{dependency.surface}</span>
-                <span className="text-muted-foreground font-mono text-[10px] whitespace-nowrap">
-                  {dependency.is_root ? 'ROOT' : dependency.dep}
-                </span>
-                <span className="font-japanese text-muted-foreground truncate text-right">
-                  {dependency.is_root ? '—' : dependency.head_surface ?? '—'}
-                </span>
-              </div>
-            ))}
-          </div>
+          <DependencyArcsList sentences={depSentences} />
         </div>
       )}
 
