@@ -509,6 +509,27 @@ export default function MangaReaderPage() {
 
   const prevPage = () => goTo(currentPageIndex - 1);
   const nextPage = () => goTo(currentPageIndex + 1);
+
+  const gestureStartRef = useRef<{ x: number; y: number; pointerId: number } | null>(null);
+  const handleGestureStart = (event: React.PointerEvent<HTMLDivElement>) => {
+    if (readMode !== 'single' || (event.pointerType !== 'touch' && event.pointerType !== 'pen')) return;
+    gestureStartRef.current = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+  const handleGestureEnd = (event: React.PointerEvent<HTMLDivElement>) => {
+    const start = gestureStartRef.current;
+    gestureStartRef.current = null;
+    if (!start || readMode !== 'single' || (event.pointerType !== 'touch' && event.pointerType !== 'pen')) return;
+    if (event.currentTarget.hasPointerCapture(start.pointerId)) {
+      event.currentTarget.releasePointerCapture(start.pointerId);
+    }
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy) * 1.2) return;
+    if (dx < 0) nextPage();
+    else prevPage();
+  };
   const clampZoom = (v: number) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, v));
 
   const handleSelectBlock = useCallback((pageIdx: number, blockIdx: number) => {
@@ -766,9 +787,15 @@ export default function MangaReaderPage() {
       <div className="flex-1 overflow-hidden min-h-0 flex relative">
         {/* Viewer fills remaining space */}
         <div className="flex-1 min-w-0 min-h-0 relative overflow-hidden">
-          <div ref={setViewerNode} className="absolute inset-0 flex overflow-hidden">
+          <div
+            ref={setViewerNode}
+            className="absolute inset-0 flex overflow-hidden"
+            style={{ touchAction: readMode === 'single' ? 'pan-y' : undefined }}
+            onPointerDown={handleGestureStart}
+            onPointerUp={handleGestureEnd}
+            onPointerCancel={() => { gestureStartRef.current = null; }}
+          >
             {renderPages()}
-            {/* Single-mode arrows removed per UX request — use keyboard / page picker / scroll */}
           </div>
         </div>
 
