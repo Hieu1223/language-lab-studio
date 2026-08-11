@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 import { TokenPopover } from '@/components/dictionary/TokenPopover';
 import { depLinkToToken, isLookupCandidate, type DependencyLink, type DependencyTree } from '@/lib/api/dictionary';
@@ -29,7 +29,7 @@ export function DependencyArcs({ sentence, compact = false }: DependencyArcsProp
   const tokenRefs = useRef<(HTMLSpanElement | null)[]>([]);
   const [positions, setPositions] = useState<Pos[]>([]);
 
-  const tokens = sentence.tokens ?? [];
+  const tokens = useMemo(() => sentence.tokens ?? [], [sentence.tokens]);
 
   const measure = useCallback(() => {
     const wrap = wrapRef.current;
