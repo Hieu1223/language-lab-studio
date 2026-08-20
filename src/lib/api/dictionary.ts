@@ -1,4 +1,4 @@
-// Tokenization + dictionary lookup (doc §5.6).
+// Tokenization + dictionary lookup (from OpenAPI spec).
 //
 // IMPORTANT contract note: the API's `Token` carries NO embedded dictionary
 // entry. Tokenizing gives you surface/reading/dictionary_form only; getting a
@@ -14,8 +14,7 @@ export type WordLookupResponse = components['schemas']['WordLookupResponse'];
 
 export type DependencyLink = components['schemas']['DependencyLink'];
 export type DependencyTree = components['schemas']['DependencyTree'];
-export type DependencyTreeResponse = components['schemas']['DependencyTreeResponse'];
-export type TokenizeDependenciesResponse = components['schemas']['TokenizeDependenciesResponse'];
+export type SaveTokenizationResponse = components['schemas']['SaveTokenizationResponse'];
 export type TokenizationHistoryItem = components['schemas']['TokenizationHistoryItem'];
 export type TokenizationHistoryListResponse = components['schemas']['TokenizationHistoryListResponse'];
 
@@ -49,47 +48,28 @@ export async function tokenize(text: string, signal?: AbortSignal): Promise<Toke
   });
 }
 
-/** GET /tokenization/dependency-tree */
-export async function getDependencyTree(
-  text: string,
-  signal?: AbortSignal,
-): Promise<DependencyTreeResponse> {
-  return apiCall<DependencyTreeResponse>('/tokenization/dependency-tree', {
-    query: { text },
-    signal,
-  });
-}
-
-/** POST /tokenization/dependency-tree/save */
-export async function saveTokenizationHistory(
-  text: string,
-  user_id: string,
-): Promise<TokenizeDependenciesResponse> {
-  return apiCall<TokenizeDependenciesResponse>('/tokenization/dependency-tree/save', {
+/** POST /tokenization/tokenize/save — tokenize and save to user's history. */
+export async function saveTokenization(text: string): Promise<SaveTokenizationResponse> {
+  return apiCall<SaveTokenizationResponse>('/tokenization/tokenize/save', {
     method: 'POST',
-    body: { text, user_id },
+    body: { text },
   });
 }
 
-/** GET /tokenization/dependency-tree/history */
+/** GET /tokenization/tokenize/history — get user's saved tokenization history. */
 export async function getTokenizationHistory(
-  user_id: string,
   offset = 0,
   limit = 50,
 ): Promise<TokenizationHistoryListResponse> {
-  return apiCall<TokenizationHistoryListResponse>('/tokenization/dependency-tree/history', {
-    query: { user_id, offset, limit },
+  return apiCall<TokenizationHistoryListResponse>('/tokenization/tokenize/history', {
+    query: { offset, limit },
   });
 }
 
-/** DELETE /tokenization/dependency-tree/history/{history_id} */
-export async function deleteTokenizationHistory(
-  history_id: string,
-  user_id: string,
-): Promise<void> {
-  await apiCall<void>(`/tokenization/dependency-tree/history/${history_id}`, {
+/** DELETE /tokenization/tokenize/history/{history_id} — delete a history entry. */
+export async function deleteTokenizationHistory(history_id: string): Promise<void> {
+  await apiCall<void>(`/tokenization/tokenize/history/${encodeURIComponent(history_id)}`, {
     method: 'DELETE',
-    query: { user_id },
   });
 }
 
