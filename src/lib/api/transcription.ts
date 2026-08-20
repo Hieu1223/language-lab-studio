@@ -1,25 +1,59 @@
-// Transcription + YouTube endpoints (doc §5.3 / §5.4).
+// Transcription + YouTube endpoints, aligned with the current OpenAPI spec.
+//
+// Routes used here:
+//   POST   /transcription                    → start a job for an app video id
+//   GET    /transcription?video_id=…         → jobs for one video
+//   GET    /transcription/{transcript_id}    → job status + tokenized segments
+//   GET    /transcription/visited            → watch history
+//   GET    /youtube/video/{video_id}         → preview (also registers the video)
+//   GET/POST /youtube/progress               → playback position
 import { apiCall } from './client';
 import type { components } from './types.gen';
 
 export type VideoPreview = components['schemas']['VideoPreview'];
-export type VideoDetail = components['schemas']['VideoDetail'];
+export type VideoDetail = VideoPreview;
 export type ChannelPreview = components['schemas']['ChannelPreview'];
-export type TranscriptRequestResponse = components['schemas']['TranscriptRequestResponse'];
-export type TranscriptDetailResponse = components['schemas']['TranscriptDetailResponse'];
-export type TranscriptResult = components['schemas']['TranscriptResult'];
-export type TranscriptSegment = components['schemas']['TranscriptSegment'];
-export type TokenTimestamp = components['schemas']['TokenTimestamp'];
-export type UserHistoryResponse = components['schemas']['UserHistoryResponse'];
-export type UserHistoryListResponse = components['schemas']['UserHistoryListResponse'];
+export type TranscriptionJobResponse = components['schemas']['TranscriptionJobResponse'];
+export type TranscriptRequestResponse = TranscriptionJobResponse;
+export type TranscriptionListItem = components['schemas']['TranscriptionListItem'];
+export type TranscriptionListResponse = components['schemas']['TranscriptionListResponse'];
+export type VisitedVideoResponse = components['schemas']['VisitedVideoResponse'];
+export type VisitedVideoListResponse = components['schemas']['VisitedVideoListResponse'];
 export type VideoProgressResponse = components['schemas']['VideoProgressResponse'];
-type YoutubeTranscriptRequestForm = components['schemas']['YoutubeTranscriptRequestForm'];
-type SaveIndividualSettingsRequest = components['schemas']['SaveIndividualSettingsRequest'];
-type SaveVideoProgressRequest = components['schemas']['SaveVideoProgressRequest'];
-type RemoveHistoryRequest = components['schemas']['RemoveHistoryRequest'];
+export type ApiToken = components['schemas']['Token'];
 
-/** Word-level timestamp alias used by the review UIs. */
-export type SegmentWord = TokenTimestamp;
+/**
+ * The API ships tokens with `start`/`stop`; the UI has always spoken
+ * `start`/`end`, so normalize once here instead of at every call site.
+ */
+export interface SegmentWord extends Omit<ApiToken, 'stop'> {
+  start: number | null;
+  end: number | null;
+}
+
+/** A transcript segment is simply one sentence's worth of tokens. */
+export interface TranscriptSegment {
+  words: SegmentWord[];
+}
+
+export interface TranscriptResult {
+  segments: TranscriptSegment[];
+}
+
+/** Normalized detail shape used across the transcription UIs. */
+export interface TranscriptDetailResponse {
+  id: string;
+  status: number;
+  done: boolean;
+  msg: string;
+  data?: TranscriptResult | null;
+  /** Enriched from the job list when available. */
+  video_id?: string | null;
+  resource_id?: string | null;
+  original_source?: string | null;
+  name?: string | null;
+  thumbnail_url?: string | null;
+}
 
 // ─── Transcript status ──────────────────────────────────────────────────────
 // `status` is an integer job code; `done` is the authoritative completion flag.
@@ -67,6 +101,14 @@ export async function previewVideo(videoId: string): Promise<VideoPreview> {
   return apiCall<VideoPreview>(`/youtube/video/${encodeURIComponent(videoId)}`);
 }
 
+/**
+ * The new API has no separate "visit" route — fetching the preview is what
+ * registers the video and yields its internal `app_video_id`.
+ */
+export async function visitVideo(videoId: string): Promise<VideoPreview> {
+  return previewVideo(videoId);
+}
+
 /** Extract a YouTube video id from a URL or a bare id. */
 export function parseYouTubeId(input: string): string | null {
   const value = input.trim();
@@ -92,133 +134,99 @@ export function parseYouTubeId(input: string): string | null {
 
 // ─── Transcription jobs ─────────────────────────────────────────────────────
 
-export interface TranscribeRequestInput {
-  name: string;
-  thumbnail_url: string;
-  resource_url: string;
-  user_id: string;
-  resource_id?: string | null;
-  original_source?: string;
-  public?: boolean;
+/** POST /transcription — start a job for an internal (app) video id. */
+export async function requestTranscription(
+  appVideoId: string,
+): Promise<TranscriptionJobResponse> {
+  return apiCall<TranscriptionJobResponse>('/transcription', {
+    method: 'POST',
+    body: { video_id: appVideoId },
+  });
 }
 
-function toRequestForm(input: TranscribeRequestInput): YoutubeTranscriptRequestForm {
+/** POST /transcription — re-run is the same call for the same video. */
+export async function rerunTranscription(
+  appVideoId: string,
+): Promise<TranscriptionJobResponse> {
+  return requestTranscription(appVideoId);
+}
+
+/** GET /transcription?video_id=… — jobs attached to one video. */
+export async function listTranscriptions(
+  appVideoId: string,
+  { limit = 100, offset = 0 }: { limit?: number; offset?: number } = {},
+): Promise<TranscriptionListResponse> {
+  return apiCall<TranscriptionListResponse>('/transcription', {
+    query: { video_id: appVideoId, limit, offset },
+  });
+}
+
+function normalizeToken(token: ApiToken): SegmentWord {
+  const { stop, ...rest } = token;
+  return { ...rest, start: token.start ?? null, end: stop ?? null };
+}
+
+/** GET /transcription/{transcript_id} */
+export async function getTranscriptionDetail(
+  transcriptId: string,
+): Promise<TranscriptDetailResponse> {
+  const raw = await apiCall<components['schemas']['TranscriptDetailResponse']>(
+    `/transcription/${encodeURIComponent(transcriptId)}`,
+  );
   return {
-    name: input.name,
-    resource_id: input.resource_id ?? null,
-    original_source: input.original_source ?? 'Youtube',
-    public: input.public ?? true,
-    thumbnail_url: input.thumbnail_url,
-    resource_url: input.resource_url,
-    user_id: input.user_id,
+    id: raw.id,
+    status: raw.status,
+    done: raw.done,
+    msg: raw.msg,
+    data: raw.data
+      ? { segments: (raw.data.segments ?? []).map((tokens) => ({ words: tokens.map(normalizeToken) })) }
+      : null,
   };
 }
 
-/** POST /transcription/transcribe/youtube — create a transcription job. */
-export async function requestTranscription(
-  input: TranscribeRequestInput,
-): Promise<TranscriptRequestResponse> {
-  return apiCall<TranscriptRequestResponse>('/transcription/transcribe/youtube', {
-    method: 'POST',
-    body: toRequestForm(input),
-  });
-}
-
-/** POST /transcription/visit — log a watch into history without transcribing. */
-export async function visitVideo(
-  input: TranscribeRequestInput,
-): Promise<TranscriptDetailResponse> {
-  return apiCall<TranscriptDetailResponse>('/transcription/visit', {
-    method: 'POST',
-    body: toRequestForm(input),
-  });
-}
-
-/** GET /transcription/transcribe/{id}/detail */
-export async function getTranscriptionDetail(id: string): Promise<TranscriptDetailResponse> {
-  return apiCall<TranscriptDetailResponse>(
-    `/transcription/transcribe/${encodeURIComponent(id)}/detail`,
-  );
-}
-
-/** POST /transcription/transcribe/{id}/rerun */
-export async function rerunTranscription(id: string): Promise<TranscriptRequestResponse> {
-  return apiCall<TranscriptRequestResponse>(
-    `/transcription/transcribe/${encodeURIComponent(id)}/rerun`,
-    { method: 'POST' },
-  );
-}
-
-/** POST /transcription/transcribe/{id}/settings — per-transcription settings blob. */
-export async function saveTranscriptionSettings(
-  transcriptId: string,
-  settings: Record<string, unknown>,
-): Promise<unknown> {
-  const body: SaveIndividualSettingsRequest = { transcript_id: transcriptId, settings };
-  return apiCall(`/transcription/transcribe/${encodeURIComponent(transcriptId)}/settings`, {
-    method: 'POST',
-    body,
-  });
+/** Latest job for a video, or `null` when the video has never been transcribed. */
+export async function getLatestTranscription(
+  appVideoId: string,
+): Promise<TranscriptionListItem | null> {
+  const list = await listTranscriptions(appVideoId, { limit: 1 });
+  return list.items?.[0] ?? null;
 }
 
 // ─── History ────────────────────────────────────────────────────────────────
 
-/** GET /transcription/history — paginated list of visited/transcribed videos. */
-export async function getTranscriptionHistory(): Promise<UserHistoryListResponse> {
-  return apiCall<UserHistoryListResponse>('/transcription/history');
-}
-
-/** DELETE /transcription/history — body carries the history id. */
-export async function deleteTranscriptionHistory(historyId: string): Promise<void> {
-  const body: RemoveHistoryRequest = { history_id: historyId };
-  await apiCall('/transcription/history', { method: 'DELETE', body });
+/** GET /transcription/visited — videos the user has opened. */
+export async function getVisitedVideos(): Promise<VisitedVideoListResponse> {
+  return apiCall<VisitedVideoListResponse>('/transcription/visited');
 }
 
 // ─── Watch progress ─────────────────────────────────────────────────────────
 
-/** GET /transcription/progress — may legitimately return null. */
+/** GET /youtube/progress — may legitimately return null. */
 export async function getVideoProgress(
-  resourceId: string,
-  originalSource = 'Youtube',
+  appVideoId: string,
 ): Promise<VideoProgressResponse | null> {
-  return apiCall<VideoProgressResponse | null>('/transcription/progress', {
-    query: { resource_id: resourceId, original_source: originalSource },
+  return apiCall<VideoProgressResponse | null>('/youtube/progress', {
+    query: { video_id: appVideoId },
   });
 }
 
-/** POST /transcription/progress — debounced by callers, never per timeupdate. */
+/** POST /youtube/progress — debounced by callers, never per timeupdate. */
 export async function saveVideoProgress(
-  resourceId: string,
-  currentPage: number,
-  originalSource = 'Youtube',
+  appVideoId: string,
+  progressSeconds: number,
 ): Promise<VideoProgressResponse> {
-  const body: SaveVideoProgressRequest = {
-    resource_id: resourceId,
-    original_source: originalSource,
-    current_page: Math.max(0, Math.round(currentPage)),
-  };
-  return apiCall<VideoProgressResponse>('/transcription/progress', { method: 'POST', body });
-}
-
-// ─── YouTube search ────────────────────────────────────────────────────────
-// NOTE: the new API (doc §5.4) exposes no YouTube search endpoint — only
-// `GET /youtube/video/{id}` for a known id. `searchYouTube` is retained as a
-// no-op so existing UI degrades gracefully instead of calling a removed route.
-export async function searchYouTube(_query: string, _limit = 20): Promise<VideoPreview[]> {
-  console.warn('searchYouTube is not supported by the current API');
-  return [];
+  return apiCall<VideoProgressResponse>('/youtube/progress', {
+    method: 'POST',
+    body: { video_id: appVideoId, progress: Math.max(0, progressSeconds) },
+  });
 }
 
 /**
  * Fill in missing (null) word timestamps by linear interpolation so every
  * token has a usable seek target.
- *
- * Tokens before the first known timestamp collapse to that timestamp, tokens
- * after the last known one collapse to that end, and interior gaps are spread
- * evenly between their neighbours.
  */
 export function interpolateTranscript(result: TranscriptResult): TranscriptResult {
-  const flat: TokenTimestamp[] = [];
+  const flat: SegmentWord[] = [];
   for (const segment of result.segments ?? []) {
     for (const word of segment.words ?? []) flat.push(word);
   }
