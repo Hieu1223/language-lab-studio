@@ -7,9 +7,33 @@ import { Slider } from '@/components/ui/slider';
 declare global {
   interface Window {
     onYouTubeIframeAPIReady: () => void;
-    YT: any;
+    YT: Record<string, unknown>;
   }
 }
+
+interface YouTubePlayerEvent {
+  target: {
+    getDuration: () => number;
+    getCurrentTime: () => number;
+    getPlayerState: () => number;
+    seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+    playVideo: () => void;
+    pauseVideo: () => void;
+  };
+  data: number;
+}
+
+type YouTubePlayer = {
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  playVideo: () => void;
+  pauseVideo: () => void;
+  getCurrentTime?: () => number;
+  getPlayerState?: () => number;
+  getDuration?: () => number;
+  setPlaybackRate?: (rate: number) => void;
+  setVolume?: (volume: number) => void;
+  destroy: () => void;
+};
 
 interface VideoPlayerProps {
   url: string;
@@ -40,7 +64,7 @@ export function VideoPlayer({
   onPlayingChange,
 }: VideoPlayerProps) {
   const { t } = useTranslation('transcription');
-  const playerRef = useRef<any>(null);
+  const playerRef = useRef<YouTubePlayer | null>(null);
   const timerRef = useRef<number | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -108,10 +132,10 @@ export function VideoPlayer({
           disablekb: 1,
         },
         events: {
-          onReady: (event: any) => {
+          onReady: (event: YouTubePlayerEvent) => {
             setDuration(event.target.getDuration());
           },
-          onStateChange: (event: any) => {
+          onStateChange: (event: YouTubePlayerEvent) => {
             if (event.data === window.YT.PlayerState.PLAYING) {
               setIsPlaying(true);
               onPlay?.();
@@ -152,7 +176,11 @@ export function VideoPlayer({
 
   const handlePlayPause = () => {
     if (!playerRef.current) return;
-    isPlaying ? playerRef.current.pauseVideo() : playerRef.current.playVideo();
+    if (isPlaying) {
+      playerRef.current.pauseVideo();
+    } else {
+      playerRef.current.playVideo();
+    }
   };
 
   const handleSeek = (val: number[]) => {
