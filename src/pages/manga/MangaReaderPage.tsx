@@ -59,11 +59,9 @@ import { tokenize, type Token } from '@/lib/api/dictionary';
 import {
   getChapterRead,
   getOCRResult,
-  streamOCR,
   upsertMangaHistory,
   type ChapterPreview,
   type OCRPage,
-  type OCRStreamHandle,
 } from '@/lib/api/manga';
 import { ApiError } from '@/lib/api/client';
 import { toast } from 'sonner';
@@ -119,7 +117,6 @@ export default function MangaReaderPage() {
   const [ocrLoaded, setOcrLoaded] = useState(false);
   const [loadingOCR, setLoadingOCR] = useState(false);
   const [ocrPagesReceived, setOcrPagesReceived] = useState(0);
-  const ocrStreamRef = useRef<OCRStreamHandle | null>(null);
   const ocrPageCounterRef = useRef(0);
   /** True once we know the chapter already has a stored OCR result. */
   const [ocrAvailable, setOcrAvailable] = useState(false);
@@ -211,9 +208,6 @@ export default function MangaReaderPage() {
       try {
         setLoadingChapter(true);
         activeOcrChapterRef.current = chapterId;
-        // Abort any in-flight OCR stream
-        ocrStreamRef.current?.abort();
-        ocrStreamRef.current = null;
         ocrPageCounterRef.current = 0;
         setOcrLoaded(false);
         setOcrAvailable(false);
@@ -275,11 +269,6 @@ export default function MangaReaderPage() {
     };
 
     load();
-
-    return () => {
-      ocrStreamRef.current?.abort();
-      ocrStreamRef.current = null;
-    };
   }, [chapterId, mangaId, navigate, user?.id]);
 
   // ── Auto-save progress every 30s ─────────────────────────────────────────
