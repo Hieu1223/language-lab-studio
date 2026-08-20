@@ -131,7 +131,7 @@ export function onUnauthorized(cb: (() => void) | null): void {
 let refreshInFlight: Promise<string | null> | null = null;
 
 /** Tolerant token extraction — `/token*` responses are untyped in the spec. */
-function pickToken(data: unknown, keys: string[]): string | null {
+export function pickToken(data: unknown, keys: string[]): string | null {
   if (!data || typeof data !== 'object') return null;
   const obj = data as Record<string, unknown>;
   for (const key of keys) {

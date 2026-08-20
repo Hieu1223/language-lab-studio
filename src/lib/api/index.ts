@@ -22,3 +22,5 @@ export * as dictionary from './dictionary';
 export * as transcription from './transcription';
 export * as manga from './manga';
 export * as flashcard from './flashcard';
+export * as webnovel from './webnovel';
+export * as proxy from './proxy';
