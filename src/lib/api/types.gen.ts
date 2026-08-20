@@ -30,7 +30,7 @@ export interface paths {
         };
         /**
          * Tokenize Endpoint
-         * @description Split Japanese input text into morphological tokens for further lookup or study
+         * @description Split Japanese input text into morphological tokens and build the GiNZA dependency tree for each sentence
          */
         get: operations["tokenize_endpoint_tokenization_tokenize_get"];
         put?: never;
@@ -41,27 +41,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tokenization/dependency-tree": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Dependency Tree Endpoint
-         * @description Parse Japanese input text with GiNZA/spaCy and return the dependency tree of each sentence, including the dependency relation (dep) that links each token to its head
-         */
-        get: operations["dependency_tree_endpoint_tokenization_dependency_tree_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/tokenization/dependency-tree/save": {
+    "/tokenization/tokenize/save": {
         parameters: {
             query?: never;
             header?: never;
@@ -71,17 +51,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Save Dependency Tree
-         * @description Parse Japanese input text with GiNZA and build the dependency tree of each sentence, then save the analysis to the user's history (separate table) and return it
+         * Save Tokenization
+         * @description Tokenize and build the dependency tree for the input text, then save both to the user's unified tokenization history and return them
          */
-        post: operations["save_dependency_tree_tokenization_dependency_tree_save_post"];
+        post: operations["save_tokenization_tokenization_tokenize_save_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/tokenization/dependency-tree/history": {
+    "/tokenization/tokenize/history": {
         parameters: {
             query?: never;
             header?: never;
@@ -89,10 +69,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Dependency Tree History
-         * @description Return the current user's saved tokenization/dependency-tree history
+         * Get Tokenization History
+         * @description Return the current user's saved tokenization history (tokens + dependency trees)
          */
-        get: operations["get_dependency_tree_history_tokenization_dependency_tree_history_get"];
+        get: operations["get_tokenization_history_tokenization_tokenize_history_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -101,7 +81,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/tokenization/dependency-tree/history/{history_id}": {
+    "/tokenization/tokenize/history/{history_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -112,10 +92,10 @@ export interface paths {
         put?: never;
         post?: never;
         /**
-         * Delete Dependency Tree History
+         * Delete Tokenization History
          * @description Delete a single entry from the current user's tokenization history
          */
-        delete: operations["delete_dependency_tree_history_tokenization_dependency_tree_history__history_id__delete"];
+        delete: operations["delete_tokenization_history_tokenization_tokenize_history__history_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -337,7 +317,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/transcription/transcribe/{id}/detail": {
+    "/transcription": {
         parameters: {
             query?: never;
             header?: never;
@@ -345,10 +325,34 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Transcription Detail
-         * @description Fetch the full detail and transcript text for a single transcription by id
+         * List Transcriptions
+         * @description List the transcription attempts for a specific video, with their current status
          */
-        get: operations["get_transcription_detail_transcription_transcribe__id__detail_get"];
+        get: operations["list_transcriptions_transcription_get"];
+        put?: never;
+        /**
+         * Submit Transcription Job
+         * @description Submit a transcription job for an already-previewed video by its video_id; the job is processed in the background
+         */
+        post: operations["submit_transcription_job_transcription_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/transcription/{transcript_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Poll Transcription
+         * @description Poll a transcription job by id; returns status, and the full transcript once finished
+         */
+        get: operations["poll_transcription_transcription__transcript_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -357,87 +361,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/transcription/transcribe/{id}/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Save Individual Settings
-         * @description Save per-transcription user settings, such as display and playback preferences
-         */
-        post: operations["save_individual_settings_transcription_transcribe__id__settings_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/transcription/transcribe/{id}/rerun": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Rerun Transcription
-         * @description Re-queue an existing transcription to be re-processed from its source in the background
-         */
-        post: operations["rerun_transcription_transcription_transcribe__id__rerun_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/transcription/transcribe/youtube": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Transcribe From Site
-         * @description Submit a YouTube URL for transcription; the job is processed in the background
-         */
-        post: operations["transcribe_from_site_transcription_transcribe_youtube_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/transcription/visit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Visit Video
-         * @description Record a visit to a video and return any existing transcription detail for it
-         */
-        post: operations["visit_video_transcription_visit_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/transcription/history": {
+    "/transcription/visited": {
         parameters: {
             query?: never;
             header?: never;
@@ -445,40 +369,12 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Get Transcription History
-         * @description Return the current user's list of transcription history entries
+         * List Visited Videos
+         * @description List the current user's visited videos (derived from saved playback progress)
          */
-        get: operations["get_transcription_history_transcription_history_get"];
+        get: operations["list_visited_videos_transcription_visited_get"];
         put?: never;
         post?: never;
-        /**
-         * Delete History Entry
-         * @description Delete a single transcription history entry owned by the current user
-         */
-        delete: operations["delete_history_entry_transcription_history_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/transcription/progress": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Video Progress
-         * @description Return the saved playback progress for a resource, if any
-         */
-        get: operations["get_video_progress_transcription_progress_get"];
-        put?: never;
-        /**
-         * Save Video Progress
-         * @description Save the current playback progress for a resource for the current user
-         */
-        post: operations["save_video_progress_transcription_progress_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -494,11 +390,35 @@ export interface paths {
         };
         /**
          * Preview Video
-         * @description Return preview metadata (title, channel, thumbnail) for a YouTube video by id
+         * @description Preview a YouTube video and return its metadata plus the app-internal video uuid to use for transcription jobs
          */
         get: operations["preview_video_youtube_video__video_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/youtube/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Video Progress Route
+         * @description Return the saved playback progress for a video (by app video id), if any
+         */
+        get: operations["get_video_progress_route_youtube_progress_get"];
+        put?: never;
+        /**
+         * Save Video Progress Route
+         * @description Save the current playback progress for a video (by app video id) for the current user
+         */
+        post: operations["save_video_progress_route_youtube_progress_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -733,7 +653,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/manga/manga": {
+    "/manga": {
         parameters: {
             query?: never;
             header?: never;
@@ -742,9 +662,9 @@ export interface paths {
         };
         /**
          * List Manga
-         * @description List manga with optional text search, genre tag filter and pagination
+         * @description List manga with optional text search, genre filter and pagination
          */
-        get: operations["list_manga_manga_manga_get"];
+        get: operations["list_manga_manga_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -753,7 +673,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/manga/tags": {
+    "/manga/genres": {
         parameters: {
             query?: never;
             header?: never;
@@ -761,10 +681,30 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Tags
-         * @description List all available manga genre tags with optional prefix search, ordering and pagination
+         * List Genres
+         * @description List manga genres from the database with optional prefix search, ordering and pagination
          */
-        get: operations["list_tags_manga_tags_get"];
+        get: operations["list_genres_manga_genres_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/manga/creators": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Creators
+         * @description List manga creators (authors/artists) with optional name search, role filter and pagination
+         */
+        get: operations["list_creators_manga_creators_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -966,26 +906,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/manga/ocr/backfill-analysis": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Backfill Ocr Analysis Route
-         * @description Run GiNZA tokenization + dependency analysis on all existing OCR data that lacks it, and persist the augmented results
-         */
-        post: operations["backfill_ocr_analysis_route_manga_ocr_backfill_analysis_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/web-novel/novels/search": {
         parameters: {
             query?: never;
@@ -1046,6 +966,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/web-novel/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get History
+         * @description Return the current user's web-novel reading history
+         */
+        get: operations["get_history_web_novel_history_get"];
+        put?: never;
+        /**
+         * Upsert History
+         * @description Create or update the user's reading progress for a web novel chapter
+         */
+        post: operations["upsert_history_web_novel_history_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/web-novel/history/{web_novel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete History
+         * @description Delete a web-novel reading-history entry by its novel id
+         */
+        delete: operations["delete_history_web_novel_history__web_novel_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/proxy": {
         parameters: {
             query?: never;
@@ -1057,11 +1021,30 @@ export interface paths {
          * Proxy
          * @description Fetch a remote URL server-side and return its response.
          *
-         *     Uses plain ``requests`` (no configured HTTP_PROXY). ``proxies={"http": None,
-         *     "https": None}`` explicitly bypasses any ``HTTP_PROXY``/``HTTPS_PROXY`` env
-         *     vars so the request goes out directly from the server.
+         *     Requires authentication and refuses to reach private/loopback/link-local
+         *     addresses (including cloud metadata endpoints) to prevent SSRF.
          */
         get: operations["proxy_proxy_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/monitor/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Monitor Server
+         * @description Report server-wide CPU and RAM usage of the running app
+         */
+        get: operations["monitor_server_monitor__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1206,6 +1189,46 @@ export interface components {
             /** Date */
             date: string | null;
         };
+        /** CpuInfo */
+        CpuInfo: {
+            /** Percent */
+            percent: number;
+            /** Cores Logical */
+            cores_logical: number;
+            /** Cores Physical */
+            cores_physical: number;
+            /** Load Avg */
+            load_avg?: number[] | null;
+        };
+        /** CreateDeckRequest */
+        CreateDeckRequest: {
+            /**
+             * Name
+             * @description The deck name
+             */
+            name: string;
+            /**
+             * Public
+             * @default false
+             */
+            public: boolean;
+        };
+        /** CreatorPreview */
+        CreatorPreview: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Source Term Id */
+            source_term_id: number;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Role */
+            role: string;
+        };
         /** DeckProgressResponse */
         DeckProgressResponse: {
             /** Total */
@@ -1305,12 +1328,14 @@ export interface components {
             /** Tokens */
             tokens: components["schemas"]["DependencyLink"][];
         };
-        /** DependencyTreeResponse */
-        DependencyTreeResponse: {
-            /** Text */
-            text: string;
-            /** Sentences */
-            sentences: components["schemas"]["DependencyTree"][];
+        /** GenrePreview */
+        GenrePreview: {
+            /** Id */
+            id: number;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -1330,10 +1355,39 @@ export interface components {
             cover: string | null;
             /** Status */
             status: string | null;
+            /** Alternative Title */
+            alternative_title: string | null;
             /** Description */
             description: string | null;
-            /** Genres */
-            genres: string | null;
+            /** Description Native */
+            description_native: string | null;
+            /** Manga Type */
+            manga_type: string | null;
+            /** Genre Ids */
+            genre_ids?: number[] | null;
+            /** Released */
+            released: string | null;
+            /** Serialization */
+            serialization: string | null;
+            /** Score */
+            score: number | null;
+            /** Views Daily */
+            views_daily: number | null;
+            /** Views Weekly */
+            views_weekly: number | null;
+            /** Views Monthly */
+            views_monthly: number | null;
+            /** Reader Count */
+            reader_count: number | null;
+            /** Published At */
+            published_at: string | null;
+            /** Updated At */
+            updated_at: string | null;
+            /**
+             * Creators
+             * @default []
+             */
+            creators: components["schemas"]["CreatorPreview"][];
             /** Chapters */
             chapters: components["schemas"]["ChapterPreview"][];
         };
@@ -1350,6 +1404,31 @@ export interface components {
             cover: string | null;
             /** Status */
             status: string | null;
+            /** Alternative Title */
+            alternative_title: string | null;
+            /** Description */
+            description: string | null;
+            /** Genre Ids */
+            genre_ids?: number[] | null;
+            /** Score */
+            score: number | null;
+            /** Views Weekly */
+            views_weekly: number | null;
+            /** Reader Count */
+            reader_count: number | null;
+            /** Updated At */
+            updated_at: string | null;
+        };
+        /** MemoryInfo */
+        MemoryInfo: {
+            /** Total Bytes */
+            total_bytes: number;
+            /** Available Bytes */
+            available_bytes: number;
+            /** Used Bytes */
+            used_bytes: number;
+            /** Percent */
+            percent: number;
         };
         /** OCRBlock */
         OCRBlock: {
@@ -1412,6 +1491,23 @@ export interface components {
             id: string;
             /** Display Name */
             display_name: string | null;
+        };
+        /** ProcessInfo */
+        ProcessInfo: {
+            /** Pid */
+            pid: number;
+            /** Name */
+            name: string;
+            /** Cpu Percent */
+            cpu_percent: number;
+            /** Memory Rss Bytes */
+            memory_rss_bytes: number;
+            /** Memory Vms Bytes */
+            memory_vms_bytes: number;
+            /** Threads */
+            threads: number;
+            /** Uptime Seconds */
+            uptime_seconds: number;
         };
         /** PublicDeckResponse */
         PublicDeckResponse: {
@@ -1488,6 +1584,11 @@ export interface components {
             /** Pages */
             pages: string[];
         };
+        /** RefreshTokenRequest */
+        RefreshTokenRequest: {
+            /** Refresh Token */
+            refresh_token: string;
+        };
         /** RegisterRequest */
         RegisterRequest: {
             /** Username */
@@ -1497,14 +1598,6 @@ export interface components {
             /** Display Name */
             display_name?: string | null;
         };
-        /** RemoveHistoryRequest */
-        RemoveHistoryRequest: {
-            /**
-             * History Id
-             * Format: uuid
-             */
-            history_id: string;
-        };
         /** ReviewSessionWithSrsResponse */
         ReviewSessionWithSrsResponse: {
             /** Cards */
@@ -1512,17 +1605,10 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** SaveIndividualSettingsRequest */
-        SaveIndividualSettingsRequest: {
-            /**
-             * Transcript Id
-             * Format: uuid
-             */
-            transcript_id: string;
-            /** Settings */
-            settings: {
-                [key: string]: unknown;
-            };
+        /** RevokeTokenRequest */
+        RevokeTokenRequest: {
+            /** Refresh Token */
+            refresh_token: string;
         };
         /**
          * SaveReviewRequest
@@ -1537,6 +1623,23 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** SaveTokenizationRequest */
+        SaveTokenizationRequest: {
+            /** Text */
+            text: string;
+        };
+        /** SaveTokenizationResponse */
+        SaveTokenizationResponse: {
+            /**
+             * History Id
+             * Format: uuid
+             */
+            history_id: string;
+            /** Tokens */
+            tokens: components["schemas"]["Token"][];
+            /** Sentences */
+            sentences: components["schemas"]["DependencyTree"][];
+        };
         /** SaveUserSettingsRequest */
         SaveUserSettingsRequest: {
             /** Settings */
@@ -1546,12 +1649,33 @@ export interface components {
         };
         /** SaveVideoProgressRequest */
         SaveVideoProgressRequest: {
-            /** Resource Id */
-            resource_id: string;
-            /** Original Source */
-            original_source: string;
-            /** Current Page */
-            current_page: number;
+            /**
+             * Video Id
+             * Format: uuid
+             */
+            video_id: string;
+            /** Progress */
+            progress: number;
+        };
+        /** ServerMonitorResponse */
+        ServerMonitorResponse: {
+            /** Hostname */
+            hostname: string;
+            /** Platform */
+            platform: string;
+            /** Timestamp */
+            timestamp: number;
+            cpu: components["schemas"]["CpuInfo"];
+            memory: components["schemas"]["MemoryInfo"];
+            process: components["schemas"]["ProcessInfo"];
+        };
+        /** SubmitTranscriptionRequest */
+        SubmitTranscriptionRequest: {
+            /**
+             * Video Id
+             * Format: uuid
+             */
+            video_id: string;
         };
         /** Token */
         Token: {
@@ -1573,6 +1697,10 @@ export interface components {
             begin: number;
             /** End */
             end: number;
+            /** Start */
+            start?: number | null;
+            /** Stop */
+            stop?: number | null;
             /** Dep */
             dep?: string | null;
             /** Dep Description */
@@ -1586,15 +1714,11 @@ export interface components {
         TokenList: {
             /** Tokens */
             tokens: components["schemas"]["Token"][];
-        };
-        /** TokenTimestamp */
-        TokenTimestamp: {
-            /** Start */
-            start: number | null;
-            /** End */
-            end: number | null;
-            /** Token */
-            token: string;
+            /**
+             * Sentences
+             * @default []
+             */
+            sentences: components["schemas"]["DependencyTree"][];
         };
         /** TokenizationHistoryItem */
         TokenizationHistoryItem: {
@@ -1605,8 +1729,8 @@ export interface components {
             history_id: string;
             /** Text */
             text: string;
-            /** Sentences */
-            sentences: number;
+            /** Sentence Count */
+            sentence_count: number;
             /**
              * Date Created
              * Format: date-time
@@ -1620,28 +1744,6 @@ export interface components {
             /** Total */
             total: number;
         };
-        /** TokenizeDependenciesRequest */
-        TokenizeDependenciesRequest: {
-            /** Text */
-            text: string;
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
-        };
-        /** TokenizeDependenciesResponse */
-        TokenizeDependenciesResponse: {
-            /**
-             * History Id
-             * Format: uuid
-             */
-            history_id: string;
-            /** Text */
-            text: string;
-            /** Sentences */
-            sentences: components["schemas"]["DependencyTree"][];
-        };
         /** TranscriptDetailResponse */
         TranscriptDetailResponse: {
             /**
@@ -1649,29 +1751,21 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /** Original Source */
-            original_source: string;
-            /** Thumnail Url */
-            thumnail_url: string;
-            /** Resource Url */
-            resource_url: string;
-            /** Resource Id */
-            resource_id: string | null;
             /** Status */
             status: number;
             /** Done */
             done: boolean;
             /** Msg */
             msg: string;
-            video?: components["schemas"]["VideoDetail"] | null;
             data?: components["schemas"]["TranscriptResult"] | null;
-            /** Individual Settings */
-            individual_settings?: {
-                [key: string]: unknown;
-            } | null;
         };
-        /** TranscriptRequestResponse */
-        TranscriptRequestResponse: {
+        /** TranscriptResult */
+        TranscriptResult: {
+            /** Segments */
+            segments: components["schemas"]["Token"][][];
+        };
+        /** TranscriptionJobResponse */
+        TranscriptionJobResponse: {
             /**
              * Transcript Id
              * Format: uuid
@@ -1680,17 +1774,39 @@ export interface components {
             /** Success */
             success: boolean;
         };
-        /** TranscriptResult */
-        TranscriptResult: {
-            /** Segments */
-            segments: components["schemas"]["TranscriptSegment"][];
+        /** TranscriptionListItem */
+        TranscriptionListItem: {
+            /**
+             * Transcript Id
+             * Format: uuid
+             */
+            transcript_id: string;
+            /**
+             * Video Id
+             * Format: uuid
+             */
+            video_id: string;
+            /** Original Source */
+            original_source: string;
+            /** Resource Id */
+            resource_id?: string | null;
+            /** Name */
+            name: string;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
+            /** Status */
+            status: number;
+            /** Done */
+            done: boolean;
+            /** Msg */
+            msg: string;
         };
-        /** TranscriptSegment */
-        TranscriptSegment: {
-            /** Text */
-            text: string;
-            /** Words */
-            words: components["schemas"]["TokenTimestamp"][];
+        /** TranscriptionListResponse */
+        TranscriptionListResponse: {
+            /** Items */
+            items: components["schemas"]["TranscriptionListItem"][];
+            /** Total */
+            total: number;
         };
         /** UpdateUserPartialRequest */
         UpdateUserPartialRequest: {
@@ -1701,41 +1817,6 @@ export interface components {
         UpdateUserRequest: {
             /** Display Name */
             display_name?: string | null;
-        };
-        /** UserHistoryListResponse */
-        UserHistoryListResponse: {
-            /** Items */
-            items: components["schemas"]["UserHistoryResponse"][];
-            /** Total */
-            total: number;
-        };
-        /** UserHistoryResponse */
-        UserHistoryResponse: {
-            /**
-             * History Id
-             * Format: uuid
-             */
-            history_id: string;
-            /** Transcript Id */
-            transcript_id: string | null;
-            /** Name */
-            name: string;
-            /** Thumbnail Url */
-            thumbnail_url: string;
-            /** Original Source */
-            original_source: string;
-            /**
-             * Date Created
-             * Format: date-time
-             */
-            date_created: string;
-            /** Status */
-            status?: number | null;
-            /**
-             * Is Transcribed
-             * @default false
-             */
-            is_transcribed: boolean;
         };
         /** UserResponse */
         UserResponse: {
@@ -1779,19 +1860,6 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
-        /** VideoDetail */
-        VideoDetail: {
-            /** Id */
-            id: string;
-            /** Title */
-            title: string;
-            /** Thumbnail Url */
-            thumbnail_url: string | null;
-            /** Channel */
-            channel?: string | null;
-            /** Duration */
-            duration?: number | null;
-        };
         /** VideoPreview */
         VideoPreview: {
             /** Id */
@@ -1807,20 +1875,58 @@ export interface components {
             description: string | null;
             /** View Count */
             view_count?: number | null;
+            /** App Video Id */
+            app_video_id?: string | null;
+            /**
+             * Has Transcript
+             * @default false
+             */
+            has_transcript: boolean;
         };
         /** VideoProgressResponse */
         VideoProgressResponse: {
-            /** Resource Id */
-            resource_id: string;
-            /** Original Source */
-            original_source: string;
-            /** Current Page */
-            current_page: number;
+            /**
+             * Video Id
+             * Format: uuid
+             */
+            video_id: string;
+            /** Progress */
+            progress: number;
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** VisitedVideoListResponse */
+        VisitedVideoListResponse: {
+            /** Items */
+            items: components["schemas"]["VisitedVideoResponse"][];
+            /** Total */
+            total: number;
+        };
+        /** VisitedVideoResponse */
+        VisitedVideoResponse: {
+            /**
+             * Video Id
+             * Format: uuid
+             */
+            video_id: string;
+            /** Name */
+            name?: string | null;
+            /** Thumbnail Url */
+            thumbnail_url?: string | null;
+            /** Original Source */
+            original_source?: string | null;
+            /** Resource Id */
+            resource_id?: string | null;
+            /**
+             * Progress
+             * @default 0
+             */
+            progress: number;
+            /** Updated At */
+            updated_at?: string | null;
         };
         /** WebNovelChapterResponse */
         WebNovelChapterResponse: {
@@ -1838,6 +1944,47 @@ export interface components {
             updated_at: string;
             /** Content */
             content?: string | null;
+        };
+        /** WebNovelReadHistoryResponse */
+        WebNovelReadHistoryResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /**
+             * Web Novel Id
+             * Format: uuid
+             */
+            web_novel_id: string;
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** WebNovelReadHistoryUpdate */
+        WebNovelReadHistoryUpdate: {
+            /**
+             * Web Novel Id
+             * Format: uuid
+             */
+            web_novel_id: string;
+            /**
+             * Chapter Id
+             * Format: uuid
+             */
+            chapter_id: string;
         };
         /** WebNovelResponse */
         WebNovelResponse: {
@@ -1877,32 +2024,6 @@ export interface components {
             results: components["schemas"]["WordLookupEntry"][];
             /** Total */
             total: number;
-        };
-        /** YoutubeTranscriptRequestForm */
-        YoutubeTranscriptRequestForm: {
-            /** Name */
-            name: string;
-            /** Resource Id */
-            resource_id?: string | null;
-            /**
-             * Original Source
-             * @default Youtube
-             */
-            original_source: string;
-            /**
-             * Public
-             * @default true
-             */
-            public: boolean;
-            /** Thumbnail Url */
-            thumbnail_url: string;
-            /** Resource Url */
-            resource_url: string;
-            /**
-             * User Id
-             * Format: uuid
-             */
-            user_id: string;
         };
     };
     responses: never;
@@ -1964,38 +2085,7 @@ export interface operations {
             };
         };
     };
-    dependency_tree_endpoint_tokenization_dependency_tree_get: {
-        parameters: {
-            query: {
-                text: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DependencyTreeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_dependency_tree_tokenization_dependency_tree_save_post: {
+    save_tokenization_tokenization_tokenize_save_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2004,7 +2094,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TokenizeDependenciesRequest"];
+                "application/json": components["schemas"]["SaveTokenizationRequest"];
             };
         };
         responses: {
@@ -2014,7 +2104,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenizeDependenciesResponse"];
+                    "application/json": components["schemas"]["SaveTokenizationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -2028,11 +2118,9 @@ export interface operations {
             };
         };
     };
-    get_dependency_tree_history_tokenization_dependency_tree_history_get: {
+    get_tokenization_history_tokenization_tokenize_history_get: {
         parameters: {
-            query: {
-                /** @description User id that owns the history */
-                user_id: string;
+            query?: {
                 offset?: number;
                 limit?: number;
             };
@@ -2062,12 +2150,9 @@ export interface operations {
             };
         };
     };
-    delete_dependency_tree_history_tokenization_dependency_tree_history__history_id__delete: {
+    delete_tokenization_history_tokenization_tokenize_history__history_id__delete: {
         parameters: {
-            query: {
-                /** @description User id that owns the history */
-                user_id: string;
-            };
+            query?: never;
             header?: never;
             path: {
                 history_id: string;
@@ -2163,14 +2248,16 @@ export interface operations {
     };
     refresh_access_token_token_refresh_post: {
         parameters: {
-            query: {
-                refresh_token: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -2196,14 +2283,16 @@ export interface operations {
     };
     revoke_token_token_revoke_post: {
         parameters: {
-            query: {
-                refresh_token: string;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeTokenRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -2515,229 +2604,158 @@ export interface operations {
             };
         };
     };
-    get_transcription_detail_transcription_transcribe__id__detail_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TranscriptDetailResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    save_individual_settings_transcription_transcribe__id__settings_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SaveIndividualSettingsRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    rerun_transcription_transcription_transcribe__id__rerun_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TranscriptRequestResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    transcribe_from_site_transcription_transcribe_youtube_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["YoutubeTranscriptRequestForm"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TranscriptRequestResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    visit_video_transcription_visit_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["YoutubeTranscriptRequestForm"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TranscriptDetailResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_transcription_history_transcription_history_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UserHistoryListResponse"];
-                };
-            };
-        };
-    };
-    delete_history_entry_transcription_history_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RemoveHistoryRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_video_progress_transcription_progress_get: {
+    list_transcriptions_transcription_get: {
         parameters: {
             query: {
-                resource_id: string;
-                original_source?: string;
+                video_id: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptionListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_transcription_job_transcription_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitTranscriptionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptionJobResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    poll_transcription_transcription__transcript_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                transcript_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptDetailResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_visited_videos_transcription_visited_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VisitedVideoListResponse"];
+                };
+            };
+        };
+    };
+    preview_video_youtube_video__video_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                video_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_video_progress_route_youtube_progress_get: {
+        parameters: {
+            query: {
+                video_id: string;
             };
             header?: never;
             path?: never;
@@ -2765,7 +2783,7 @@ export interface operations {
             };
         };
     };
-    save_video_progress_transcription_progress_post: {
+    save_video_progress_route_youtube_progress_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2785,37 +2803,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VideoProgressResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    preview_video_youtube_video__video_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                video_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VideoPreview"];
                 };
             };
             /** @description Validation Error */
@@ -2902,15 +2889,16 @@ export interface operations {
     };
     create_deck_flashcard_decks_post: {
         parameters: {
-            query: {
-                name: string;
-                public?: boolean;
-            };
+            query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateDeckRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -3225,14 +3213,18 @@ export interface operations {
             };
         };
     };
-    list_manga_manga_manga_get: {
+    list_manga_manga_get: {
         parameters: {
             query?: {
                 q?: string | null;
-                /** @description Filter by one or more genres */
-                tags?: string[] | null;
-                /** @description Sort order: latest (newest update), -latest (oldest update), az (A-Z title), -az (Z-A title), created (oldest first), -created (newest first) */
+                /** @description Filter by one or more genre slugs or names */
+                genres?: string[] | null;
+                /** @description Filter by creator (author/artist) id */
+                author?: string | null;
+                /** @description Sort field: trending, alphabet (az), views (view), latest (updated_at), created (created_at) */
                 order_by?: string | null;
+                /** @description Sort direction: asc or desc */
+                order_dir?: string;
                 limit?: number;
                 offset?: number;
             };
@@ -3262,12 +3254,12 @@ export interface operations {
             };
         };
     };
-    list_tags_manga_tags_get: {
+    list_genres_manga_genres_get: {
         parameters: {
             query?: {
-                /** @description Case-insensitive prefix filter on tag name */
+                /** @description Case-insensitive prefix filter on genre name or slug */
                 q?: string | null;
-                /** @description Sort order: az (A-Z), -az (Z-A), len (shortest first), -len (longest first) */
+                /** @description Sort order: az (A-Z), -az (Z-A) */
                 order_by?: string | null;
                 limit?: number;
                 offset?: number;
@@ -3284,7 +3276,45 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": string[];
+                    "application/json": components["schemas"]["GenrePreview"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_creators_manga_creators_get: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive prefix filter on creator name or slug */
+                q?: string | null;
+                /** @description Filter by role: author or artist */
+                role?: string | null;
+                /** @description Sort order: az (A-Z), -az (Z-A) */
+                order_by?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatorPreview"][];
                 };
             };
             /** @description Validation Error */
@@ -3573,26 +3603,6 @@ export interface operations {
             };
         };
     };
-    backfill_ocr_analysis_route_manga_ocr_backfill_analysis_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-        };
-    };
     search_novels_web_novel_novels_search_get: {
         parameters: {
             query: {
@@ -3688,6 +3698,90 @@ export interface operations {
             };
         };
     };
+    get_history_web_novel_history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebNovelReadHistoryResponse"][];
+                };
+            };
+        };
+    };
+    upsert_history_web_novel_history_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WebNovelReadHistoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebNovelReadHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_history_web_novel_history__web_novel_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                web_novel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     proxy_proxy_get: {
         parameters: {
             query: {
@@ -3716,6 +3810,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    monitor_server_monitor__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerMonitorResponse"];
                 };
             };
         };

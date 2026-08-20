@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
   loadReviewSession,
-  saveCardReview,
+  reviewCard as reviewCardApi,
   type CardWithSrsResponse,
   type ReviewSessionWithSrsResponse,
 } from '@/lib/api/flashcard';

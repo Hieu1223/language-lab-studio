@@ -1,105 +1,66 @@
-// Auth endpoints: POST /token, /token/refresh, /token/revoke (doc §5.2).
+// Authentication endpoints
+// Matches: /token/* routes from OpenAPI spec
 import { apiCall, storeToken, storeRefreshToken, clearToken } from './client';
 
-export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  refresh_token?: string;
-}
-
-/**
- * The `/token` endpoints are typed as a free-form object in the OpenAPI spec,
- * so the refresh token can arrive under a few different names (and sometimes
- * nested). Pull it out of whatever shape came back.
- */
-export function extractRefreshToken(res: unknown): string | null {
-  if (!res || typeof res !== 'object') return null;
-  const obj = res as Record<string, unknown>;
-  const keys = ['refresh_token', 'refreshToken', 'refresh'];
-  for (const key of keys) {
-    const value = obj[key];
-    if (typeof value === 'string' && value) return value;
-  }
-  for (const nested of ['data', 'tokens', 'token']) {
-    const child = obj[nested];
-    if (child && typeof child === 'object') {
-      const found = extractRefreshToken(child);
-      if (found) return found;
-    }
-  }
-  return null;
-}
-
-/** Same tolerance for the access token. */
-export function extractAccessToken(res: unknown): string | null {
-  if (!res || typeof res !== 'object') return null;
-  const obj = res as Record<string, unknown>;
-  for (const key of ['access_token', 'accessToken', 'token']) {
-    const value = obj[key];
-    if (typeof value === 'string' && value) return value;
-  }
-  for (const nested of ['data', 'tokens']) {
-    const child = obj[nested];
-    if (child && typeof child === 'object') {
-      const found = extractAccessToken(child);
-      if (found) return found;
-    }
-  }
-  return null;
-}
-
-/** Persist whatever tokens a `/token*` response carried. */
-function persistTokens(res: unknown): TokenResponse {
-  const access = extractAccessToken(res);
-  const refresh = extractRefreshToken(res);
-  if (access) storeToken(access);
-  if (refresh) storeRefreshToken(refresh);
-  return {
-    access_token: access ?? '',
-    token_type: (res as { token_type?: string })?.token_type ?? 'bearer',
-    refresh_token: refresh ?? undefined,
-  };
-}
-
-/**
- * OAuth2 password grant. `POST /token` expects a form-encoded body
- * (`Body_login_token_post`), not JSON.
- */
-export async function login(username: string, password: string): Promise<TokenResponse> {
-  const res = await apiCall<unknown>('/token', {
+/** POST /token — Login with username/password */
+export async function login(username: string, password: string): Promise<{ access_token: string; refresh_token?: string }> {
+  const result = await apiCall<Record<string, unknown>>('/token', {
     method: 'POST',
+    form: {
+      grant_type: 'password',
+      username,
+      password,
+      scope: '',
+    },
     skipAuth: true,
-    form: { grant_type: 'password', username, password },
   });
-  return persistTokens(res);
+
+  const accessToken = result.access_token as string | undefined;
+  const refreshToken = result.refresh_token as string | undefined;
+
+  if (accessToken) {
+    storeToken(accessToken);
+    if (refreshToken) storeRefreshToken(refreshToken);
+  }
+
+  return { access_token: accessToken!, refresh_token: refreshToken };
 }
 
-/** `POST /token/refresh` — `refresh_token` is a query parameter. */
-export async function refresh(refreshToken: string): Promise<TokenResponse> {
-  const res = await apiCall<unknown>('/token/refresh', {
+/** POST /token/refresh — Refresh access token */
+export async function refreshToken(refreshToken: string): Promise<string> {
+  const result = await apiCall<Record<string, unknown>>('/token/refresh', {
     method: 'POST',
+    body: { refresh_token: refreshToken },
     skipAuth: true,
-    query: { refresh_token: refreshToken },
   });
-  return persistTokens(res);
+
+  const newAccessToken = result.access_token as string | undefined;
+  const newRefreshToken = result.refresh_token as string | undefined;
+
+  if (newAccessToken) {
+    storeToken(newAccessToken);
+    if (newRefreshToken) storeRefreshToken(newRefreshToken);
+  }
+
+  return newAccessToken!;
 }
 
-/** `POST /token/revoke` — `refresh_token` is a query parameter. */
-export async function revoke(refreshToken: string): Promise<void> {
+/** Legacy alias for backward compatibility */
+export async function refresh(refreshToken: string): Promise<{ access_token: string }> {
+  const accessToken = await refreshToken(refreshToken);
+  return { access_token: accessToken };
+}
+
+/** POST /token/revoke — Revoke refresh token */
+export async function revokeToken(refreshToken: string): Promise<void> {
   await apiCall('/token/revoke', {
     method: 'POST',
-    query: { refresh_token: refreshToken },
+    body: { refresh_token: refreshToken },
   });
+  clearToken();
 }
 
-/** Best-effort server-side revoke followed by an unconditional local clear. */
-export async function logout(refreshToken?: string | null): Promise<void> {
-  if (refreshToken) {
-    try {
-      await revoke(refreshToken);
-    } catch {
-      /* logging out locally matters more than the server round-trip */
-    }
-  }
+/** Logout helper — clears local tokens */
+export function logout(): void {
   clearToken();
 }
