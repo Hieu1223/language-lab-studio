@@ -1,114 +1,98 @@
-// Flashcard endpoints (doc §5.8).
-//
-// The API surface is deliberately small — everything here maps 1:1 to a real
-// endpoint in the OpenAPI spec. In particular there is NO dictionary search
-// under /flashcard; use `lookupWord` from ./dictionary instead. And only vocab
-// cards can be created (`POST /flashcard/decks/{id}/cards/vocab`).
+// Flashcard endpoints
+// Matches: /flashcard/* routes from OpenAPI spec
 import { apiCall } from './client';
 import type { components } from './types.gen';
 
+// ─── Types ──────────────────────────────────────────────────────────────────
+
 export type DeckResponse = components['schemas']['DeckResponse'];
-export type DeckStatsResponse = components['schemas']['DeckStatsResponse'];
 export type DeckWithStatsResponse = components['schemas']['DeckWithStatsResponse'];
 export type DeckProgressResponse = components['schemas']['DeckProgressResponse'];
-export type PublicDeckResponse = components['schemas']['PublicDeckResponse'];
 export type CardResponse = components['schemas']['CardResponse'];
 export type CardWithSrsResponse = components['schemas']['CardWithSrsResponse'];
+export type PublicDeckResponse = components['schemas']['PublicDeckResponse'];
 export type ReviewSessionWithSrsResponse = components['schemas']['ReviewSessionWithSrsResponse'];
-export type CardType = components['schemas']['CardType'];
-export type CardState = components['schemas']['CardState'];
-type AddVocabRequest = components['schemas']['AddVocabRequest'];
-type SaveReviewRequest = components['schemas']['SaveReviewRequest'];
+export type CreateDeckRequest = components['schemas']['CreateDeckRequest'];
+export type AddVocabRequest = components['schemas']['AddVocabRequest'];
+export type SaveReviewRequest = components['schemas']['SaveReviewRequest'];
 
 // ─── Decks ──────────────────────────────────────────────────────────────────
 
-/** GET /flashcard/decks */
-export async function getDecks(): Promise<DeckWithStatsResponse[]> {
-  return apiCall<DeckWithStatsResponse[]>('/flashcard/decks');
+/** GET /flashcard/decks/public — Browse public decks */
+export async function browsePublicDecks(): Promise<PublicDeckResponse[]> {
+  return apiCall<PublicDeckResponse[]>('/flashcard/decks/public');
 }
 
-/** POST /flashcard/decks — `name`/`public` are query parameters. */
-export async function createDeck(name: string, isPublic = false): Promise<DeckWithStatsResponse> {
-  return apiCall<DeckWithStatsResponse>('/flashcard/decks', {
+/** POST /flashcard/decks/{deck_id}/copy — Copy public deck to user's collection */
+export async function copyPublicDeck(deckId: string): Promise<DeckWithStatsResponse> {
+  return apiCall<DeckWithStatsResponse>(`/flashcard/decks/${encodeURIComponent(deckId)}/copy`, {
     method: 'POST',
-    query: { name, public: isPublic },
   });
 }
 
-/** PATCH /flashcard/decks/{deck_id} — rename; `name` is a query parameter. */
-export async function renameDeck(deckId: string, name: string): Promise<DeckResponse> {
+/** GET /flashcard/decks — List user's decks with SRS stats */
+export async function readDecks(): Promise<DeckWithStatsResponse[]> {
+  return apiCall<DeckWithStatsResponse[]>('/flashcard/decks');
+}
+
+/** POST /flashcard/decks — Create new deck */
+export async function createDeck(name: string, isPublic = false): Promise<DeckWithStatsResponse> {
+  return apiCall<DeckWithStatsResponse>('/flashcard/decks', {
+    method: 'POST',
+    body: { name, public: isPublic } as CreateDeckRequest,
+  });
+}
+
+/** PATCH /flashcard/decks/{deck_id} — Rename deck (owner only) */
+export async function updateDeck(deckId: string, name: string): Promise<DeckResponse> {
   return apiCall<DeckResponse>(`/flashcard/decks/${encodeURIComponent(deckId)}`, {
     method: 'PATCH',
     query: { name },
   });
 }
 
-/** DELETE /flashcard/decks/{deck_id} */
+/** DELETE /flashcard/decks/{deck_id} — Delete deck (owner only) */
 export async function deleteDeck(deckId: string): Promise<void> {
   await apiCall(`/flashcard/decks/${encodeURIComponent(deckId)}`, { method: 'DELETE' });
 }
 
-/** GET /flashcard/decks/{deck_id}/progress */
+/** GET /flashcard/decks/{deck_id}/progress — Get deck SRS progress */
 export async function getDeckProgress(deckId: string): Promise<DeckProgressResponse> {
-  return apiCall<DeckProgressResponse>(
-    `/flashcard/decks/${encodeURIComponent(deckId)}/progress`,
-  );
-}
-
-// ─── Public decks ───────────────────────────────────────────────────────────
-
-/** GET /flashcard/decks/public */
-export async function getPublicDecks(): Promise<PublicDeckResponse[]> {
-  return apiCall<PublicDeckResponse[]>('/flashcard/decks/public');
-}
-
-/** POST /flashcard/decks/{deck_id}/copy — clones cards + SRS into a private deck. */
-export async function copyPublicDeck(deckId: string): Promise<DeckWithStatsResponse> {
-  return apiCall<DeckWithStatsResponse>(
-    `/flashcard/decks/${encodeURIComponent(deckId)}/copy`,
-    { method: 'POST' },
-  );
+  return apiCall<DeckProgressResponse>(`/flashcard/decks/${encodeURIComponent(deckId)}/progress`);
 }
 
 // ─── Cards ──────────────────────────────────────────────────────────────────
 
-/** GET /flashcard/decks/{deck_id}/cards — simplified shape (enum `state`). */
-export async function getDeckCards(deckId: string): Promise<CardResponse[]> {
+/** GET /flashcard/decks/{deck_id}/cards — List cards in deck with SRS state */
+export async function getCardsInDeck(deckId: string): Promise<CardResponse[]> {
   return apiCall<CardResponse[]>(`/flashcard/decks/${encodeURIComponent(deckId)}/cards`);
 }
 
-/** POST /flashcard/decks/{deck_id}/cards/vocab — the only card-create endpoint. */
-export async function addVocabCard(
-  deckId: string,
-  word: string,
-  meaning: string,
-): Promise<CardResponse> {
-  const body: AddVocabRequest = { word, meaning };
-  return apiCall<CardResponse>(
-    `/flashcard/decks/${encodeURIComponent(deckId)}/cards/vocab`,
-    { method: 'POST', body },
-  );
+/** POST /flashcard/decks/{deck_id}/cards/vocab — Add vocab card to deck */
+export async function addVocab(deckId: string, word: string, meaning: string): Promise<CardResponse> {
+  return apiCall<CardResponse>(`/flashcard/decks/${encodeURIComponent(deckId)}/cards/vocab`, {
+    method: 'POST',
+    body: { word, meaning } as AddVocabRequest,
+  });
 }
 
-/** DELETE /flashcard/decks/{deck_id}/cards/{card_id} */
+/** DELETE /flashcard/decks/{deck_id}/cards/{card_id} — Delete card */
 export async function deleteCard(deckId: string, cardId: string): Promise<void> {
-  await apiCall(
-    `/flashcard/decks/${encodeURIComponent(deckId)}/cards/${encodeURIComponent(cardId)}`,
-    { method: 'DELETE' },
-  );
+  await apiCall(`/flashcard/decks/${encodeURIComponent(deckId)}/cards/${encodeURIComponent(cardId)}`, {
+    method: 'DELETE',
+  });
 }
 
-/** POST /flashcard/decks/{deck_id}/cards/{card_id}/reset — wipe SRS state. */
-export async function resetCard(deckId: string, cardId: string): Promise<CardResponse> {
-  return apiCall<CardResponse>(
-    `/flashcard/decks/${encodeURIComponent(deckId)}/cards/${encodeURIComponent(cardId)}/reset`,
-    { method: 'POST' },
-  );
+/** POST /flashcard/decks/{deck_id}/cards/{card_id}/reset — Reset card SRS data */
+export async function resetCard(deckId: string, cardId: string): Promise<void> {
+  await apiCall(`/flashcard/decks/${encodeURIComponent(deckId)}/cards/${encodeURIComponent(cardId)}/reset`, {
+    method: 'POST',
+  });
 }
 
-// ─── Review session ─────────────────────────────────────────────────────────
+// ─── Reviews ────────────────────────────────────────────────────────────────
 
-/** GET /flashcard/decks/{deck_id}/review-session — raw `srs_*` primitives. */
+/** GET /flashcard/decks/{deck_id}/review-session — Load due cards for review */
 export async function loadReviewSession(
   deckId: string,
   limit = 20,
@@ -119,51 +103,10 @@ export async function loadReviewSession(
   );
 }
 
-/**
- * POST /flashcard/cards/{card_id}/review — persists the whole ts-fsrs Card.
- * Called immediately per grade, never batched (doc §5.8).
- */
-export async function saveCardReview(
-  cardId: string,
-  card: Record<string, unknown>,
-): Promise<CardResponse> {
-  const body: SaveReviewRequest = { card };
+/** POST /flashcard/cards/{card_id}/review — Submit card review result */
+export async function reviewCard(cardId: string, card: Record<string, unknown>): Promise<CardResponse> {
   return apiCall<CardResponse>(`/flashcard/cards/${encodeURIComponent(cardId)}/review`, {
     method: 'POST',
-    body,
+    body: { card } as SaveReviewRequest,
   });
-}
-
-// ─── Card content helpers ───────────────────────────────────────────────────
-
-/** Parsed contents of a vocab card's `data` blob. */
-export interface VocabCardData {
-  word: string;
-  reading?: string;
-  meaning?: string;
-}
-
-/**
- * `data` is a JSON string whose shape depends on `card_type`. Parsing is
- * defensive: a malformed blob renders as an empty card rather than crashing
- * the review session.
- */
-export function parseCardData<T = Record<string, unknown>>(data: string): T | null {
-  try {
-    const parsed = JSON.parse(data);
-    return parsed && typeof parsed === 'object' ? (parsed as T) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Best-effort display text for any card type, used in lists and fallbacks. */
-export function cardTitle(card: Pick<CardResponse, 'data'>): string {
-  const parsed = parseCardData<Record<string, unknown>>(card.data);
-  if (!parsed) return '';
-  for (const key of ['word', 'front', 'sentence', 'grammar', 'text']) {
-    const value = parsed[key];
-    if (typeof value === 'string' && value.trim()) return value;
-  }
-  return '';
 }

@@ -1,28 +1,24 @@
-// Transcription + YouTube endpoints (doc §5.3 / §5.4).
+// Transcription + YouTube endpoints
+// Matches: /transcription/*, /youtube/* routes from OpenAPI spec
 import { apiCall } from './client';
 import type { components } from './types.gen';
 
+// ─── Types ──────────────────────────────────────────────────────────────────
+
 export type VideoPreview = components['schemas']['VideoPreview'];
-export type VideoDetail = components['schemas']['VideoDetail'];
 export type ChannelPreview = components['schemas']['ChannelPreview'];
-export type TranscriptRequestResponse = components['schemas']['TranscriptRequestResponse'];
-export type TranscriptDetailResponse = components['schemas']['TranscriptDetailResponse'];
 export type TranscriptResult = components['schemas']['TranscriptResult'];
-export type TranscriptSegment = components['schemas']['TranscriptSegment'];
-export type TokenTimestamp = components['schemas']['TokenTimestamp'];
-export type UserHistoryResponse = components['schemas']['UserHistoryResponse'];
-export type UserHistoryListResponse = components['schemas']['UserHistoryListResponse'];
+export type TranscriptSegment = TranscriptResult['segments'][number];
+export type TokenTimestamp = components['schemas']['Token'];
+export type TranscriptDetailResponse = components['schemas']['TranscriptDetailResponse'];
+export type TranscriptionJobResponse = components['schemas']['TranscriptionJobResponse'];
+export type TranscriptionListResponse = components['schemas']['TranscriptionListResponse'];
+export type TranscriptionListItem = components['schemas']['TranscriptionListItem'];
+export type VisitedVideoListResponse = components['schemas']['VisitedVideoListResponse'];
+export type VisitedVideoResponse = components['schemas']['VisitedVideoResponse'];
 export type VideoProgressResponse = components['schemas']['VideoProgressResponse'];
-type YoutubeTranscriptRequestForm = components['schemas']['YoutubeTranscriptRequestForm'];
-type SaveIndividualSettingsRequest = components['schemas']['SaveIndividualSettingsRequest'];
-type SaveVideoProgressRequest = components['schemas']['SaveVideoProgressRequest'];
-type RemoveHistoryRequest = components['schemas']['RemoveHistoryRequest'];
 
-/** Word-level timestamp alias used by the review UIs. */
-export type SegmentWord = TokenTimestamp;
-
-// ─── Transcript status ──────────────────────────────────────────────────────
-// `status` is an integer job code; `done` is the authoritative completion flag.
+// ─── Transcript Status ──────────────────────────────────────────────────────
 
 export const TRANSCRIPT_STATUS = {
   QUEUED: 0,
@@ -32,8 +28,7 @@ export const TRANSCRIPT_STATUS = {
   ERROR: 4,
 } as const;
 
-export type TranscriptStatusCode =
-  (typeof TRANSCRIPT_STATUS)[keyof typeof TRANSCRIPT_STATUS];
+export type TranscriptStatusCode = (typeof TRANSCRIPT_STATUS)[keyof typeof TRANSCRIPT_STATUS];
 
 export function isTranscriptReady(status: number | null | undefined): boolean {
   return status === TRANSCRIPT_STATUS.READY;
@@ -60,14 +55,14 @@ export function describeTranscriptStatus(status: number | null | undefined): str
   }
 }
 
-// ─── YouTube preview ────────────────────────────────────────────────────────
+// ─── YouTube Preview ────────────────────────────────────────────────────────
 
-/** GET /youtube/video/{video_id} — preview before committing to a job. */
+/** GET /youtube/video/{video_id} — Preview video metadata */
 export async function previewVideo(videoId: string): Promise<VideoPreview> {
   return apiCall<VideoPreview>(`/youtube/video/${encodeURIComponent(videoId)}`);
 }
 
-/** Extract a YouTube video id from a URL or a bare id. */
+/** Extract YouTube video ID from URL or bare ID */
 export function parseYouTubeId(input: string): string | null {
   const value = input.trim();
   if (!value) return null;
@@ -78,7 +73,7 @@ export function parseYouTubeId(input: string): string | null {
       const id = url.pathname.slice(1);
       return /^[\w-]{11}$/.test(id) ? id : null;
     }
-    if (/(^|\.)youtube\.com$/.test(url.hostname)) {
+    if (/(\^|\.)youtube\.com$/.test(url.hostname)) {
       const v = url.searchParams.get('v');
       if (v && /^[\w-]{11}$/.test(v)) return v;
       const match = url.pathname.match(/\/(embed|shorts|live|v)\/([\w-]{11})/);
@@ -90,137 +85,81 @@ export function parseYouTubeId(input: string): string | null {
   return null;
 }
 
-// ─── Transcription jobs ─────────────────────────────────────────────────────
+// ─── Transcription Jobs ─────────────────────────────────────────────────────
 
-export interface TranscribeRequestInput {
+/** POST /transcription — Submit transcription job for a video */
+export async function submitTranscriptionJob(videoId: string): Promise<TranscriptionJobResponse> {
+  return apiCall<TranscriptionJobResponse>('/transcription', {
+    method: 'POST',
+    body: { video_id: videoId } as components['schemas']['SubmitTranscriptionRequest'],
+  });
+}
+
+/** GET /transcription — List transcriptions for a video (browse all attempts) */
+export async function listTranscriptions(
+  videoId: string,
+  limit = 100,
+  offset = 0,
+): Promise<TranscriptionListResponse> {
+  return apiCall<TranscriptionListResponse>('/transcription', {
+    query: { video_id: videoId, limit, offset },
+  });
+}
+
+/** GET /transcription/{transcript_id} — Poll transcription job status */
+export async function getTranscriptionDetail(transcriptId: string): Promise<TranscriptDetailResponse> {
+  return apiCall<TranscriptDetailResponse>(`/transcription/${encodeURIComponent(transcriptId)}`);
+}
+
+// ─── Visited Videos (User History) ──────────────────────────────────────────
+
+/** GET /transcription/visited — Get user's visited videos */
+export async function getVisitedVideos(): Promise<VisitedVideoListResponse> {
+  return apiCall<VisitedVideoListResponse>('/transcription/visited');
+}
+
+// ─── YouTube Progress ───────────────────────────────────────────────────────
+
+/** GET /youtube/progress — Get video playback progress */
+export async function getVideoProgress(videoId: string): Promise<VideoProgressResponse | null> {
+  return apiCall<VideoProgressResponse | null>('/youtube/progress', {
+    query: { video_id: videoId },
+  });
+}
+
+/** POST /youtube/progress — Save video playback progress */
+export async function saveVideoProgress(
+  videoId: string,
+  progress: number,
+): Promise<VideoProgressResponse> {
+  return apiCall<VideoProgressResponse>('/youtube/progress', {
+    method: 'POST',
+    body: { video_id: videoId, progress } as components['schemas']['SaveVideoProgressRequest'],
+  });
+}
+
+/** POST /transcription/visited — Mark video as visited (creates transcript if needed) */
+export async function visitVideo(params: {
   name: string;
   thumbnail_url: string;
   resource_url: string;
   user_id: string;
-  resource_id?: string | null;
-  original_source?: string;
-  public?: boolean;
-}
-
-function toRequestForm(input: TranscribeRequestInput): YoutubeTranscriptRequestForm {
-  return {
-    name: input.name,
-    resource_id: input.resource_id ?? null,
-    original_source: input.original_source ?? 'Youtube',
-    public: input.public ?? true,
-    thumbnail_url: input.thumbnail_url,
-    resource_url: input.resource_url,
-    user_id: input.user_id,
-  };
-}
-
-/** POST /transcription/transcribe/youtube — create a transcription job. */
-export async function requestTranscription(
-  input: TranscribeRequestInput,
-): Promise<TranscriptRequestResponse> {
-  return apiCall<TranscriptRequestResponse>('/transcription/transcribe/youtube', {
+  resource_id: string;
+  original_source: string;
+}): Promise<TranscriptDetailResponse> {
+  return apiCall<TranscriptDetailResponse>('/transcription/visited', {
     method: 'POST',
-    body: toRequestForm(input),
+    body: params,
   });
 }
 
-/** POST /transcription/visit — log a watch into history without transcribing. */
-export async function visitVideo(
-  input: TranscribeRequestInput,
-): Promise<TranscriptDetailResponse> {
-  return apiCall<TranscriptDetailResponse>('/transcription/visit', {
-    method: 'POST',
-    body: toRequestForm(input),
-  });
-}
+// ─── Transcript Helpers ─────────────────────────────────────────────────────
 
-/** GET /transcription/transcribe/{id}/detail */
-export async function getTranscriptionDetail(id: string): Promise<TranscriptDetailResponse> {
-  return apiCall<TranscriptDetailResponse>(
-    `/transcription/transcribe/${encodeURIComponent(id)}/detail`,
-  );
-}
-
-/** POST /transcription/transcribe/{id}/rerun */
-export async function rerunTranscription(id: string): Promise<TranscriptRequestResponse> {
-  return apiCall<TranscriptRequestResponse>(
-    `/transcription/transcribe/${encodeURIComponent(id)}/rerun`,
-    { method: 'POST' },
-  );
-}
-
-/** POST /transcription/transcribe/{id}/settings — per-transcription settings blob. */
-export async function saveTranscriptionSettings(
-  transcriptId: string,
-  settings: Record<string, unknown>,
-): Promise<unknown> {
-  const body: SaveIndividualSettingsRequest = { transcript_id: transcriptId, settings };
-  return apiCall(`/transcription/transcribe/${encodeURIComponent(transcriptId)}/settings`, {
-    method: 'POST',
-    body,
-  });
-}
-
-// ─── History ────────────────────────────────────────────────────────────────
-
-/** GET /transcription/history — paginated list of visited/transcribed videos. */
-export async function getTranscriptionHistory(): Promise<UserHistoryListResponse> {
-  return apiCall<UserHistoryListResponse>('/transcription/history');
-}
-
-/** DELETE /transcription/history — body carries the history id. */
-export async function deleteTranscriptionHistory(historyId: string): Promise<void> {
-  const body: RemoveHistoryRequest = { history_id: historyId };
-  await apiCall('/transcription/history', { method: 'DELETE', body });
-}
-
-// ─── Watch progress ─────────────────────────────────────────────────────────
-
-/** GET /transcription/progress — may legitimately return null. */
-export async function getVideoProgress(
-  resourceId: string,
-  originalSource = 'Youtube',
-): Promise<VideoProgressResponse | null> {
-  return apiCall<VideoProgressResponse | null>('/transcription/progress', {
-    query: { resource_id: resourceId, original_source: originalSource },
-  });
-}
-
-/** POST /transcription/progress — debounced by callers, never per timeupdate. */
-export async function saveVideoProgress(
-  resourceId: string,
-  currentPage: number,
-  originalSource = 'Youtube',
-): Promise<VideoProgressResponse> {
-  const body: SaveVideoProgressRequest = {
-    resource_id: resourceId,
-    original_source: originalSource,
-    current_page: Math.max(0, Math.round(currentPage)),
-  };
-  return apiCall<VideoProgressResponse>('/transcription/progress', { method: 'POST', body });
-}
-
-// ─── YouTube search ────────────────────────────────────────────────────────
-// NOTE: the new API (doc §5.4) exposes no YouTube search endpoint — only
-// `GET /youtube/video/{id}` for a known id. `searchYouTube` is retained as a
-// no-op so existing UI degrades gracefully instead of calling a removed route.
-export async function searchYouTube(_query: string, _limit = 20): Promise<VideoPreview[]> {
-  console.warn('searchYouTube is not supported by the current API');
-  return [];
-}
-
-/**
- * Fill in missing (null) word timestamps by linear interpolation so every
- * token has a usable seek target.
- *
- * Tokens before the first known timestamp collapse to that timestamp, tokens
- * after the last known one collapse to that end, and interior gaps are spread
- * evenly between their neighbours.
- */
+/** Interpolate missing timestamps in transcript segments */
 export function interpolateTranscript(result: TranscriptResult): TranscriptResult {
   const flat: TokenTimestamp[] = [];
   for (const segment of result.segments ?? []) {
-    for (const word of segment.words ?? []) flat.push(word);
+    for (const word of segment) flat.push(word);
   }
   if (flat.length === 0) return result;
 
@@ -250,7 +189,6 @@ export function interpolateTranscript(result: TranscriptResult): TranscriptResul
       continue;
     }
 
-    // Interior gap: spread evenly between the previous and next known spans.
     let j = i;
     while (j < spans.length && !spans[j]) j++;
     const prevEnd = spans[i - 1]!.end;
@@ -266,31 +204,12 @@ export function interpolateTranscript(result: TranscriptResult): TranscriptResul
   let idx = 0;
   return {
     ...result,
-    segments: (result.segments ?? []).map((segment) => ({
+    segments: result.segments.map((segment) => ({
       ...segment,
-      words: (segment.words ?? []).map((word) => {
+      words: segment.map((word) => {
         const span = spans[idx++]!;
         return { ...word, start: span.start, end: span.end };
       }),
     })),
   };
-}
-
-/** Start time of a segment, or null when it carries no usable timestamps. */
-export function segmentStart(segment: TranscriptSegment): number | null {
-  for (const word of segment.words ?? []) {
-    if (word.start !== null) return word.start;
-  }
-  return null;
-}
-
-/** End time of a segment, or null when it carries no usable timestamps. */
-export function segmentEnd(segment: TranscriptSegment): number | null {
-  const words = segment.words ?? [];
-  for (let i = words.length - 1; i >= 0; i--) {
-    const word = words[i];
-    if (word.end !== null) return word.end;
-    if (word.start !== null) return word.start;
-  }
-  return null;
 }
