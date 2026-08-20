@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import {
   isLookupCandidate,
   lookupQueryFor,
-  getDependencyTree,
+  saveTokenization,
   lookupWord,
   tokenize,
   type DependencyTree,
@@ -79,13 +79,10 @@ export function TokenizedSentence({
       try {
         setLoading(true);
         setError(null);
-        const [tokenResult, dependencyResult] = await Promise.all([
-          tokenize(text),
-          getDependencyTree(text),
-        ]);
+        const tokenResult = await tokenize(text);
         if (cancelled) return;
         setTokens(tokenResult.tokens);
-        setDepSentences(dependencyResult.sentences);
+        setDepSentences(tokenResult.sentences ?? []);
         setDependencyError(null);
         setSelected(new Set());
         onTokens?.(tokenResult.tokens);

@@ -5,7 +5,7 @@ import { TokenizeSentencePanel } from '@/components/dictionary/TokenizedSentence
 import {
   deleteTokenizationHistory,
   getTokenizationHistory,
-  saveTokenizationHistory,
+  saveTokenization,
   type TokenizationHistoryItem,
 } from '@/lib/api/dictionary';
 import { useAuth } from '@/lib/auth-context';
@@ -51,9 +51,8 @@ export default function TokenizationPage() {
       skipNextSave.current = false;
       return;
     }
-    if (!user?.id) return;
     try {
-      await saveTokenizationHistory(text, user.id);
+      await saveTokenization(text);
       await loadHistory();
     } catch {
       toast.error(td('tokenize.historySaveFailed'));
@@ -61,10 +60,9 @@ export default function TokenizationPage() {
   };
 
   const handleDelete = async (item: TokenizationHistoryItem) => {
-    if (!user?.id) return;
     try {
       setDeleting(item.history_id);
-      await deleteTokenizationHistory(item.history_id, user.id);
+      await deleteTokenizationHistory(item.history_id);
       setHistory((items) => items.filter((historyItem) => historyItem.history_id !== item.history_id));
     } catch {
       toast.error(td('tokenize.historyDeleteFailed'));
