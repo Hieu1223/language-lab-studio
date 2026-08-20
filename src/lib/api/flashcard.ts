@@ -16,6 +16,24 @@ export type CreateDeckRequest = components['schemas']['CreateDeckRequest'];
 export type AddVocabRequest = components['schemas']['AddVocabRequest'];
 export type SaveReviewRequest = components['schemas']['SaveReviewRequest'];
 
+/** Vocab card data structure stored in card.data JSON blob */
+export interface VocabCardData {
+  word: string;
+  reading?: string;
+  meaning?: string;
+  [key: string]: unknown;
+}
+
+/** Parse card.data JSON blob into typed data */
+export function parseCardData<T>(data: string | null | undefined): T | null {
+  if (!data) return null;
+  try {
+    return JSON.parse(data) as T;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Decks ──────────────────────────────────────────────────────────────────
 
 /** GET /flashcard/decks/public — Browse public decks */

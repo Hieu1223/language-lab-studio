@@ -26,12 +26,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   deleteCard,
-  getDeckCards,
+  getCardsInDeck,
   getDeckProgress,
   getDecks,
   parseCardData,
-  renameDeck,
   resetCard,
+  updateDeck,
   type CardResponse,
   type CardState,
   type DeckProgressResponse,
@@ -74,7 +74,7 @@ export default function DeckDetailPage() {
       setLoading(true);
       const [decks, c, p] = await Promise.all([
         getDecks(),
-        getDeckCards(deckId),
+        getCardsInDeck(deckId),
         getDeckProgress(deckId).catch(() => null),
       ]);
       const d = decks.find((x) => x.id === deckId) ?? null;
@@ -105,7 +105,7 @@ export default function DeckDetailPage() {
     }
     try {
       setSavingName(true);
-      await renameDeck(deckId, name.trim());
+      await updateDeck(deckId, name.trim());
       toast.success(t('detail.renamed'));
       setEditingName(false);
       load();
