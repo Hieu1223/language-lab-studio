@@ -23,6 +23,11 @@ export async function browsePublicDecks(): Promise<PublicDeckResponse[]> {
   return apiCall<PublicDeckResponse[]>('/flashcard/decks/public');
 }
 
+/** Legacy alias for backward compatibility */
+export async function getPublicDecks(): Promise<PublicDeckResponse[]> {
+  return browsePublicDecks();
+}
+
 /** POST /flashcard/decks/{deck_id}/copy — Copy public deck to user's collection */
 export async function copyPublicDeck(deckId: string): Promise<DeckWithStatsResponse> {
   return apiCall<DeckWithStatsResponse>(`/flashcard/decks/${encodeURIComponent(deckId)}/copy`, {
@@ -33,6 +38,11 @@ export async function copyPublicDeck(deckId: string): Promise<DeckWithStatsRespo
 /** GET /flashcard/decks — List user's decks with SRS stats */
 export async function readDecks(): Promise<DeckWithStatsResponse[]> {
   return apiCall<DeckWithStatsResponse[]>('/flashcard/decks');
+}
+
+/** Legacy alias for backward compatibility */
+export async function getDecks(): Promise<DeckWithStatsResponse[]> {
+  return readDecks();
 }
 
 /** POST /flashcard/decks — Create new deck */
@@ -74,6 +84,11 @@ export async function addVocab(deckId: string, word: string, meaning: string): P
     method: 'POST',
     body: { word, meaning } as AddVocabRequest,
   });
+}
+
+/** Legacy alias for backward compatibility */
+export async function addVocabCard(deckId: string, word: string, meaning: string): Promise<CardResponse> {
+  return addVocab(deckId, word, meaning);
 }
 
 /** DELETE /flashcard/decks/{deck_id}/cards/{card_id} — Delete card */

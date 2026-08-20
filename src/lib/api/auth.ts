@@ -14,15 +14,15 @@ export async function login(username: string, password: string): Promise<{ acces
     },
     skipAuth: true,
   });
-  
+
   const accessToken = result.access_token as string | undefined;
   const refreshToken = result.refresh_token as string | undefined;
-  
+
   if (accessToken) {
     storeToken(accessToken);
     if (refreshToken) storeRefreshToken(refreshToken);
   }
-  
+
   return { access_token: accessToken!, refresh_token: refreshToken };
 }
 
@@ -33,16 +33,22 @@ export async function refreshToken(refreshToken: string): Promise<string> {
     body: { refresh_token: refreshToken },
     skipAuth: true,
   });
-  
+
   const newAccessToken = result.access_token as string | undefined;
   const newRefreshToken = result.refresh_token as string | undefined;
-  
+
   if (newAccessToken) {
     storeToken(newAccessToken);
     if (newRefreshToken) storeRefreshToken(newRefreshToken);
   }
-  
+
   return newAccessToken!;
+}
+
+/** Legacy alias for backward compatibility */
+export async function refresh(refreshToken: string): Promise<{ access_token: string }> {
+  const accessToken = await refreshToken(refreshToken);
+  return { access_token: accessToken };
 }
 
 /** POST /token/revoke — Revoke refresh token */

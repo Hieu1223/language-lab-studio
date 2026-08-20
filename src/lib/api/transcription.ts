@@ -143,7 +143,6 @@ export async function visitVideo(params: {
   name: string;
   thumbnail_url: string;
   resource_url: string;
-  user_id: string;
   resource_id: string;
   original_source: string;
 }): Promise<TranscriptDetailResponse> {
@@ -151,6 +150,20 @@ export async function visitVideo(params: {
     method: 'POST',
     body: params,
   });
+}
+
+/** Legacy alias for backward compatibility */
+export async function requestTranscription(params: {
+  name: string;
+  thumbnail_url: string;
+  resource_url: string;
+  user_id: string;
+  resource_id: string;
+  original_source: string;
+}): Promise<TranscriptDetailResponse> {
+  // user_id is no longer needed in new API
+  const { user_id, ...rest } = params;
+  return visitVideo(rest);
 }
 
 // ─── Transcript Helpers ─────────────────────────────────────────────────────
