@@ -10,6 +10,7 @@ import enTranscription from "./locales/en/transcription.json";
 import enManga from "./locales/en/manga.json";
 import enFlashcard from "./locales/en/flashcard.json";
 import enDictionary from "./locales/en/dictionary.json";
+import enMonitor from "./locales/en/monitor.json";
 
 import viCommon from "./locales/vi/common.json";
 import viAuth from "./locales/vi/auth.json";
@@ -18,6 +19,7 @@ import viTranscription from "./locales/vi/transcription.json";
 import viManga from "./locales/vi/manga.json";
 import viFlashcard from "./locales/vi/flashcard.json";
 import viDictionary from "./locales/vi/dictionary.json";
+import viMonitor from "./locales/vi/monitor.json";
 
 export const SUPPORTED_LOCALES = ["en", "vi"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
@@ -34,6 +36,7 @@ export const NAMESPACES = [
   "manga",
   "flashcard",
   "dictionary",
+  "monitor",
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -70,6 +73,7 @@ const resources = {
     manga: enManga,
     flashcard: enFlashcard,
     dictionary: enDictionary,
+    monitor: enMonitor,
   },
   vi: {
     common: viCommon,
@@ -79,6 +83,7 @@ const resources = {
     manga: viManga,
     flashcard: viFlashcard,
     dictionary: viDictionary,
+    monitor: viMonitor,
   },
 } as const;
 

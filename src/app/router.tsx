@@ -21,6 +21,7 @@ import MangaReaderPage from "@/pages/manga/MangaReaderPage";
 import MangaBrowse from "@/pages/manga/MangaBrowse";
 import MangaHistoryPage from "@/pages/manga/MangaHistoryPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import MonitorPage from "@/pages/monitor/MonitorPage";
 import NotFound from "@/pages/NotFound";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -51,6 +52,7 @@ export function AppRouter() {
       <Route path="/transcript/:id" element={<ProtectedRoute><TranscribeViewPage /></ProtectedRoute>} />
 
       <Route path="/tokenize" element={<ProtectedRoute><AppLayout><TokenizationPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/monitor" element={<ProtectedRoute><AppLayout><MonitorPage /></AppLayout></ProtectedRoute>} />
       <Route path="/dictionary" element={<ProtectedRoute><AppLayout><DictionaryPage /></AppLayout></ProtectedRoute>} />
       <Route path="/flashcard" element={<ProtectedRoute><AppLayout><FlashcardsPage /></AppLayout></ProtectedRoute>} />
       <Route path="/flashcard/decks/:deckId" element={<ProtectedRoute><AppLayout><DeckDetailPage /></AppLayout></ProtectedRoute>} />

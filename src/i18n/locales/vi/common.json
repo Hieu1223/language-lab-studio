@@ -35,9 +35,11 @@
   },
   "nav": {
     "transcription": "Phiên dịch",
+    "tokenization": "Tokenization",
     "manga": "Manga",
     "dictionary": "Từ điển",
     "vocabulary": "Từ vựng",
+    "monitor": "Monitor server",
     "settings": "Cài đặt",
     "logout": "Đăng xuất",
     "expand": "Mở rộng",
