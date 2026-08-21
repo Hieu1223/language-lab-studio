@@ -19,6 +19,39 @@ import { toast } from 'sonner';
 import { getMangaDetail, type MangaDetail } from '@/lib/api/manga';
 import { translate } from '@/lib/i18n-runtime';
 
+const ALLOWED_DESCRIPTION_TAGS = new Set([
+  'A', 'B', 'BLOCKQUOTE', 'BR', 'CODE', 'EM', 'H2', 'H3', 'H4', 'I', 'LI',
+  'OL', 'P', 'PRE', 'S', 'STRONG', 'SUB', 'SUP', 'U', 'UL',
+]);
+
+function sanitizeDescriptionHtml(html: string) {
+  const documentFragment = new DOMParser().parseFromString(html, 'text/html');
+
+  documentFragment.body.querySelectorAll('*').forEach((element) => {
+    if (!ALLOWED_DESCRIPTION_TAGS.has(element.tagName)) {
+      if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED'].includes(element.tagName)) {
+        element.remove();
+      } else {
+        element.replaceWith(...Array.from(element.childNodes));
+      }
+      return;
+    }
+
+    const href = element.tagName === 'A' ? element.getAttribute('href') : null;
+    for (const attribute of Array.from(element.attributes)) {
+      element.removeAttribute(attribute.name);
+    }
+
+    if (element.tagName === 'A' && href && /^(https?:|mailto:)/i.test(href)) {
+      element.setAttribute('href', href);
+      element.setAttribute('target', '_blank');
+      element.setAttribute('rel', 'noopener noreferrer');
+    }
+  });
+
+  return documentFragment.body.innerHTML;
+}
+
 export default function MangaDetailPage() {
   const { mangaId } = useParams<{ mangaId: string }>();
   const navigate = useNavigate();
@@ -64,9 +97,14 @@ export default function MangaDetailPage() {
   }, [detail]);
 
   const genreList = useMemo(() => {
-    if (!detail?.genres) return [] as string[];
-    return detail.genres.map((g) => g.name).filter(Boolean);
+    if (!detail?.genres) return [];
+    return detail.genres.filter((genre) => genre.name.trim().length > 0);
   }, [detail]);
+
+  const descriptionHtml = useMemo(
+    () => (detail?.description ? sanitizeDescriptionHtml(detail.description) : ''),
+    [detail?.description],
+  );
 
   if (loading) {
     return (
@@ -131,25 +169,31 @@ export default function MangaDetailPage() {
           </div>
 
           {genreList.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 items-center">
-              <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-              {genreList.map((g) => (
-                <Badge key={g} variant="outline" className="text-xs font-normal">
-                  {g}
-                </Badge>
-              ))}
+            <div className="space-y-1.5" data-testid="manga-tags">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Tag className="w-3.5 h-3.5" />
+                {t('detail.tags')}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {genreList.map((genre) => (
+                  <Badge key={genre.id} variant="outline" className="text-xs font-normal">
+                    {genre.name}
+                  </Badge>
+                ))}
+              </div>
             </div>
           )}
 
-          {detail.description && (
+          {descriptionHtml && (
             <div className="pt-2">
               <p className="text-xs uppercase tracking-wider text-muted-foreground mb-1">
                 {t('detail.description')}
               </p>
               <ScrollArea className="max-h-40">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap pr-3">
-                  {detail.description}
-                </p>
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none pr-3 [&_a]:text-primary [&_a]:underline"
+                  dangerouslySetInnerHTML={{ __html: descriptionHtml }}
+                />
               </ScrollArea>
             </div>
           )}
