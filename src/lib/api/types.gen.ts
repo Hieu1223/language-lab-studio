@@ -1411,8 +1411,11 @@ export interface components {
             alternative_title: string | null;
             /** Description */
             description: string | null;
-            /** Genre Ids */
-            genre_ids?: number[] | null;
+            /**
+             * Genres
+             * @default []
+             */
+            genres: components["schemas"]["GenrePreview"][];
             /** Score */
             score: number | null;
             /** Views Weekly */
