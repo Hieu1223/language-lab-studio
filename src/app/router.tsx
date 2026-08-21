@@ -8,7 +8,6 @@ import ShareTargetPage from "@/pages/auth/ShareTargetPage";
 import VideoPageWithTabs from "@/pages/transcription/VideoPageWithTabs";
 import YouTubeVideoViewerPage from "@/pages/transcription/YouTubeVideoViewerPage";
 import TranscribeViewPage from "@/pages/transcription/TranscribeViewPage";
-import TokenizationPage from "@/pages/transcription/TokenizationPage";
 import YouTubeBrowsePage from "@/pages/transcription/YouTubeBrowsePage";
 import YouTubeVideoPage from "@/pages/transcription/YouTubeVideoPage";
 import DictionaryPage from "@/pages/dictionary/DictionaryPage";
@@ -51,7 +50,6 @@ export function AppRouter() {
       <Route path="/transcribe/:id" element={<ProtectedRoute><YouTubeVideoPage /></ProtectedRoute>} />
       <Route path="/transcript/:id" element={<ProtectedRoute><TranscribeViewPage /></ProtectedRoute>} />
 
-      <Route path="/tokenize" element={<ProtectedRoute><AppLayout><TokenizationPage /></AppLayout></ProtectedRoute>} />
       <Route path="/monitor" element={<ProtectedRoute><AppLayout><MonitorPage /></AppLayout></ProtectedRoute>} />
       <Route path="/dictionary" element={<ProtectedRoute><AppLayout><DictionaryPage /></AppLayout></ProtectedRoute>} />
       <Route path="/flashcard" element={<ProtectedRoute><AppLayout><FlashcardsPage /></AppLayout></ProtectedRoute>} />
