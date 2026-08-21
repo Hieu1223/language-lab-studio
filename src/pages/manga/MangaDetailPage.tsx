@@ -187,6 +187,31 @@ export default function MangaDetailPage() {
         </div>
       </div>
 
+      <Card className="mb-6">
+        <CardHeader><CardTitle className="text-lg">{t('detail.metadata')}</CardTitle></CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+          {[
+            ['Alternative title', detail.alternative_title],
+            ['Native description', detail.description_native],
+            ['Type', detail.manga_type],
+            ['Released', detail.released],
+            ['Serialization', detail.serialization],
+            ['Score', detail.score],
+            ['Daily views', detail.views_daily],
+            ['Weekly views', detail.views_weekly],
+            ['Monthly views', detail.views_monthly],
+            ['Readers', detail.reader_count],
+            ['Published', detail.published_at ? new Date(detail.published_at).toLocaleString() : null],
+            ['Updated', detail.updated_at ? new Date(detail.updated_at).toLocaleString() : null],
+          ].map(([label, value]) => value != null && value !== '' ? (
+            <div key={label as string} className="flex justify-between gap-4 border-b py-1.5">
+              <span className="text-muted-foreground">{label}</span><span className="text-right">{String(value)}</span>
+            </div>
+          ) : null)}
+          {detail.creators.length > 0 && <div className="md:col-span-2 flex flex-wrap gap-2 border-b py-1.5"><span className="text-muted-foreground">Creators</span>{detail.creators.map((creator) => <Badge key={creator.id} variant="outline">{creator.name} ({creator.role})</Badge>)}</div>}
+        </CardContent>
+      </Card>
+
       <Separator className="my-4" />
 
       {/* Chapter list */}

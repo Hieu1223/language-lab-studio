@@ -74,21 +74,21 @@ export async function login(username: string, password: string): Promise<TokenRe
   return persistTokens(res);
 }
 
-/** `POST /token/refresh` — `refresh_token` is a query parameter. */
+/** `POST /token/refresh` — JSON body per the API contract. */
 export async function refresh(refreshToken: string): Promise<TokenResponse> {
   const res = await apiCall<unknown>('/token/refresh', {
     method: 'POST',
     skipAuth: true,
-    query: { refresh_token: refreshToken },
+    body: { refresh_token: refreshToken },
   });
   return persistTokens(res);
 }
 
-/** `POST /token/revoke` — `refresh_token` is a query parameter. */
+/** `POST /token/revoke` — JSON body per the API contract. */
 export async function revoke(refreshToken: string): Promise<void> {
   await apiCall('/token/revoke', {
     method: 'POST',
-    query: { refresh_token: refreshToken },
+    body: { refresh_token: refreshToken },
   });
 }
 

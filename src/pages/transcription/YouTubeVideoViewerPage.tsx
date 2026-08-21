@@ -45,6 +45,7 @@ import {
   requestTranscription,
   previewVideo,
   visitVideo,
+  getLatestTranscription,
   isTranscriptError,
   isTranscriptReady,
   type TranscriptDetailResponse,
@@ -121,6 +122,8 @@ export default function YouTubeVideoViewerPage() {
           duration: info.duration ?? null,
           description: info.description,
           view_count: info.view_count,
+          app_video_id: info.app_video_id,
+          has_transcript: info.has_transcript,
         });
       } catch (error) {
         console.error('Failed to fetch YouTube video data:', error);
@@ -220,25 +223,19 @@ export default function YouTubeVideoViewerPage() {
     (async () => {
       setStatus('checking');
       try {
-        // The API has no "find by video id" lookup; visiting the video returns
-        // (or creates) its transcript detail, which we then poll if needed.
-        const base = video
-          ? { name: video.title || videoId, thumbnail_url: video.thumbnail_url || '', original_source: 'Youtube' }
-          : { name: videoId, thumbnail_url: '', original_source: 'Youtube' };
-        const info = await visitVideo({
-          name: base.name,
-          thumbnail_url: base.thumbnail_url,
-          resource_url: `https://www.youtube.com/watch?v=${videoId}`,
-          user_id: user?.id ?? '',
-          resource_id: videoId,
-          original_source: base.original_source,
-        });
-        if (!info) {
+        const info = await visitVideo(videoId);
+        const appVideoId = info.app_video_id;
+        if (!appVideoId) {
           setStatus('not_found');
           return;
         }
-        setTranscriptInfo(info);
-        await loadTranscriptData(info.id, info.status);
+        const latest = await getLatestTranscription(appVideoId);
+        if (!latest) {
+          setStatus('not_found');
+          return;
+        }
+        setTranscriptInfo({ id: latest.transcript_id, status: latest.status, done: latest.done, msg: latest.msg });
+        await loadTranscriptData(latest.transcript_id, latest.status);
       } catch (err) {
         console.error(err);
         setStatus('error');
@@ -531,14 +528,13 @@ export default function YouTubeVideoViewerPage() {
     try {
       setRequesting(true);
       setStatus('processing');
-      const res = await requestTranscription({
-        name: video?.title || 'YouTube Video',
-        thumbnail_url: video?.thumbnail_url || '',
-        resource_url: `https://www.youtube.com/watch?v=${videoId}`,
-        user_id: user.id,
-        resource_id: videoId,
-        original_source: 'Youtube',
-      });
+      const appVideoId = video?.app_video_id;
+      if (!appVideoId) {
+        toast.error(t('viewer.requestFailed'));
+        setStatus('not_found');
+        return;
+      }
+      const res = await requestTranscription(appVideoId);
       toast.success(t('viewer.requested'));
       const info = await getTranscriptionDetail(res.transcript_id).catch(() => null);
       if (info) setTranscriptInfo(info);

@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Search, Loader2, X, Sparkles, ChevronLeft, ChevronRight, BookOpen, Filter, Tag } from 'lucide-react';
+import { Search, Loader2, X, Sparkles, ChevronLeft, ChevronRight, BookOpen, Filter, Tag, UserRound } from 'lucide-react';
 import { MangaImage } from '@/components/manga/MangaImage';
-import { searchManga, searchMangaTags, type MangaOrder, type MangaPreview } from '@/lib/api/manga';
+import { searchManga, searchMangaGenres, searchMangaCreators, type MangaOrder, type MangaOrderDirection, type MangaPreview, type CreatorPreview } from '@/lib/api/manga';
 
 // ─── Storage keys ─────────────────────────────────────────────────────────
 const QUERY_STORAGE_KEY = 'manga-query';
@@ -39,13 +39,18 @@ export default function MangaBrowse() {
   );
 
   const [query, setQuery] = useState(initialQuery);
-  const [selectedTags, setSelectedTags] = useState(() => searchParams.getAll('tags'));
+  const [selectedTags, setSelectedTags] = useState(() => searchParams.getAll('genres'));
   const [tagInput, setTagInput] = useState('');
-  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const [tagSuggestions, setTagSuggestions] = useState<{ slug: string; name: string }[]>([]);
   const [tagsLoading, setTagsLoading] = useState(false);
+  const [authorInput, setAuthorInput] = useState('');
+  const [author, setAuthor] = useState<CreatorPreview | null>(null);
+  const [authorSuggestions, setAuthorSuggestions] = useState<CreatorPreview[]>([]);
+  const [authorLoading, setAuthorLoading] = useState(false);
   const [orderBy, setOrderBy] = useState<MangaOrder | ''>(
     (searchParams.get('order_by') as MangaOrder | null) ?? '',
   );
+  const [orderDir, setOrderDir] = useState<MangaOrderDirection>((searchParams.get('order_dir') as MangaOrderDirection | null) ?? 'desc');
   const [page, setPage] = useState<number>(initialPage);
   const [results, setResults] = useState<MangaPreview[]>(() => {
     try {
@@ -78,16 +83,20 @@ export default function MangaBrowse() {
    */
   const runSearch = useCallback(async (
     q: string,
-    tags: string[],
+    genres: string[],
+    creator: CreatorPreview | null,
     sort: MangaOrder | '',
+    direction: MangaOrderDirection,
     p: number = 1,
   ) => {
     setLoading(true);
     try {
       const items = await searchManga({
         q,
-        tags,
+        genres,
+        author: creator?.id ? String(creator.id) : null,
         order_by: sort || null,
+        order_dir: direction,
         limit: PAGE_SIZE,
         offset: Math.max(0, (p - 1) * PAGE_SIZE),
       });
@@ -111,8 +120,8 @@ export default function MangaBrowse() {
     const timer = window.setTimeout(async () => {
       setTagsLoading(true);
       try {
-        const suggestions = await searchMangaTags(prefix, 5);
-        if (!cancelled) setTagSuggestions(suggestions.filter((tag) => !selectedTags.includes(tag)).slice(0, 5));
+        const suggestions = await searchMangaGenres(prefix, 5);
+        if (!cancelled) setTagSuggestions(suggestions.filter((tag) => !selectedTags.includes(tag.slug)));
       } catch {
         if (!cancelled) setTagSuggestions([]);
       } finally {
@@ -125,9 +134,28 @@ export default function MangaBrowse() {
     };
   }, [tagInput, selectedTags]);
 
-  const updateUrl = (q: string, tags: string[], sort: MangaOrder | '', p: number) => {
-    const params = new URLSearchParams({ q, page: String(p) });
-    for (const tag of tags) params.append('tags', tag);
+  useEffect(() => {
+    const prefix = authorInput.trim();
+    if (!prefix) { setAuthorSuggestions([]); return; }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setAuthorLoading(true);
+      try {
+        const suggestions = await searchMangaCreators(prefix, 5);
+        if (!cancelled) setAuthorSuggestions(suggestions);
+      } catch {
+        if (!cancelled) setAuthorSuggestions([]);
+      } finally {
+        if (!cancelled) setAuthorLoading(false);
+      }
+    }, 200);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [authorInput]);
+
+  const updateUrl = (q: string, genres: string[], creator: CreatorPreview | null, sort: MangaOrder | '', direction: MangaOrderDirection, p: number) => {
+    const params = new URLSearchParams({ q, page: String(p), order_dir: direction });
+    for (const genre of genres) params.append('genres', genre);
+    if (creator) params.set('author', String(creator.id));
     if (sort) params.set('order_by', sort);
     setSearchParams(params, { replace: true });
   };
@@ -135,7 +163,7 @@ export default function MangaBrowse() {
   // Initial load
   useEffect(() => {
     if (results.length > 0) return;
-    runSearch(query, selectedTags, orderBy, page);
+    runSearch(query, selectedTags, author, orderBy, orderDir, page);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -143,30 +171,30 @@ export default function MangaBrowse() {
     e.preventDefault();
     const q = query.trim();
     setQuery(q);
-    updateUrl(q, selectedTags, orderBy, 1);
-    runSearch(q, selectedTags, orderBy, 1);
+    updateUrl(q, selectedTags, author, orderBy, orderDir, 1);
+    runSearch(q, selectedTags, author, orderBy, orderDir, 1);
   };
 
-  const chooseTag = (tag: string) => {
-    const tags = selectedTags.includes(tag) ? selectedTags : [...selectedTags, tag];
-    setSelectedTags(tags);
+  const chooseTag = (tag: { slug: string; name: string }) => {
+    const genres = selectedTags.includes(tag.slug) ? selectedTags : [...selectedTags, tag.slug];
+    setSelectedTags(genres);
     setTagInput('');
     setTagSuggestions([]);
-    updateUrl(query, tags, orderBy, 1);
-    runSearch(query, tags, orderBy, 1);
+    updateUrl(query, genres, author, orderBy, orderDir, 1);
+    runSearch(query, genres, author, orderBy, orderDir, 1);
   };
 
   const removeTag = (tag: string) => {
     const tags = selectedTags.filter((selected) => selected !== tag);
     setSelectedTags(tags);
-    updateUrl(query, tags, orderBy, 1);
-    runSearch(query, tags, orderBy, 1);
+    updateUrl(query, tags, author, orderBy, orderDir, 1);
+    runSearch(query, tags, author, orderBy, orderDir, 1);
   };
 
   const changeOrder = (sort: MangaOrder | '') => {
     setOrderBy(sort);
-    updateUrl(query, selectedTags, sort, 1);
-    runSearch(query, selectedTags, sort, 1);
+    updateUrl(query, selectedTags, author, sort, orderDir, 1);
+    runSearch(query, selectedTags, author, sort, orderDir, 1);
   };
 
   const handleClear = () => {
@@ -174,13 +202,16 @@ export default function MangaBrowse() {
     setSelectedTags([]);
     setTagInput('');
     setOrderBy('');
-    updateUrl(DEFAULT_QUERY, [], '', 1);
-    runSearch(DEFAULT_QUERY, [], '', 1);
+    setOrderDir('desc');
+    setAuthor(null);
+    setAuthorInput('');
+    updateUrl(DEFAULT_QUERY, [], null, '', 'desc', 1);
+    runSearch(DEFAULT_QUERY, [], null, '', 'desc', 1);
   };
 
   const goToPage = (p: number) => {
-    updateUrl(query, selectedTags, orderBy, p);
-    runSearch(query, selectedTags, orderBy, p);
+    updateUrl(query, selectedTags, author, orderBy, orderDir, p);
+    runSearch(query, selectedTags, author, orderBy, orderDir, p);
   };
 
   return (
@@ -236,13 +267,13 @@ export default function MangaBrowse() {
                   <div className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground"><Loader2 className="w-3 h-3 animate-spin" />Loading tags…</div>
                 ) : tagSuggestions.map((tag) => (
                   <button
-                    key={tag}
+                    key={tag.slug}
                     type="button"
                     onClick={() => chooseTag(tag)}
                     className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
-                    data-testid={`manga-tag-suggestion-${tag}`}
+                    data-testid={`manga-tag-suggestion-${tag.slug}`}
                   >
-                    {tag}
+                    {tag.name}
                   </button>
                 ))}
               </div>
@@ -260,14 +291,37 @@ export default function MangaBrowse() {
               data-testid="manga-sort-select"
             >
               <option value="">Default order</option>
-              <option value="latest">Latest update</option>
-              <option value="-latest">Oldest update</option>
-              <option value="az">Title A–Z</option>
-              <option value="-az">Title Z–A</option>
-              <option value="created">Oldest created</option>
-              <option value="-created">Newest created</option>
+              <option value="trending">Trending</option>
+              <option value="alphabet">Alphabetical</option>
+              <option value="view">Most viewed</option>
+              <option value="latest">Recently updated</option>
+              <option value="created">Recently created</option>
             </select>
           </div>
+          <select
+            value={orderDir}
+            onChange={(e) => { const direction = e.target.value as MangaOrderDirection; setOrderDir(direction); updateUrl(query, selectedTags, author, orderBy, direction, 1); runSearch(query, selectedTags, author, orderBy, direction, 1); }}
+            disabled={loading}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            aria-label="Sort direction"
+          >
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+        </div>
+
+        <div className="relative max-w-md">
+          <UserRound className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground pointer-events-none" />
+          <Input value={authorInput} onChange={(e) => { setAuthorInput(e.target.value); if (!e.target.value) setAuthor(null); }} placeholder="Filter by author or artist" className="pl-10" disabled={loading} />
+          {(authorSuggestions.length > 0 || authorLoading) && (
+            <div className="absolute z-20 mt-1 w-full rounded-md border bg-popover p-1 shadow-md">
+              {authorLoading ? <div className="px-2 py-1.5 text-xs text-muted-foreground">Loading creators…</div> : authorSuggestions.map((creator) => (
+                <button key={creator.id} type="button" onClick={() => { setAuthor(creator); setAuthorInput(creator.name); setAuthorSuggestions([]); updateUrl(query, selectedTags, creator, orderBy, orderDir, 1); runSearch(query, selectedTags, creator, orderBy, orderDir, 1); }} className="w-full rounded px-2 py-1.5 text-left text-sm hover:bg-muted">
+                  {creator.name} <span className="text-xs text-muted-foreground">({creator.role})</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {selectedTags.length > 0 && (
@@ -287,8 +341,8 @@ export default function MangaBrowse() {
             ))}
             <Button type="button" variant="ghost" size="sm" className="h-6 text-xs" onClick={() => {
               setSelectedTags([]);
-              updateUrl(query, [], orderBy, 1);
-              runSearch(query, [], orderBy, 1);
+              updateUrl(query, [], author, orderBy, orderDir, 1);
+              runSearch(query, [], author, orderBy, orderDir, 1);
             }}>
               Clear tags
             </Button>
