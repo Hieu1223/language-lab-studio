@@ -65,10 +65,7 @@ export default function MangaDetailPage() {
 
   const genreList = useMemo(() => {
     if (!detail?.genres) return [] as string[];
-    return detail.genres
-      .split(/[,/|]/)
-      .map((g) => g.trim())
-      .filter(Boolean);
+    return detail.genres.map((g) => g.name).filter(Boolean);
   }, [detail]);
 
   if (loading) {
