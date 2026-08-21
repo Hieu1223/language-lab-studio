@@ -7,7 +7,10 @@ import { Slider } from '@/components/ui/slider';
 declare global {
   interface Window {
     onYouTubeIframeAPIReady: () => void;
-    YT: Record<string, unknown>;
+    YT: {
+      Player: new (elementId: string, options: Record<string, unknown>) => unknown;
+      PlayerState: { PLAYING: number; PAUSED: number; ENDED: number; BUFFERING: number };
+    };
   }
 }
 
