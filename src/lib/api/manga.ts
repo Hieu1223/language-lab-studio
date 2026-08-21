@@ -16,30 +16,50 @@ export type ReadHistoryUpdate = components['schemas']['ReadHistoryUpdate'];
 
 // ─── Browse ─────────────────────────────────────────────────────────────────
 
-export type MangaOrder = 'latest' | '-latest' | 'az' | '-az' | 'created' | '-created';
+export type MangaOrder = 'trending' | 'alphabet' | 'view' | 'latest' | 'created';
+export type MangaOrderDirection = 'asc' | 'desc';
 
 export interface SearchMangaParams {
   q?: string | null;
-  tags?: string[];
+  genres?: string[];
+  author?: string | null;
   order_by?: MangaOrder | null;
+  order_dir?: MangaOrderDirection;
   limit?: number;
   offset?: number;
 }
 
-/** GET /manga/manga */
+/** GET /manga */
 export async function searchManga({
   q = null,
-  tags = [],
+  genres = [],
+  author = null,
   order_by = null,
+  order_dir = 'desc',
   limit = 20,
   offset = 0,
 }: SearchMangaParams = {}): Promise<MangaPreview[]> {
-  return apiCall<MangaPreview[]>('/manga/manga', { query: { q, tags, order_by, limit, offset } });
+  return apiCall<MangaPreview[]>('/manga', {
+    query: { q, genres, author, order_by, order_dir, limit, offset },
+  });
 }
 
-/** GET /manga/tags — prefix lookup for the browse filter. */
-export async function searchMangaTags(q: string, limit = 5): Promise<string[]> {
-  return apiCall<string[]>('/manga/tags', { query: { q, order_by: 'az', limit, offset: 0 } });
+export type GenrePreview = components['schemas']['GenrePreview'];
+export type CreatorPreview = components['schemas']['CreatorPreview'];
+
+/** GET /manga/genres — prefix lookup for browse filters. */
+export async function searchMangaGenres(q: string, limit = 5): Promise<GenrePreview[]> {
+  const response = await apiCall<{ items: GenrePreview[] }>('/manga/genres', {
+    query: { q, order_by: 'az', limit, offset: 0 },
+  });
+  return response.items ?? [];
+}
+
+/** GET /manga/creators — prefix lookup for author/artist filters. */
+export async function searchMangaCreators(q: string, limit = 5): Promise<CreatorPreview[]> {
+  return apiCall<CreatorPreview[]>('/manga/creators', {
+    query: { q, order_by: 'az', limit, offset: 0 },
+  });
 }
 
 /** GET /manga/manga/{manga_id} */

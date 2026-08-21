@@ -152,10 +152,14 @@ async function refreshAccessToken(): Promise<string | null> {
   const refresh = getStoredRefreshToken();
   if (!refresh) return null;
 
-  // POST /token/refresh takes `refresh_token` as a QUERY parameter.
-  const url = `${API_BASE_URL}/token/refresh?refresh_token=${encodeURIComponent(refresh)}`;
+  // POST /token/refresh takes a JSON request body.
+  const url = `${API_BASE_URL}/token/refresh`;
   try {
-    const res = await fetch(url, { method: 'POST' });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refresh }),
+    });
     if (!res.ok) return null;
     const data: unknown = await res.json();
     const access = pickToken(data, ['access_token', 'accessToken', 'token']);
