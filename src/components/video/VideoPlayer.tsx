@@ -7,7 +7,10 @@ import { Slider } from '@/components/ui/slider';
 declare global {
   interface Window {
     onYouTubeIframeAPIReady: () => void;
-    YT: Record<string, unknown>;
+    YT: {
+      Player: new (elementId: string, options: Record<string, unknown>) => unknown;
+      PlayerState: { PLAYING: number; PAUSED: number; ENDED: number; BUFFERING: number };
+    };
   }
 }
 
@@ -120,7 +123,7 @@ export function VideoPlayer({
       const el = document.getElementById(`yt-player-${videoId}`);
       if (!el) return;
 
-      playerRef.current = new window.YT.Player(`yt-player-${videoId}`, {
+      playerRef.current = (new window.YT.Player(`yt-player-${videoId}`, {
         videoId: videoId,
         playerVars: {
           autoplay: 0,
@@ -147,7 +150,7 @@ export function VideoPlayer({
             }
           },
         },
-      });
+      }) as YouTubePlayer);
     };
 
     loadAPI().then(createPlayer);

@@ -26,9 +26,13 @@ export type ApiToken = components['schemas']['Token'];
  * The API ships tokens with `start`/`stop`; the UI has always spoken
  * `start`/`end`, so normalize once here instead of at every call site.
  */
-export interface SegmentWord extends Omit<ApiToken, 'stop'> {
+export interface SegmentWord extends Omit<ApiToken, 'stop' | 'end'> {
   start: number | null;
   end: number | null;
+  /** Legacy alias for `surface`, kept so existing UI code keeps working. */
+  token: string;
+  /** Character offset end from the API's `end` field. */
+  char_end: number;
 }
 
 /** A transcript segment is simply one sentence's worth of tokens. */
@@ -162,8 +166,14 @@ export async function listTranscriptions(
 }
 
 function normalizeToken(token: ApiToken): SegmentWord {
-  const { stop, ...rest } = token;
-  return { ...rest, start: token.start ?? null, end: stop ?? null };
+  const { stop, end, ...rest } = token;
+  return {
+    ...rest,
+    token: token.surface,
+    char_end: end,
+    start: token.start ?? null,
+    end: stop ?? null,
+  };
 }
 
 /** GET /transcription/{transcript_id} */

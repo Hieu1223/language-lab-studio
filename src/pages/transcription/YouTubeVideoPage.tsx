@@ -112,14 +112,7 @@ export default function TranscribeViewPage() {
     try {
       setIsTranscribing(true);
 
-      await requestTranscription({
-        name: transcriptInfo?.original_source || id,
-        thumbnail_url: transcriptInfo?.thumnail_url || '',
-        resource_url: transcriptInfo?.resource_url || `https://www.youtube.com/watch?v=${id}`,
-        user_id: user.id,
-        resource_id: id,
-        original_source: 'Youtube',
-      });
+      await requestTranscription(transcriptInfo?.video_id ?? id);
 
       toast.success(t('legacy.started'));
 

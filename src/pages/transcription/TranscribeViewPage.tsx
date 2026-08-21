@@ -44,8 +44,8 @@ export default function TranscribeViewPage() {
             'selectedVideo',
             JSON.stringify({
               id: videoId,
-              title: info.original_source,
-              thumbnail_url: info.thumnail_url,
+              title: info.name ?? info.original_source,
+              thumbnail_url: info.thumbnail_url,
               channel: { id: '', name: null, url: null },
               duration: null,
               description: null,

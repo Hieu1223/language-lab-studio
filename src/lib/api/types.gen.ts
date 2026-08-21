@@ -1363,8 +1363,11 @@ export interface components {
             description_native: string | null;
             /** Manga Type */
             manga_type: string | null;
-            /** Genre Ids */
-            genre_ids?: number[] | null;
+            /**
+             * Genres
+             * @default []
+             */
+            genres: components["schemas"]["GenrePreview"][];
             /** Released */
             released: string | null;
             /** Serialization */
@@ -1408,8 +1411,11 @@ export interface components {
             alternative_title: string | null;
             /** Description */
             description: string | null;
-            /** Genre Ids */
-            genre_ids?: number[] | null;
+            /**
+             * Genres
+             * @default []
+             */
+            genres: components["schemas"]["GenrePreview"][];
             /** Score */
             score: number | null;
             /** Views Weekly */

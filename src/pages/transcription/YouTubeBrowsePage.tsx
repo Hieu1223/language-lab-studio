@@ -1,20 +1,16 @@
 import { BookmarkletModal } from '@/components/BookmarkletModal';
-import { StatusBadge } from '@/components/transcription/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  deleteTranscriptionHistory,
-  getTranscriptionHistory,
-  isTranscriptError,
-  isTranscriptReady,
+  getVisitedVideos,
   parseYouTubeId,
   previewVideo,
   requestTranscription,
-  type UserHistoryResponse as UserHistoryItem,
+  type VisitedVideoResponse as UserHistoryItem,
   type VideoPreview,
 } from '@/lib/api/transcription';
 import { useAuth } from '@/lib/auth-context';
-import { Bookmark, ExternalLink, History, Link2, Loader2, Play, Trash2 } from 'lucide-react';
+import { Bookmark, ExternalLink, History, Link2, Loader2, Play } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
@@ -35,17 +31,16 @@ export default function YouTubeBrowsePage() {
   // History
   const [history, setHistory] = useState<UserHistoryItem[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
-  const [confirmDelete, setConfirmDelete] = useState<UserHistoryItem | null>(null);
 
   const loadHistory = useCallback(async () => {
     try {
       setHistoryLoading(true);
-      const data = await getTranscriptionHistory();
+      const data = await getVisitedVideos();
       const list = data?.items ?? [];
       setHistory(
         [...list].sort(
           (a, b) =>
-            new Date(b.date_created).getTime() - new Date(a.date_created).getTime(),
+            new Date(b.updated_at ?? 0).getTime() - new Date(a.updated_at ?? 0).getTime(),
         ),
       );
     } catch {
@@ -94,14 +89,8 @@ export default function YouTubeBrowsePage() {
     }
     try {
       setTranscribing(true);
-      await requestTranscription({
-        name: video.title || video.id,
-        thumbnail_url: video.thumbnail_url || '',
-        resource_url: `https://www.youtube.com/watch?v=${video.id}`,
-        user_id: user.id,
-        resource_id: video.id,
-        original_source: 'Youtube',
-      });
+      const appVideoId = video.app_video_id ?? video.id;
+      await requestTranscription(appVideoId);
       toast.success(t('browse.transcribeStarted'));
       sessionStorage.setItem('selectedVideo', JSON.stringify(video));
       navigate(`/youtube/video/${video.id}`);
@@ -114,31 +103,8 @@ export default function YouTubeBrowsePage() {
   };
 
   const handleOpenHistory = (item: UserHistoryItem) => {
-    if (isTranscriptError(item.status)) {
-      toast.error(t('history.transcriptErrored'));
-      return;
-    }
-    if (item.transcript_id) {
-      navigate(`/transcript/${item.transcript_id}`);
-    } else {
-      const id = parseYouTubeId(item.name) ?? item.name;
-      navigate(`/youtube/video/${id}`);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!confirmDelete) return;
-    try {
-      await deleteTranscriptionHistory(confirmDelete.history_id);
-      setHistory((prev) =>
-        prev.filter((i) => i.history_id !== confirmDelete.history_id),
-      );
-      toast.success(t('history.deleted'));
-    } catch {
-      toast.error(t('history.deleteFailed'));
-    } finally {
-      setConfirmDelete(null);
-    }
+    const id = item.resource_id ?? item.video_id;
+    navigate(`/youtube/video/${id}`);
   };
 
   return (
@@ -282,7 +248,7 @@ export default function YouTubeBrowsePage() {
           <div className="space-y-3">
             {history.map((it) => (
               <div
-                key={it.history_id}
+                key={it.video_id}
                 className="flex flex-col sm:flex-row gap-3 rounded-xl border bg-card hover:border-primary/40 p-3 transition-colors group"
               >
                 <div
@@ -303,27 +269,17 @@ export default function YouTubeBrowsePage() {
                 </div>
 
                 <div className="flex-1 min-w-0 flex flex-col">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <StatusBadge status={it.status} />
-                    {it.is_transcribed ? (
-                      <span className="text-[10px] uppercase font-mono text-emerald-500">
-                        {t('browse.transcribed')}
-                      </span>
-                    ) : (
-                      <span className="text-[10px] uppercase font-mono text-muted-foreground">
-                        {t('browse.watched')}
-                      </span>
-                    )}
-                  </div>
                   <p
                     className="text-sm font-bold leading-tight line-clamp-2 cursor-pointer hover:text-primary transition-colors"
                     onClick={() => handleOpenHistory(it)}
                   >
-                    {it.name}
+                    {it.name ?? it.resource_id ?? it.video_id}
                   </p>
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    {new Date(it.date_created).toLocaleString('vi-VN')}
-                  </p>
+                  {it.updated_at && (
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {new Date(it.updated_at).toLocaleString('vi-VN')}
+                    </p>
+                  )}
 
                   <div className="flex gap-1.5 mt-auto pt-2">
                     <Button
@@ -331,27 +287,8 @@ export default function YouTubeBrowsePage() {
                       variant="default"
                       className="h-7 text-xs gap-1.5"
                       onClick={() => handleOpenHistory(it)}
-                      disabled={isTranscriptError(it.status)}
                     >
-                      {isTranscriptReady(it.status) ? (
-                        <>
-                          <ExternalLink className="w-3 h-3" /> {t('history.open')}
-                        </>
-                      ) : isTranscriptError(it.status) ? (
-                        t('history.cannotOpen')
-                      ) : (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin" /> {t('history.processing')}
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-xs gap-1.5 text-red-500 hover:text-red-600"
-                      onClick={() => setConfirmDelete(it)}
-                    >
-                      <Trash2 className="w-3 h-3" /> {tc('actions.delete')}
+                      <ExternalLink className="w-3 h-3" /> {t('history.open')}
                     </Button>
                   </div>
                 </div>
