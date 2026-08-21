@@ -18,12 +18,12 @@ interface Pos {
 }
 
 /**
- * Dependency arcs visualisation: tokens laid out on a single line with curved
- * arcs drawn from each token to its syntactic head, labelled with the relation.
+ * Dependency visualisation: tokens are laid out on a single line with squared
+ * connectors drawn from each token to its syntactic head, labelled with the relation.
  *
- * Positions are measured from the DOM (fonts/CJK widths vary), so the arcs
- * always line up with the real glyph boxes. The row scrolls horizontally
- * rather than wrapping, which keeps a single arc plane.
+ * Positions are measured from the DOM (fonts/CJK widths vary), so the connectors
+ * always line up with the real glyph boxes. The row scrolls horizontally rather
+ * than wrapping, which keeps a single connector plane.
  */
 export function DependencyArcs({ sentence, compact = false }: DependencyArcsProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -69,15 +69,15 @@ export function DependencyArcs({ sentence, compact = false }: DependencyArcsProp
   const spanOf = (tok: DependencyLink, i: number) => Math.abs((tok.head_index ?? i) - i);
   const maxSpan = arcs.reduce((m, a) => Math.max(m, spanOf(a.tok, a.i)), 0);
   const step = compact ? 13 : 17;
-  const arcAreaH = Math.max(compact ? 34 : 44, (maxSpan + 1) * step + 10);
+  const lineAreaH = Math.max(compact ? 34 : 44, (maxSpan + 1) * step + 10);
   const svgW = positions.length ? Math.max(...positions.map((p) => p.right)) + 8 : 0;
 
   return (
-    <div className="w-full overflow-x-auto" data-testid="dependency-arcs">
+    <div className="w-full overflow-x-auto" data-testid="dependency-lines">
       <div ref={wrapRef} className="relative inline-block min-w-full px-1 pb-1">
         <svg
           width={svgW || '100%'}
-          height={arcAreaH}
+          height={lineAreaH}
           className="block overflow-visible"
           aria-hidden="true"
         >
@@ -86,10 +86,10 @@ export function DependencyArcs({ sentence, compact = false }: DependencyArcsProp
               const from = positions[i];
               const to = positions[tok.head_index as number];
               if (!from || !to) return null;
-              const h = arcAreaH - spanOf(tok, i) * step - 4;
-              const y0 = arcAreaH;
+              const h = lineAreaH - spanOf(tok, i) * step - 4;
+              const y0 = lineAreaH;
               const midX = (from.center + to.center) / 2;
-              const d = `M ${from.center} ${y0} C ${from.center} ${h}, ${to.center} ${h}, ${to.center} ${y0}`;
+              const d = `M ${from.center} ${y0} L ${from.center} ${h} L ${to.center} ${h} L ${to.center} ${y0}`;
               return (
                 <g key={i}>
                   <path
@@ -146,7 +146,7 @@ export function DependencyArcs({ sentence, compact = false }: DependencyArcsProp
   );
 }
 
-/** Renders every sentence of a parsed text as its own arc diagram. */
+/** Renders every sentence of a parsed text as its own dependency diagram. */
 export function DependencyArcsList({
   sentences,
   compact = false,

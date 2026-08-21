@@ -35,9 +35,11 @@
   },
   "nav": {
     "transcription": "Transcribe",
+    "tokenization": "Tokenization",
     "manga": "Manga",
     "dictionary": "Dictionary",
     "vocabulary": "Vocabulary",
+    "monitor": "Server monitor",
     "settings": "Settings",
     "logout": "Log out",
     "expand": "Expand",

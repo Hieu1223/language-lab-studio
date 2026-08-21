@@ -20,6 +20,7 @@
     "backList": "Back",
     "chapterCount": "{{count}} chapters",
     "description": "Description",
+    "tags": "Genres",
     "metadata": "Details",
     "readFirst": "Read from start",
     "latestChapter": "Latest chapter",
