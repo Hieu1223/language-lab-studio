@@ -150,7 +150,7 @@ export function VideoPlayer({
             }
           },
         },
-      });
+      }) as YouTubePlayer);
     };
 
     loadAPI().then(createPlayer);
