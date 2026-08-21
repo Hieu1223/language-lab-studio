@@ -123,7 +123,7 @@ export function VideoPlayer({
       const el = document.getElementById(`yt-player-${videoId}`);
       if (!el) return;
 
-      playerRef.current = new window.YT.Player(`yt-player-${videoId}`, {
+      playerRef.current = (new window.YT.Player(`yt-player-${videoId}`, {
         videoId: videoId,
         playerVars: {
           autoplay: 0,

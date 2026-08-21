@@ -32,7 +32,7 @@ export default function TokenizationPage() {
     if (!user?.id) return;
     try {
       setHistoryLoading(true);
-      const result = await getTokenizationHistory(user.id);
+      const result = await getTokenizationHistory();
       setHistory(result.items);
     } catch {
       toast.error(td('tokenize.historyLoadFailed'));
@@ -115,7 +115,7 @@ export default function TokenizationPage() {
                 <div key={item.history_id} className="flex items-center gap-3 rounded-lg border bg-card p-3">
                   <button type="button" className="min-w-0 flex-1 text-left font-japanese text-sm hover:text-primary" onClick={() => { skipNextSave.current = true; setSeed(item.text); }}>
                     <span className="block truncate">{item.text}</span>
-                    <span className="block text-xs text-muted-foreground mt-1">{new Date(item.date_created).toLocaleString()} · {td('tokenize.sentenceCount', { count: item.sentences })}</span>
+                    <span className="block text-xs text-muted-foreground mt-1">{new Date(item.date_created).toLocaleString()} · {td('tokenize.sentenceCount', { count: item.sentence_count })}</span>
                   </button>
                   <Button variant="ghost" size="icon" onClick={() => void handleDelete(item)} disabled={deleting === item.history_id} aria-label={td('tokenize.deleteHistory')}>
                     {deleting === item.history_id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
