@@ -10,7 +10,6 @@ import {
   ScrollText,
   Settings,
   Video,
-  Wand2,
   X
 } from 'lucide-react';
 import { useState } from 'react';
@@ -20,7 +19,6 @@ import { Link, useLocation } from 'react-router-dom';
 /** Paths + icons are static; labels are resolved per-render so locale changes apply. */
 const navItems = [
   { path: '/youtube', labelKey: 'nav.transcription', icon: Video },
-  { path: '/tokenize', labelKey: 'nav.tokenization', icon: Wand2 },
   { path: '/manga', labelKey: 'nav.manga', icon: BookMarked },
   { path: '/dictionary', labelKey: 'nav.dictionary', icon: ScrollText },
   { path: '/flashcard', labelKey: 'nav.vocabulary', icon: BookOpen },
