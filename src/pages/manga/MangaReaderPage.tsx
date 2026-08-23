@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Eye,
@@ -13,6 +14,7 @@ import {
   ZoomOut,
   Maximize2,
   List,
+  Languages,
   SkipForward,
   SkipBack,
   Copy,
@@ -40,6 +42,7 @@ import { DependencyArcsList } from '@/components/dictionary/DependencyArcs';
 import { blockTrees, treesToTokens } from '@/lib/manga-analysis';
 import { ChapterEndCard, chapterLabel } from '@/components/manga/ChapterEndCard';
 import { DictionaryRightPanel } from '@/components/manga/DictionaryRightPanel';
+import { GrammarPanel } from '@/components/grammar/GrammarPanel';
 import { MangaPage } from '@/components/manga/MangaPage';
 import {
   BG_COLOR,
@@ -104,6 +107,7 @@ export default function MangaReaderPage() {
   const { mangaId, chapterId } = useParams<{ mangaId: string; chapterId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useTranslation('manga');
 
   // ── Chapter / page data ─────────────────────────────────────────────────
   const [mangaTitle, setMangaTitle] = useState('');
@@ -813,7 +817,7 @@ export default function MangaReaderPage() {
             <div className="absolute sm:relative top-0 right-0 bottom-0 sm:top-auto sm:right-auto sm:bottom-auto z-30 sm:z-auto w-72 sm:w-80 max-w-[85vw] sm:max-w-none flex-shrink-0 border-l border-border bg-card flex flex-col shadow-2xl sm:shadow-none h-full">
               {/* Tab bar */}
               <div className="flex border-b border-border flex-shrink-0">
-                {(['settings', 'chapters', 'text', 'dictionary'] as PanelTab[]).map((tab) => (
+                {(['settings', 'chapters', 'text', 'dictionary', 'grammar'] as PanelTab[]).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setPanelTab(tab)}
@@ -826,8 +830,10 @@ export default function MangaReaderPage() {
                     ) : tab === 'text' ? (
                       <span className="flex items-center justify-center gap-1"><Type className="w-3 h-3" /> Text</span>
                     ) : tab === 'dictionary' ? (
-                      <span className="flex items-center justify-center gap-1"><BookOpen className="w-3 h-3" /> Dict</span>
-                    ) : 'Settings'}
+                      <span className="flex items-center justify-center gap-1"><BookOpen className="w-3 h-3" /> {t('reader.tabDict')}</span>
+                    ) : tab === 'grammar' ? (
+                      <span className="flex items-center justify-center gap-1"><Languages className="w-3 h-3" /> {t('reader.tabGrammar')}</span>
+                    ) : t('reader.tabSettings')}
                   </button>
                 ))}
               </div>
@@ -1165,6 +1171,7 @@ export default function MangaReaderPage() {
 
             {/* Dictionary tab */}
             {panelTab === 'dictionary' && <DictionaryRightPanel />}
+            {panelTab === 'grammar' && <GrammarPanel className="h-full" />}
           </div>
           </>
         )}

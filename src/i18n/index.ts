@@ -11,6 +11,8 @@ import enManga from "./locales/en/manga.json";
 import enFlashcard from "./locales/en/flashcard.json";
 import enDictionary from "./locales/en/dictionary.json";
 import enMonitor from "./locales/en/monitor.json";
+import enGrammar from "./locales/en/grammar.json";
+import enWebnovel from "./locales/en/webnovel.json";
 
 import viCommon from "./locales/vi/common.json";
 import viAuth from "./locales/vi/auth.json";
@@ -20,6 +22,8 @@ import viManga from "./locales/vi/manga.json";
 import viFlashcard from "./locales/vi/flashcard.json";
 import viDictionary from "./locales/vi/dictionary.json";
 import viMonitor from "./locales/vi/monitor.json";
+import viGrammar from "./locales/vi/grammar.json";
+import viWebnovel from "./locales/vi/webnovel.json";
 
 export const SUPPORTED_LOCALES = ["en", "vi"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
@@ -37,6 +41,8 @@ export const NAMESPACES = [
   "flashcard",
   "dictionary",
   "monitor",
+  "grammar",
+  "webnovel",
 ] as const;
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -74,6 +80,8 @@ const resources = {
     flashcard: enFlashcard,
     dictionary: enDictionary,
     monitor: enMonitor,
+    grammar: enGrammar,
+    webnovel: enWebnovel,
   },
   vi: {
     common: viCommon,
@@ -84,6 +92,8 @@ const resources = {
     flashcard: viFlashcard,
     dictionary: viDictionary,
     monitor: viMonitor,
+    grammar: viGrammar,
+    webnovel: viWebnovel,
   },
 } as const;
 

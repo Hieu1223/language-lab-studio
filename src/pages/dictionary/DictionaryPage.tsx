@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { BookOpen, History, Loader2, RefreshCw, Sparkles, Trash2, Wand2 } from 'lucide-react';
+import { BookOpen, History, Languages, Loader2, RefreshCw, Sparkles, Trash2, Wand2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { TokenizeSentencePanel } from '@/components/dictionary/TokenizedSentence';
@@ -14,6 +14,7 @@ import {
 } from '@/lib/api/dictionary';
 import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
+import { GrammarPanel } from '@/components/grammar/GrammarPanel';
 
 const SAMPLES = [
   '今日はいい天気ですね。',
@@ -97,7 +98,7 @@ export default function DictionaryPage() {
       </header>
 
       <Tabs defaultValue="sentence">
-        <TabsList className="mb-4 w-full grid grid-cols-2 sm:inline-flex sm:w-auto h-11 sm:h-10">
+        <TabsList className="mb-4 w-full grid grid-cols-3 sm:inline-flex sm:w-auto h-11 sm:h-10">
           <TabsTrigger value="sentence" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-sentence">
             <Wand2 className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{t('page.tabSentence')}</span>
@@ -105,6 +106,10 @@ export default function DictionaryPage() {
           <TabsTrigger value="words" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-words">
             <BookOpen className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{t('page.tabVocab')}</span>
+          </TabsTrigger>
+          <TabsTrigger value="grammar" className="gap-1.5 text-xs sm:text-sm" data-testid="tab-grammar">
+            <Languages className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">{t('page.tabGrammar')}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -118,6 +123,12 @@ export default function DictionaryPage() {
 
         <TabsContent value="words">
           <WordLookupPanel />
+        </TabsContent>
+
+        <TabsContent value="grammar">
+          <div className="rounded-lg border bg-card min-h-[480px] overflow-hidden">
+            <GrammarPanel className="h-[480px]" />
+          </div>
         </TabsContent>
       </Tabs>
 
