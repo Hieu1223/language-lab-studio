@@ -1,0 +1,49 @@
+{
+  "page": {
+    "title": "Tiểu thuyết mạng",
+    "subtitle": "Khám phá và đọc tiểu thuyết Nhật Bản với tra từ tích hợp.",
+    "tabs": {
+      "browse": "Khám phá",
+      "history": "Lịch sử"
+    }
+  },
+  "browse": {
+    "searchPlaceholder": "Tìm kiếm tiểu thuyết...",
+    "empty": "Nhập từ khóa để tìm tiểu thuyết.",
+    "untitled": "Tiểu thuyết chưa đặt tên",
+    "chapterCount": "{{count}} chương",
+    "author": "Tác giả: {{author}}",
+    "noSummary": "Chưa có tóm tắt.",
+    "searchFailed": "Không thể tìm kiếm tiểu thuyết."
+  },
+  "history": {
+    "title": "Lịch sử đọc",
+    "empty": "Chưa có lịch sử đọc tiểu thuyết.",
+    "loadFailed": "Không thể tải lịch sử đọc.",
+    "delete": "Xóa khỏi lịch sử",
+    "deleteFailed": "Không thể xóa khỏi lịch sử."
+  },
+  "detail": {
+    "loadFailed": "Không thể tải thông tin tiểu thuyết.",
+    "noData": "Không có dữ liệu tiểu thuyết.",
+    "author": "Tác giả: {{author}}",
+    "chapterCount": "{{count}} chương",
+    "summary": "Tóm tắt",
+    "noSummary": "Chưa có tóm tắt.",
+    "chapterList": "Danh sách chương",
+    "noChapters": "Chưa có chương nào.",
+    "chapterFallback": "Chương {{index}}"
+  },
+  "reader": {
+    "loadFailed": "Không thể tải chương.",
+    "noData": "Không có dữ liệu chương.",
+    "previousChapter": "Chương trước",
+    "nextChapter": "Chương sau",
+    "paragraphCount": "{{count}} đoạn",
+    "emptyContent": "Chương này chưa có nội dung.",
+    "tabDictionary": "Từ điển",
+    "tabGrammar": "Ngữ pháp",
+    "closePanel": "Đóng bảng tra cứu",
+    "openPanel": "Mở bảng tra cứu"
+  }
+}

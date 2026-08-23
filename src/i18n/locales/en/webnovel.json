@@ -1,0 +1,49 @@
+{
+  "page": {
+    "title": "Web novels",
+    "subtitle": "Explore and read Japanese web novels with built-in lookups.",
+    "tabs": {
+      "browse": "Browse",
+      "history": "History"
+    }
+  },
+  "browse": {
+    "searchPlaceholder": "Search web novels...",
+    "empty": "Enter a keyword to find web novels.",
+    "untitled": "Untitled web novel",
+    "chapterCount": "{{count}} chapters",
+    "author": "Author: {{author}}",
+    "noSummary": "No summary available.",
+    "searchFailed": "Could not search web novels."
+  },
+  "history": {
+    "title": "Reading history",
+    "empty": "No web novel reading history yet.",
+    "loadFailed": "Could not load reading history.",
+    "delete": "Remove from history",
+    "deleteFailed": "Could not remove from history."
+  },
+  "detail": {
+    "loadFailed": "Could not load web novel details.",
+    "noData": "No web novel data.",
+    "author": "Author: {{author}}",
+    "chapterCount": "{{count}} chapters",
+    "summary": "Summary",
+    "noSummary": "No summary available.",
+    "chapterList": "Chapter list",
+    "noChapters": "No chapters yet.",
+    "chapterFallback": "Chapter {{index}}"
+  },
+  "reader": {
+    "loadFailed": "Could not load chapter.",
+    "noData": "No chapter data.",
+    "previousChapter": "Previous chapter",
+    "nextChapter": "Next chapter",
+    "paragraphCount": "{{count}} paragraphs",
+    "emptyContent": "This chapter has no content yet.",
+    "tabDictionary": "Dictionary",
+    "tabGrammar": "Grammar",
+    "closePanel": "Close lookup panel",
+    "openPanel": "Open lookup panel"
+  }
+}
