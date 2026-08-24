@@ -21,6 +21,9 @@ import MangaBrowse from "@/pages/manga/MangaBrowse";
 import MangaHistoryPage from "@/pages/manga/MangaHistoryPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import MonitorPage from "@/pages/monitor/MonitorPage";
+import WebNovelBrowsePage from "@/pages/webnovel/WebNovelBrowsePage";
+import WebNovelDetailPage from "@/pages/webnovel/WebNovelDetailPage";
+import WebNovelReaderPage from "@/pages/webnovel/WebNovelReaderPage";
 import NotFound from "@/pages/NotFound";
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -62,6 +65,10 @@ export function AppRouter() {
       <Route path="/manga/history" element={<ProtectedRoute><AppLayout><MangaHistoryPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId" element={<ProtectedRoute><AppLayout><MangaDetailPage /></AppLayout></ProtectedRoute>} />
       <Route path="/manga/:mangaId/read/:chapterId" element={<ProtectedRoute><AppLayout><MangaReaderPage /></AppLayout></ProtectedRoute>} />
+
+      <Route path="/webnovel" element={<ProtectedRoute><AppLayout><WebNovelBrowsePage /></AppLayout></ProtectedRoute>} />
+      <Route path="/webnovel/:novelId" element={<ProtectedRoute><AppLayout><WebNovelDetailPage /></AppLayout></ProtectedRoute>} />
+      <Route path="/webnovel/:novelId/read/:chapterId" element={<ProtectedRoute><AppLayout><WebNovelReaderPage /></AppLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
       <Route path="/share-target" element={<ProtectedRoute><ShareTargetPage /></ProtectedRoute>} />
       <Route path="*" element={<AppLayout><NotFound /></AppLayout>} />

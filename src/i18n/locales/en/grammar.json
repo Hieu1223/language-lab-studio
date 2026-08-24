@@ -1,0 +1,19 @@
+{
+  "panel": {
+    "title": "Grammar",
+    "subtitle": "Look up Japanese patterns and usage.",
+    "searchPlaceholder": "Enter a grammar pattern...",
+    "hint": "Search for a grammar pattern to see its meaning, usage and examples.",
+    "notFound": "No grammar patterns found."
+  },
+  "detail": {
+    "loading": "Loading details...",
+    "meaning": "Meaning",
+    "usage": "Usage",
+    "examples": "Examples"
+  },
+  "errors": {
+    "searchFailed": "Could not search grammar.",
+    "detailFailed": "Could not load grammar details."
+  }
+}

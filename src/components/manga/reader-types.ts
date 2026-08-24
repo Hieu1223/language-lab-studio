@@ -4,7 +4,7 @@ import type { OCRPage } from '@/lib/api/manga';
 export type ReadMode = 'single' | 'vertical';
 
 /** Tabs available in the reader's right-hand panel. */
-export type PanelTab = 'settings' | 'chapters' | 'text' | 'dictionary';
+export type PanelTab = 'settings' | 'chapters' | 'text' | 'dictionary' | 'grammar';
 
 /** Identifies a single OCR text block on a specific page. */
 export interface SelectedBlock {

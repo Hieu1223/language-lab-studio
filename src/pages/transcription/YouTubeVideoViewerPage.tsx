@@ -15,6 +15,7 @@ import {
   PanelRightOpen,
   Repeat,
   BookOpen,
+  Languages,
   X,
   Highlighter,
   Rows2,
@@ -40,6 +41,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DictionaryPanel } from '@/components/dictionary/DictionaryPanel';
+import { GrammarPanel } from '@/components/grammar/GrammarPanel';
 import {
   getTranscriptionDetail,
   requestTranscription,
@@ -74,7 +76,7 @@ const POLL_INTERVAL_MS = 4000;
 const POLL_MAX_ATTEMPTS = 60;
 
 type PageStatus = 'checking' | 'not_found' | 'processing' | 'ready' | 'error';
-type PanelTab = 'settings' | 'loop' | 'dictionary';
+type PanelTab = 'settings' | 'loop' | 'dictionary' | 'grammar';
 
 // ─── Main ────────────────────────────────────────────────────────────────
 
@@ -616,6 +618,7 @@ export default function YouTubeVideoViewerPage() {
           { id: 'settings' as const, label: t('viewer.tabSettings'), icon: SettingsIcon },
           { id: 'loop' as const, label: t('viewer.tabLoop'), icon: Repeat },
           { id: 'dictionary' as const, label: t('viewer.tabDict'), icon: BookOpen },
+          { id: 'grammar' as const, label: t('viewer.tabGrammar'), icon: Languages },
         ]).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -640,6 +643,9 @@ export default function YouTubeVideoViewerPage() {
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Grammar tab */}
+      {panelTab === 'grammar' && <GrammarPanel className="h-full" />}
 
       {/* Loop tab */}
       {panelTab === 'loop' && (

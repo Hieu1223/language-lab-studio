@@ -1,0 +1,19 @@
+{
+  "panel": {
+    "title": "Ngữ pháp",
+    "subtitle": "Tra cứu mẫu câu và cách dùng tiếng Nhật.",
+    "searchPlaceholder": "Nhập mẫu ngữ pháp...",
+    "hint": "Tìm một mẫu ngữ pháp để xem ý nghĩa, cách dùng và ví dụ.",
+    "notFound": "Không tìm thấy mẫu ngữ pháp nào."
+  },
+  "detail": {
+    "loading": "Đang tải chi tiết...",
+    "meaning": "Ý nghĩa",
+    "usage": "Cách dùng",
+    "examples": "Ví dụ"
+  },
+  "errors": {
+    "searchFailed": "Không thể tìm kiếm ngữ pháp.",
+    "detailFailed": "Không thể tải chi tiết ngữ pháp."
+  }
+}

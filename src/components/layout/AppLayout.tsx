@@ -3,6 +3,7 @@ import {
   Activity,
   BookMarked,
   BookOpen,
+  LibraryBig,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -20,6 +21,7 @@ import { Link, useLocation } from 'react-router-dom';
 const navItems = [
   { path: '/youtube', labelKey: 'nav.transcription', icon: Video },
   { path: '/manga', labelKey: 'nav.manga', icon: BookMarked },
+  { path: '/webnovel', labelKey: 'nav.webnovel', icon: LibraryBig },
   { path: '/dictionary', labelKey: 'nav.dictionary', icon: ScrollText },
   { path: '/flashcard', labelKey: 'nav.vocabulary', icon: BookOpen },
   { path: '/monitor', labelKey: 'nav.monitor', icon: Activity },
